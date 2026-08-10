@@ -1,0 +1,104 @@
+# OpenGET market indices.
+#
+# Constituents are listed by NAME and resolved against the items table at load time, so a game update that renames an item is caught loudly instead of silently tracking the wrong thing.
+#
+# Every index here is published in full on /indices. That is the deliberate difference from ge-tracker, whose nine indices are opaque baskets: an index you cannot audit is a number you cannot actually use for anything.
+#
+# Weights default to 1.0 (equal weight). Equal weighting is chosen over market-cap weighting because it is auditable by hand from this file — with cap weighting the largest item quietly becomes the whole index.
+
+[[index]]
+id = "food"
+name = "Food"
+blurb = "The staple combat foods, from lobsters up to anglerfish."
+items = [
+  "Lobster", "Swordfish", "Monkfish", "Shark", "Cooked karambwan",
+  "Anglerfish", "Manta ray", "Sea turtle",
+]
+
+[[index]]
+id = "runes"
+name = "Runes"
+blurb = "Elemental and combination runes, the backbone of every magic method."
+items = [
+  "Air rune", "Water rune", "Earth rune", "Fire rune", "Mind rune",
+  "Chaos rune", "Death rune", "Blood rune", "Nature rune", "Law rune",
+  "Cosmic rune", "Astral rune", "Soul rune", "Wrath rune",
+]
+
+[[index]]
+id = "herbs"
+name = "Herbs"
+blurb = "Clean herbs, the input side of every Herblore method."
+items = [
+  "Guam leaf", "Marrentill", "Tarromin", "Harralander", "Ranarr weed",
+  "Toadflax", "Irit leaf", "Avantoe", "Kwuarm", "Snapdragon",
+  "Cadantine", "Lantadyme", "Dwarf weed", "Torstol",
+]
+
+[[index]]
+id = "potions"
+name = "Potions"
+blurb = "Finished four-dose potions in everyday PvM use."
+items = [
+  "Prayer potion(4)", "Super restore(4)", "Saradomin brew(4)",
+  "Super combat potion(4)", "Stamina potion(4)", "Ranging potion(4)",
+  "Divine super combat potion(4)", "Super antifire potion(4)",
+]
+
+[[index]]
+id = "ores"
+name = "Ores"
+blurb = "Raw mining output, before smelting."
+items = [
+  "Copper ore", "Tin ore", "Iron ore", "Coal", "Silver ore",
+  "Gold ore", "Mithril ore", "Adamantite ore", "Runite ore",
+]
+
+[[index]]
+id = "bars"
+name = "Bars"
+blurb = "Smelted metal, the output side of the blast furnace."
+items = [
+  "Bronze bar", "Iron bar", "Steel bar", "Silver bar", "Gold bar",
+  "Mithril bar", "Adamantite bar", "Runite bar",
+]
+
+[[index]]
+id = "logs"
+name = "Logs"
+blurb = "Woodcutting output, from ordinary logs up to redwood."
+items = [
+  "Logs", "Oak logs", "Willow logs", "Teak logs", "Maple logs",
+  "Mahogany logs", "Yew logs", "Magic logs", "Redwood logs",
+]
+
+[[index]]
+id = "pvm"
+name = "PvM gear"
+blurb = "High-end boss drops. The most volatile basket here by a distance."
+items = [
+  "Abyssal whip", "Dragon warhammer", "Armadyl chestplate", "Armadyl chainskirt",
+  "Bandos chestplate", "Bandos tassets", "Primordial boots", "Occult necklace",
+  "Twisted bow", "Kodai wand", "Elder maul",
+]
+
+[[index]]
+id = "skilling"
+name = "Skilling supplies"
+blurb = "The bulk consumables that skilling methods eat through."
+items = [
+  "Feather", "Bow string", "Cowhide", "Soft clay", "Vial of water",
+  "Pure essence", "Molten glass", "Bucket of sand", "Limpwurt root",
+  "Snape grass", "Eye of newt", "Amylase crystal",
+]
+
+[[index]]
+id = "overall"
+name = "Overall"
+blurb = "A cross-section of the whole market: food, runes, herbs, metal, logs and gear."
+items = [
+  "Shark", "Nature rune", "Death rune", "Ranarr weed", "Snapdragon",
+  "Coal", "Runite ore", "Runite bar", "Yew logs", "Magic logs",
+  "Abyssal whip", "Dragon warhammer", "Prayer potion(4)", "Super restore(4)",
+  "Bow string", "Feather", "Pure essence", "Soft clay",
+]

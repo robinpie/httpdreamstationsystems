@@ -1,0 +1,66 @@
+#!/usr/bin/perl
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (C) 2026 robinpie
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# OpenGET item lookup over finger. Installed as /srv/finger/.nouser
+#
+#     finger abyssal_whip@dreamstation.systems
+#     finger /W abyssal_whip@dreamstation.systems   (verbose)
+#
+# The trick is to make .nouser — the target fingerd serves when a queried name has no file of its own — treat that name as an ITEM name instead. One script gives every one of the 4,650 items a working finger address, with no files to generate and nothing to regenerate when the catalogue changes. Real user targets still resolve first, because fingerd only falls back here when no file matched.
+#
+# fingerd runs this in a forked child with stdout wired to the client socket, a clean environment carrying FINGER_USER, FINGER_VERBOSE and FINGER_CLIENT_IP, the username also in $ARGV[0], and a SIGALRM timeout.
+#
+# The unit's sandbox (ProtectSystem=strict) makes the whole filesystem read-only, so this cannot open the SQLite database — SQLite needs write access for its -wal and -shm sidecars even to read. RestrictAddressFamilies permits AF_INET, so it asks the openget daemon over localhost instead.
+#
+# RFC 1288 wants CRLF line endings; the daemon already renders them.
+
+use strict;
+use warnings;
+
+my $lib = $ENV{OPENGET_LIB} || '/usr/local/lib/openget/openget-fetch.pl';
+do $lib or do {
+    print "OpenGET is misconfigured on this host.\r\n";
+    exit 0;
+};
+
+$| = 1;
+# Raw bytes, NOT :encoding(UTF-8): HTTP::Tiny hands back undecoded UTF-8, so an encoding layer would re-encode each byte as Latin-1 and produce mojibake.
+binmode(STDOUT, ':raw');
+
+my $user    = og_clean($ENV{FINGER_USER} // $ARGV[0] // '');
+my $verbose = ($ENV{FINGER_VERBOSE} // '0') eq '1' ? 1 : 0;
+
+if ($user eq '') {
+    print "OpenGET - Old School RuneScape Grand Exchange prices\r\n";
+    print "\r\n";
+    print "Finger any item name to get its live price:\r\n";
+    print "  finger abyssal_whip\@dreamstation.systems\r\n";
+    print "  finger /W nature_rune\@dreamstation.systems   (full listing)\r\n";
+    print "\r\n";
+    print "Underscores stand in for spaces. Also on the web at\r\n";
+    print "https://grandexchange.dreamstation.systems/\r\n";
+    exit 0;
+}
+
+my $path = '/retro/text/item?q=' . og_escape($user);
+$path .= '&verbose=1' if $verbose;
+
+my ($body, $err) = og_fetch($path);
+
+if (defined $err) {
+    print "finger: OpenGET is not answering right now ($err).\r\n";
+    print "The price archive keeps running; only this lookup is affected.\r\n";
+    exit 0;
+}
+
+print $body;
