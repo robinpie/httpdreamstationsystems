@@ -156,8 +156,8 @@ def seven():
     btn_text = "#222222"                      # framework button colour
     heading = "#0b3c68"
     glass_text = p["og-glass-ink"]
-    # The masthead lays a four-stop gradient over the glass. Text has to clear the darkest stop of it, not the flat swatch underneath.
-    glass_dark = blend("#000000", 0.08, p["og-glass"])
+    # The masthead lays a four-stop gradient over the glass, and the framework lays another over the panel title bars. Text has to clear the DARKEST stop of either, not the flat swatch underneath.
+    glass_dark = blend("#000000", 0.12, p["og-glass"])
 
     text_pairs = [
         ("body --og-text on --og-surface",     p["og-text"],   p["og-surface"], 4.5),

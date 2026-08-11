@@ -94,16 +94,18 @@ func HTMLBody(d *Doc, o HTMLOptions) string {
 			if v.Title != "" {
 				fmt.Fprintf(&b, `<figcaption class="title-bar"><span class="title-bar-text">%s</span></figcaption>`, escapeText(v.Title))
 			}
+			// The .window-body is not decoration. 7.css's .window paints its frame with a ::before pseudo-element stretched over the whole box at z-index -1, on the assumption that an opaque body is stacked on top of it; a .window with no body shows that frame through its own contents as a sheet of glass.
+			b.WriteString(`<div class="window-body">`)
 			b.WriteString(SVG(v, 720, v.Height))
-			b.WriteString("</figure>\n")
+			b.WriteString("</div></figure>\n")
 
 		case Form:
 			method := v.Method
 			if method == "" {
 				method = "get"
 			}
-			// A window with no title bar: both Windows skins treat .window as a raised panel on its own, which is exactly what a form wants, and inventing a caption to fill a title bar would put a heading in the reading order that the other four protocols do not have.
-			fmt.Fprintf(&b, `<form class="ogform window" method="%s" action="%s">`,
+			// Deliberately NOT .window, unlike the panels above. A window in 7.css is a frame plus a body, and this form is a flex container whose children are the fields themselves — there is nowhere to put a .window-body without breaking the layout, and a frame with no body shows through. Each skin draws the form panel itself.
+			fmt.Fprintf(&b, `<form class="ogform" method="%s" action="%s">`,
 				escapeAttr(method), escapeAttr(v.Action))
 			if v.Prompt != "" {
 				fmt.Fprintf(&b, `<p class="muted">%s</p>`, escapeText(v.Prompt))

@@ -94,7 +94,7 @@ var themes = []Theme{
 	{
 		Key: "7", Label: "Windows 7",
 		Sheets:     []string{"vendor-7.css", "openget-7.css"},
-		ThemeColor: "#9dc4e4", ChartBG: "#ffffff", ChartFG: "#4a4a4a",
+		ThemeColor: "#7bacd6", ChartBG: "#ffffff", ChartFG: "#4a4a4a",
 		ChartSeries: []string{"#a34a00", "#12507e"},
 	},
 }
