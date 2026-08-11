@@ -20,9 +20,36 @@
  *
  * THE CORRECTIONS ARE NOT OPTIONAL. 7.css was not written against WCAG and fails five criteria out of the box, two of them at Level A. They are marked below with the criterion they answer. If you upgrade the vendored file, re-run contrib/check_contrast.py and re-read this block before assuming the fixes still apply. */
 
+/* Selawik, © 2015 Microsoft Corporation, SIL Open Font License 1.1. Microsoft's own metric-compatible substitute for Segoe UI, published precisely so that documents designed for Segoe UI render correctly where it is absent — which is this exact situation. Vendored unmodified from the 1.01 release, which ships WOFF2 directly; four weights at about 14.5 kB each.
+ *
+ * Segoe UI comes FIRST in the stack, so a reader on Windows gets the real face and downloads nothing. Everyone else gets Selawik, which is the difference between this skin looking like Windows 7 and looking like DejaVu Sans wearing a blue hat.
+ *
+ * local() first for the same reason as the OSRS skin's heading font. font-display:swap so a slow connection paints in the fallback rather than showing nothing. */
+@font-face {
+  font-family: Selawik;
+  src: local("Selawik"), url("/static/selawik-light.woff2") format("woff2");
+  font-weight: 300; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: Selawik;
+  src: local("Selawik"), url("/static/selawik-regular.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: Selawik;
+  src: local("Selawik Semibold"), url("/static/selawik-semibold.woff2") format("woff2");
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: Selawik;
+  src: local("Selawik Bold"), url("/static/selawik-bold.woff2") format("woff2");
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+
 :root {
   /* 7.css's own --w7-font is 9pt, i.e. 12px, and it is applied with the `font:` shorthand to button, select and table — which silently resets the sizes openget-layout.css set. Restating it here is how the layout's type scale survives the framework. 13.5px matches the table size the site has always used. */
-  --w7-font: 13.5px "Segoe UI", "SegoeUI", Tahoma, "Noto Sans", "DejaVu Sans", sans-serif;
+  --w7-font: 13.5px "Segoe UI", Selawik, "SegoeUI", Tahoma, "Noto Sans", "DejaVu Sans", sans-serif;
+  --og-sans: "Segoe UI", Selawik, "SegoeUI", Tahoma, "Noto Sans", "DejaVu Sans", sans-serif;
 
   /* 1.4.11 Non-text Contrast. Upstream's control border is #8e8f8f, which measures 2.85:1 against the #f0f0f0 surface it is normally drawn on — under the 3:1 that input and button boundaries need. #767676 is the lightest grey that clears it (3.15:1) and is visually indistinguishable at 1px. */
   --w7-el-bd: #767676;
@@ -38,11 +65,11 @@
   --og-dim:      #545454;
   --og-line:     #c0c1cd;
 
-  /* 1.4.3 again, and the one place where being faithful and being legible actually pulled apart. 7.css paints its title bars in #4580c4 and writes on them in black, which is 3.86:1 — it gets away with it upstream because the demo captions are short and decorative, and this site would be putting page titles there. Aero glass was frosted and light rather than saturated, so the fix is also the more accurate one: lighten the glass and keep the dark ink. #06243f on this reads 8.6:1 flat and 7.2:1 under the darkest stop of the gradient laid over it. */
-  --og-glass:    #9dc4e4;
+  /* 1.4.3 again, and the one place where being faithful and being legible actually pulled apart. 7.css paints its title bars in #4580c4 and writes on them in black, which is 3.86:1 — it gets away with it upstream because the demo captions are short and decorative, and this site would be putting page titles there. Aero glass was frosted and light rather than saturated, so the fix is also the more accurate one: lighten the glass and keep the dark ink. #06243f on this reads 6.3:1 flat, 8.1:1 under the lightest stop of the gradient laid over it and 5.1:1 under the darkest — checked at both ends, because a gradient has two. */
+  --og-glass:    #7bacd6;
   --og-glass-ink: #06243f;
   /* The framework draws .facts, .notes and .chartbox title bars from its own variable, so it has to be moved too or those three keep the failing blue. */
-  --w7-w-bg:     #9dc4e4;
+  --w7-w-bg:     #7bacd6;
 
   /* Profit and loss. Both are checked against white and against the #f6f6f6 alternate row: green at 5.28:1, red at 5.94:1. The game's own brighter pair is nowhere near AA on a white ground. */
   --og-good: #146b10;
@@ -59,7 +86,20 @@ body {
     linear-gradient(#3f6484, #2c4a66);
   background-attachment: fixed;
   color: var(--og-text);
-  font-family: "Segoe UI", "SegoeUI", Tahoma, "Noto Sans", "DejaVu Sans", sans-serif;
+  font-family: var(--og-sans);
+}
+
+/* ---------------------------------------------------------- the window */
+
+/* The page is ONE Aero window floating on the desktop rather than a stack of full-bleed bands. The four pieces below are the frame, in order down the page: title bar, command strip, body, footer. They carry the frame between them — matching max-width, side borders that line up, rounded corners at top and bottom only, and one drop shadow spanning the lot.
+ *
+ * Deliberately not 7.css's own .window element wrapping everything. That class hangs :before/:after pseudo-elements at z-index -10 for the glass blur, and putting a whole scrolling document inside it fights the stacking context for no visual gain at this size. The frame is four rules; the machinery is not worth importing. */
+.masthead, nav.tabs, main, footer {
+  max-width: 1180px;
+  margin-left: auto;
+  margin-right: auto;
+  border-left: 1px solid var(--w7-w-bd);
+  border-right: 1px solid var(--w7-w-bd);
 }
 
 a { color: var(--w7-link-c); text-decoration: none; }
@@ -92,13 +132,16 @@ button, select { min-height: 24px; }
 
 /* ---------------------------------------------------------------- chrome */
 
-/* The masthead is the window's glass title bar. */
+/* The masthead is the window's glass title bar: rounded at the top, lit along the upper edge, and sat on the desktop with the whole frame's drop shadow hanging off it. */
 .masthead {
   background-color: var(--og-glass);
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.10) 45%, rgba(0, 0, 0, 0.08) 50%, rgba(255, 255, 255, 0.30));
+    linear-gradient(rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.06) 45%, rgba(0, 0, 0, 0.12) 50%, rgba(255, 255, 255, 0.16));
+  border-top: 1px solid var(--w7-w-bd);
   border-bottom: 1px solid #4d7ca6;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+  border-radius: var(--w7-w-bdr) var(--w7-w-bdr) 0 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 0 14px 2px rgba(0, 0, 0, 0.4);
+  margin-top: 14px;
   padding-bottom: 10px;
 }
 
@@ -123,12 +166,12 @@ button, select { min-height: 24px; }
 .f2ptoggle input[type="checkbox"] { accent-color: #1c6ea4; }
 .themepick select { border-radius: 2px; }
 
-/* The nav is the Explorer command bar: a flat light strip below the glass, current page pressed in. Deliberately NOT the framework's tab component — those carry role="tablist", which describes panels inside one document rather than links to other pages. */
+/* The nav is the Explorer command bar: a flat light strip inside the frame, under the glass, with the current page pressed in. Deliberately NOT the framework's tab component — those carry role="tablist", which describes panels inside one document rather than links to other pages. */
 nav.tabs {
+  margin-top: 0;
   background: linear-gradient(#f6f6f6, #e8e8e8);
-  border: 1px solid var(--w7-el-bd);
-  border-radius: 3px;
-  padding: 3px;
+  border-bottom: 1px solid #cfcfcf;
+  padding: 5px 8px;
   gap: 2px;
 }
 nav.tabs a {
@@ -149,22 +192,21 @@ nav.tabs a[aria-current="page"] {
   font-weight: 600;
 }
 
-/* The content pane. */
-main {
-  background: var(--og-surface);
-  border: 1px solid rgba(0, 0, 0, 0.45);
-  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.7);
-  margin-top: 10px;
-  margin-bottom: 10px;
-}
+/* The content pane — the window body. */
+main { background: var(--og-surface); }
 
 /* --------------------------------------------------------------- content */
 
 h1, h2, h3 { font-weight: 400; color: #0b3c68; }
+/* Segoe UI Light at a large size is the Windows 7 heading, and the reason the Light weight of Selawik is shipped at all. */
 h1 { font-weight: 300; }
 h2 { border-bottom: 1px solid #c8d4dd; }
 h3 { font-size: 16px; font-weight: 600; }
-.subtitle { color: var(--og-dim); }
+
+/* The blue "instruction" line a Windows 7 wizard or Control Panel page opens with — 7.css calls it .instruction-primary and draws it in --w7-title-c at 12pt. Our page subtitle is doing that job already, so it gets the treatment rather than a class it would have to carry in every protocol. #039 is 9.5:1 on the surface. */
+.subtitle { color: var(--w7-title-c); font-size: 16px; }
+.ogform > p.muted { color: var(--w7-title-c); font-size: 16px; }
+
 .muted { color: var(--og-dim); }
 
 code { font-family: var(--og-mono); color: #8a3a00; }
@@ -254,7 +296,7 @@ ul.linklist li::before { top: 12px; }
 
 .chartbox { background: transparent; padding: 0; }
 .chartbox figcaption { margin: 0; font-size: 12px; font-weight: 600; color: var(--og-glass-ink); }
-.chartbox svg.chart { background: var(--og-white); padding: 8px; }
+.chartbox .window-body { background: var(--og-white); padding: 8px; overflow-x: auto; }
 svg.chart { color: var(--og-dim); }
 svg.chart .grid { stroke: #d6d6d6; stroke-width: 1; }
 svg.chart .ylab, svg.chart .xlab { fill: var(--og-dim); font-family: var(--og-mono); }
@@ -266,7 +308,14 @@ svg.chart .s1 { stroke: #12507e; }
 
 /* ----------------------------------------------------------------- forms */
 
-.ogform { background: var(--og-white); padding: 12px; }
+/* A Windows dialog's control group: the framework's own fieldset treatment, which is what this actually is. */
+.ogform {
+  background: var(--og-white);
+  border: 1px solid #cdd7db;
+  border-radius: var(--w7-el-bdr);
+  box-shadow: inset 0 0 0 1px #fff;
+  padding: 12px;
+}
 .field span { color: #23527c; font-weight: 600; }
 .field input, .field select {
   background: var(--og-white);
@@ -289,10 +338,15 @@ svg.chart .s1 { stroke: #12507e; }
 
 /* ---------------------------------------------------------------- footer */
 
+/* The window footer: the sunken command strip a Windows 7 dialog ends on, with the framework's own 2px lip along the top edge. */
 footer {
   background: linear-gradient(#f6f6f6, #e4e4e4);
-  border-top: 1px solid var(--w7-el-bd);
+  border-top: 1px solid #cfcfcf;
+  border-bottom: 1px solid var(--w7-w-bd);
+  border-radius: 0 0 var(--w7-w-bdr) var(--w7-w-bdr);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 4px 14px rgba(0, 0, 0, 0.32);
   color: var(--og-dim);
+  margin-bottom: 18px;
 }
 footer .retro { font-family: var(--og-mono); }
 

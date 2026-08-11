@@ -164,7 +164,6 @@ func (s *Server) renderDoc(w http.ResponseWriter, r *http.Request, doc *render.D
 		Subtitle:  subtitle,
 		Body:      template.HTML(body),
 		Nav:       navItems(r.URL.Path),
-		Updated:   "",
 		Query:     r.URL.Query().Get("q"),
 		Version:   s.version,
 		NoIndex:   doc.NoIndex,
@@ -175,9 +174,10 @@ func (s *Server) renderDoc(w http.ResponseWriter, r *http.Request, doc *render.D
 		Themes:    themes,
 		Return:    r.URL.RequestURI(),
 	}
+	// Two fields rather than one string: a Windows status bar is segmented, and the relative age and the absolute clock time are answering two different questions anyway ("is this fresh?" and "fresh as of when?").
 	if !doc.Updated.IsZero() {
-		data.Updated = fmt.Sprintf("Prices updated %s (%s UTC)",
-			render.Ago(doc.Updated), doc.Updated.UTC().Format("15:04:05"))
+		data.UpdatedAgo = "Prices updated " + render.Ago(doc.Updated)
+		data.UpdatedAt = doc.Updated.UTC().Format("15:04:05") + " UTC"
 	}
 	if doc.NoIndex {
 		w.Header().Set("X-Robots-Tag", "noindex, nofollow")
@@ -251,11 +251,13 @@ type layoutData struct {
 	Subtitle  string
 	Body      template.HTML
 	Nav       []navEntry
-	Updated   string
-	Query     string
-	Version   string
-	NoIndex   bool
-	Credit    string
+	// UpdatedAgo and UpdatedAt are the two status bar fields: "Prices updated 3m ago" and "14:22:01 UTC".
+	UpdatedAgo string
+	UpdatedAt  string
+	Query      string
+	Version    string
+	NoIndex    bool
+	Credit     string
 	// NoHeading suppresses the VISIBLE in-page h1/subtitle, for the front page (the masthead already shows the brand and tagline) and the list pages (see renderDoc).
 	//
 	// The h1 itself still ships, hidden. Dropped outright, /items and every /calc/<kind> page would carry exactly one heading — the "Notes" panel at the bottom — so a reader navigating by headings gets the footnotes and no title at all.
@@ -325,7 +327,10 @@ const layoutHTML = `<!doctype html>
   {{if .Title}}<h1 class="vh">{{.Title}}</h1>{{end}}
   {{end}}
   {{.Body}}
-  {{if .Updated}}<div class="status-bar"><p class="status-bar-field muted">{{.Updated}}</p></div>{{end}}
+  {{if .UpdatedAgo}}<div class="status-bar">
+    <p class="status-bar-field muted">{{.UpdatedAgo}}</p>
+    <p class="status-bar-field muted">{{.UpdatedAt}}</p>
+  </div>{{end}}
 </main>
 <footer>
   <div class="inner">

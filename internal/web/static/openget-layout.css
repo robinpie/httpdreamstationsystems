@@ -237,9 +237,10 @@ button, select { min-height: 24px; }
 
 .paging { display: flex; gap: 12px; align-items: center; margin: 12px 0 20px; font-size: 13.5px; }
 
-/* The "prices updated" line, which the Windows skins render as a window status bar. */
+/* The "prices updated" line, which the Windows skins render as a window status bar. Only the first field grows, the way an Explorer status bar puts the wide message on the left and pins the short ones to the right. */
 .status-bar { margin: 12px 0 0; padding: 3px 6px; display: flex; gap: 6px; font-size: 13px; }
-.status-bar-field { padding: 2px 6px; flex: 1; }
+.status-bar-field { margin: 0; padding: 2px 6px; flex: 1; }
+.status-bar-field + .status-bar-field { flex: 0 0 auto; }
 
 /* ---------------------------------------------------------------- footer */
 

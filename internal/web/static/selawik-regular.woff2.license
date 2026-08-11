@@ -1,0 +1,14 @@
+SPDX-FileCopyrightText: 2015 Microsoft Corporation
+SPDX-License-Identifier: OFL-1.1
+
+Reserved Font Name: Selawik. Selawik is a Microsoft trademark. The RFN
+clause only bites on MODIFIED copies, which would have to be renamed —
+these are byte-identical to the release, so the name stays.
+
+Selawik 1.01, https://github.com/microsoft/Selawik — Microsoft's own
+open-source, metric-compatible substitute for Segoe UI. Vendored
+unmodified from the 1.01 release archive (selawk.woff2), which ships WOFF2
+directly; no conversion or subsetting was done.
+
+Used only by the Windows 7 skin, and only where the real Segoe UI is
+absent — the font stack asks for Segoe UI first.
