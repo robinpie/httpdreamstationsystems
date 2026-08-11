@@ -218,6 +218,10 @@ def seven():
         ("focus ring #003f80 on even row",       "#003f80",     even,            3.0),
         ("chart sell #a34a00 on --og-white",     "#a34a00",     p["og-white"],   3.0),
         ("chart buy #12507e on --og-white",      "#12507e",     p["og-white"],   3.0),
+        # The masthead checkbox sits on the glass, not on a white form.
+        ("checked box --og-accent on glass",     p["og-accent"], p["og-glass"],  3.0),
+        ("checked box --og-accent on glass dark", p["og-accent"], glass_dark,    3.0),
+        ("checked box --og-accent on --og-white", p["og-accent"], p["og-white"], 3.0),
     ]
     notes = ["table gridline #ececec on white is decorative; the row text carries the data"]
     return text_pairs, ui_pairs, notes

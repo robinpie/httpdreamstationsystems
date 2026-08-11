@@ -75,6 +75,9 @@
   --og-good: #146b10;
   --og-bad:  #b01a12;
 
+  /* The checked-checkbox fill. 1.4.11 treats it as a UI component state indicator needing 3:1 against what is adjacent, and the masthead's checkbox sits on the glass, not on white — the obvious brighter blue measures 2.28:1 there. This clears 4.3:1 on flat glass, 3.3:1 under the gradient's darkest stop and 10.3:1 on the form's white ground. */
+  --og-accent: #0f4468;
+
   --og-mono: ui-monospace, "DejaVu Sans Mono", "Liberation Mono", Consolas, monospace;
 }
 
@@ -121,6 +124,19 @@ a:focus-visible {
 /* 2.5.8 Target Size (Minimum). openget-layout.css already sets this, but the vendored sheet loads after it and restores its own min-height:23px on every button. One pixel, and it is the difference between meeting an AA criterion and arguing the spacing exception on fourteen controls. */
 button, select { min-height: 24px; }
 
+/* 1.3.1 / 4.1.2, and the most damaging thing the framework does to this site. Upstream hides the native checkbox outright — appearance:none AND opacity:0 — and redraws it from a SIBLING label via `input[type=checkbox] + label:before`. This site wraps each input INSIDE its label instead, deliberately, so that the whole control stays clickable without an id/for pair. The sibling selector therefore never matches, upstream's replacement box is never drawn, and what ships is a checkbox that is present, focusable, operable by keyboard and completely invisible: the free-to-play filter in the masthead of every page, and the option checkboxes on the calculators.
+ *
+ * Restored to the native control rather than redrawn here. A hand-drawn Aero box would need label:has(input:checked) to know its own state, and making a checkbox VISIBLE contingent on :has() support is the same bet upstream lost. The native control is the one thing guaranteed to render, and with accent-color it is not far off. */
+.f2ptoggle input[type="checkbox"],
+.field.check input[type="checkbox"] {
+  -webkit-appearance: checkbox;
+  -moz-appearance: checkbox;
+  appearance: auto;
+  opacity: 1;
+  background: initial;
+  accent-color: var(--og-accent);
+}
+
 ::selection { background: #bee6fd; color: #000; }
 
 .skip {
@@ -148,11 +164,19 @@ button, select { min-height: 24px; }
 .brand {
   font-weight: 600;
   letter-spacing: 0;
+  line-height: 1.15;
   color: var(--og-glass-ink);
 }
 .brand a, .brand a:visited { color: inherit; text-decoration: none; }
 .brand a:hover { color: #0a3d68; }
-.brand small { color: var(--og-glass-ink); font-weight: 400; }
+/* Selawik sets a tighter default than the fallback stack the layout was spaced for, which leaves the tagline sitting on the wordmark's descenders. A little more room and a little more size. */
+.brand small {
+  color: var(--og-glass-ink);
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: 5px;
+}
 
 .sitesearch input {
   background: var(--og-white);
@@ -163,7 +187,7 @@ button, select { min-height: 24px; }
 .sitesearch input::placeholder { color: #6b6b6b; }
 
 .f2ptoggle, .themepick { color: var(--og-glass-ink); }
-.f2ptoggle input[type="checkbox"] { accent-color: #1c6ea4; }
+
 .themepick select { border-radius: 2px; }
 
 /* The nav is the Explorer command bar: a flat light strip inside the frame, under the glass, with the current page pressed in. Deliberately NOT the framework's tab component — those carry role="tablist", which describes panels inside one document rather than links to other pages. */
@@ -323,7 +347,7 @@ svg.chart .s1 { stroke: #12507e; }
   border-radius: 2px;
   color: var(--og-text);
 }
-.field.check input { accent-color: #1c6ea4; }
+
 
 /* ----------------------------------------------------------------- notes */
 
