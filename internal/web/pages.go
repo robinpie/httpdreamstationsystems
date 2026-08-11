@@ -60,6 +60,81 @@ func (s *Server) postF2P(w http.ResponseWriter, r *http.Request) {
 	redirectBack(w, r, "/")
 }
 
+// ---------------------------------------------------------------------------
+// The theme picker
+// ---------------------------------------------------------------------------
+
+// themeCookie carries the reader's chosen skin. A plain cookie for the same reason the free-to-play toggle is one: choosing a colour scheme must not cost you an identity on a site whose whole premise is not having one.
+const themeCookie = "theme"
+
+// Theme is one selectable skin. It is more than a stylesheet name because two things the browser paints are outside CSS's reach — the address bar tint and the form-control scheme — and one thing we paint is outside the stylesheet's reach: the standalone /chart endpoint serves bare SVG with no sheet attached.
+type Theme struct {
+	Key   string
+	Label string
+	// Sheets are the stylesheets loaded after openget-layout.css, in order. A list rather than one name so a vendored framework can stay byte-identical to its upstream release in its own file, with our corrections to it in a second file that overrides by cascade order. Upgrading is then an overwrite rather than a merge.
+	Sheets []string
+	// Dark drives <meta name="color-scheme">, which is what stops a light skin being handed dark scrollbars and dark date pickers by the browser.
+	Dark bool
+	// ThemeColor tints the browser's own chrome on mobile.
+	ThemeColor string
+	// ChartBG and ChartFG style the standalone /chart/{id} SVG. In-page charts are styled by the skin's stylesheet instead.
+	ChartBG, ChartFG string
+	// ChartSeries are the price line colours for that same standalone SVG, in series order (sell, then buy).
+	ChartSeries []string
+}
+
+// themes lists the skins in the order the picker offers them. Order matters twice: the first entry is the default for anyone who has never chosen, and it is the one a bad cookie falls back to.
+var themes = []Theme{
+	{
+		Key: "osrs", Label: "Old School RuneScape", Dark: true,
+		Sheets:     []string{"openget-osrs.css"},
+		ThemeColor: "#382418", ChartBG: "#1e1b16", ChartFG: "#a1957a",
+		ChartSeries: []string{"#ffbb22", "#78adff"},
+	},
+	{
+		Key: "7", Label: "Windows 7",
+		Sheets:     []string{"vendor-7.css", "openget-7.css"},
+		ThemeColor: "#9dc4e4", ChartBG: "#ffffff", ChartFG: "#4a4a4a",
+		ChartSeries: []string{"#a34a00", "#12507e"},
+	},
+}
+
+// themeByKey resolves a cookie value, falling back to the default rather than erroring: a stale cookie from a removed theme must degrade to a working page, not a bare one.
+func themeByKey(key string) Theme {
+	for _, t := range themes {
+		if t.Key == key {
+			return t
+		}
+	}
+	return themes[0]
+}
+
+// themeFrom reports the skin for this request.
+func themeFrom(r *http.Request) Theme {
+	c, err := r.Cookie(themeCookie)
+	if err != nil {
+		return themes[0]
+	}
+	return themeByKey(c.Value)
+}
+
+// postTheme stores the chosen skin and returns to the page it was chosen from.
+func (s *Server) postTheme(w http.ResponseWriter, r *http.Request) {
+	key := r.FormValue("theme")
+	c := &http.Cookie{
+		Name: themeCookie, Value: themeByKey(key).Key, Path: "/", MaxAge: cookieMaxAge,
+		HttpOnly: true,
+		Secure:   r.TLS != nil || strings.HasPrefix(s.cfg.BaseURL, "https://"),
+		SameSite: http.SameSiteLaxMode,
+	}
+	// Choosing the default clears the cookie rather than storing it. A reader who never touches the picker and one who picks the default back again should be indistinguishable, and it keeps a needless header off every subsequent request.
+	if c.Value == themes[0].Key {
+		c.Value, c.MaxAge = "", -1
+	}
+	http.SetCookie(w, c)
+	redirectBack(w, r, "/")
+}
+
 func (s *Server) home(ctx context.Context, r *http.Request) (*render.Doc, render.HTMLOptions, error) {
 	d, err := s.vb(r).Home(ctx)
 	return d, render.HTMLOptions{}, err
@@ -273,12 +348,23 @@ func (s *Server) chartSVG(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			continue
 		}
+		th := themeFrom(r)
 		w.Header().Set("Content-Type", "image/svg+xml; charset=utf-8")
 		w.Header().Set("Cache-Control", "public, max-age=60")
+		// This endpoint varies on the theme cookie like every other page, and unlike them it is served as an image — so a shared cache handing one reader's dark chart to another is a real possibility rather than a theoretical one.
+		w.Header().Set("Vary", "Cookie")
 		fmt.Fprint(w, `<?xml version="1.0" encoding="UTF-8"?>`+"\n")
-		// Standalone SVG carries no stylesheet, so the few rules the chart depends on are inlined here rather than left to a missing file.
-		fmt.Fprint(w, strings.Replace(render.SVG(c, 900, 320), "<svg ",
-			`<svg style="background:#1e1b16;color:#a1957a;font-family:monospace" `, 1))
+		// Standalone SVG carries no stylesheet, so the few rules the chart depends on are inlined here rather than left to a missing file. The series colours have to be restated as CSS: the stroke attribute baked into the markup is the dark theme's gold, which measures 1.8:1 on the white ground the two Windows skins use.
+		// The label fills are restated for the same reason, and this one was already wrong before there were themes: an SVG <text> defaults to a black fill, so the axis numbers on the dark standalone chart were black on #1e1b16 and had never been visible.
+		var style strings.Builder
+		fmt.Fprintf(&style, `<style>.ylab,.xlab,.legend,.chart-empty{fill:currentColor}.grid{stroke:%s;stroke-opacity:.35}`, th.ChartFG)
+		for i, col := range th.ChartSeries {
+			fmt.Fprintf(&style, `.s%d{stroke:%s}`, i, col)
+		}
+		style.WriteString(`</style>`)
+		svg := strings.Replace(render.SVG(c, 900, 320), "<svg ",
+			fmt.Sprintf(`<svg style="background:%s;color:%s;font-family:monospace" `, th.ChartBG, th.ChartFG), 1)
+		fmt.Fprint(w, strings.Replace(svg, "</svg>", style.String()+"</svg>", 1))
 		return
 	}
 	http.NotFound(w, r)

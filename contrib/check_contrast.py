@@ -11,25 +11,29 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-"""WCAG 2.2 AA contrast check for internal/web/static/openget.css.
+"""WCAG 2.2 AA contrast check for every OpenGET skin.
 
-Reads the palette out of the stylesheet's :root block rather than carrying a copy, so it cannot drift from what is actually served. Run it after touching any colour:
+Reads each palette out of the stylesheet that ships it rather than carrying a copy, so it cannot drift from what is actually served. Run it after touching any colour in any theme:
 
     python3 contrib/check_contrast.py
 
-Exits non-zero if any pair fails, so it can be wired into a make target.
+Exits non-zero if any pair in any theme fails, so it can be wired into a make target.
 
-The value here is the PAIR LIST, not the arithmetic. Two things it encodes that are easy to forget:
+The value here is the PAIR LISTS, not the arithmetic. Four things they encode that are easy to forget:
 
-  - Text on parchment must be checked against three grounds: the flat colour, the even-row tint, and the hover tint. The even row is always tightest and is what failed the 2026-08-08 audit.
+  - Text on a tinted ground must be checked against every ground it lands on: the flat colour, the alternate-row tint, and the hover tint. The alternate row is usually tightest and is what failed the 2026-08-08 audit.
   - 13.5px bold is NOT WCAG "large text". That threshold is 18.66px bold or 24px regular. Bolding a number does not lower its requirement.
+  - A gradient has two ends and text sitting on it has to clear both.
+  - The badge in the footer is a claim about the site, not about the default theme. A skin that fails here falsifies it for everybody, so this script gates every skin or none of them.
+
+Adding a theme means adding a palette path and a pair list. It does not mean trusting that the new skin resembles an old one.
 """
 
 import pathlib
 import re
 import sys
 
-CSS = pathlib.Path(__file__).resolve().parent.parent / "internal/web/static/openget.css"
+STATIC = pathlib.Path(__file__).resolve().parent.parent / "internal/web/static"
 
 
 def srgb(c):
@@ -62,25 +66,29 @@ def blend(fg, alpha, bg):
     )
 
 
-def palette():
-    """Pull --name: #hex; pairs out of the first :root block."""
-    text = CSS.read_text(encoding="utf-8")
+def palette(name):
+    """Pull --name: #hex; pairs out of the first :root block of a stylesheet."""
+    css = STATIC / name
+    text = css.read_text(encoding="utf-8")
     start = text.index(":root {")
     block = text[start:text.index("\n}", start)]
     p = dict(re.findall(r"--([a-z0-9-]+):\s*(#[0-9a-fA-F]{3,6})\s*;", block))
     if not p:
-        sys.exit(f"no custom properties found in {CSS}")
+        sys.exit(f"no custom properties found in {css}")
     return p
 
 
-def main():
-    p = palette()
+# ---------------------------------------------------------------------------
+# Old School RuneScape — the default skin
+# ---------------------------------------------------------------------------
+
+def osrs():
+    p = palette("openget-osrs.css")
     parch = p["parch-0"]
     even = blend("#78541e", 0.10, parch)      # tbody tr:nth-child(even)
     hover = blend("#ffbb22", 0.20, parch)     # tbody tr:hover
     grid = blend(p["wood-pale"], 0.22, p["void"])
 
-    # (label, fg, bg, required ratio)
     text_pairs = [
         ("body --text on --ground",            p["text"],     p["ground"],    4.5),
         (".muted --text-dim on --ground",      p["text-dim"], p["ground"],    4.5),
@@ -96,7 +104,6 @@ def main():
         ("search placeholder on --void",       "#7d745f",     p["void"],      4.5),
         ("thead th --gold on --wood-mid",      p["gold"],     p["wood-mid"],  4.5),
         ("caption --text-dim on --ground",     p["text-dim"], p["ground"],    4.5),
-        # Table body: three grounds each. 13.5px bold is not large text.
         ("td --ink on parchment",              p["ink"],      parch,          4.5),
         ("td --ink on even row",               p["ink"],      even,           4.5),
         ("td.good --good-ink on parchment",    p["good-ink"], parch,          4.5),
@@ -106,7 +113,6 @@ def main():
         ("td link --link-ink on parchment",    p["link-ink"], parch,          4.5),
         ("td link --link-ink on even row",     p["link-ink"], even,           4.5),
         ("td link --link-ink on hover row",    p["link-ink"], hover,          4.5),
-        # .facts and .ogform grounds run wood-dark -> void, so check both ends.
         ("facts dt --text-dim on --wood-dark", p["text-dim"], p["wood-dark"], 4.5),
         ("facts dd --parch-0 on --void",       p["parch-0"],  p["void"],      4.5),
         ("facts dd.good --good on --void",     p["good"],     p["void"],      4.5),
@@ -115,14 +121,13 @@ def main():
         ("field label --gold-dim on --void",   p["gold-dim"], p["void"],      4.5),
         ("button --gold on --wood",            p["gold"],     p["wood"],      4.5),
         ("notes li --text-dim on --wood-dark", p["text-dim"], p["wood-dark"], 4.5),
+        ("status bar --text-dim on --wood-dark", p["text-dim"], p["wood-dark"], 4.5),
         ("chart ylab --text-dim on --void",    p["text-dim"], p["void"],      4.5),
         ("chart legend --parch-1 on --void",   p["parch-1"],  p["void"],      4.5),
         ("skip link --ink on --parch-0",       p["ink"],      p["parch-0"],   4.5),
         ("footer --text-dim on --wood",        p["text-dim"], p["wood"],      4.5),
         ("footer link --link on --wood",       p["link"],     p["wood"],      4.5),
     ]
-
-    # 1.4.11: control boundaries and focus rings need 3:1 against what is adjacent to them, which for a field is whatever the form ground has faded to at that point.
     ui_pairs = [
         ("input border vs black fill",         p["wood-pale"], p["void"],     3.0),
         ("search border vs masthead",          p["wood-pale"], p["wood"],     3.0),
@@ -130,32 +135,125 @@ def main():
         ("button border vs form ground",       p["wood-pale"], p["void"],     3.0),
         ("focus ring --gold on --ground",      p["gold"],      p["ground"],   3.0),
         ("focus ring --gold on thead --wood",  p["gold"],      p["wood"],     3.0),
-        # Gold is 1.03:1 on parchment, hence the tbody override.
         ("focus ring --ink on parchment",      p["ink"],       parch,         3.0),
         ("chart sell #ffbb22 on --void",       "#ffbb22",      p["void"],     3.0),
         ("chart buy #78adff on --void",        "#78adff",      p["void"],     3.0),
     ]
+    notes = [f"gridline vs --void is {cr(grid, p['void']):.2f} — decorative, "
+             "the ylab text carries the numbers"]
+    return text_pairs, ui_pairs, notes
 
+
+# ---------------------------------------------------------------------------
+# Windows 7 — Aero. Palette spans openget-7.css and the vendored framework.
+# ---------------------------------------------------------------------------
+
+def seven():
+    p = palette("openget-7.css")
+    even, hover = "#f6f6f6", "#e6f2fb"
+    head_lo = "#f0f0f0"                       # thead gradient, darker end
+    btn_lo, btn_hi = "#cfcfcf", "#f2f2f2"     # framework button gradient ends
+    btn_text = "#222222"                      # framework button colour
+    heading = "#0b3c68"
+    glass_text = p["og-glass-ink"]
+    # The masthead lays a four-stop gradient over the glass. Text has to clear the darkest stop of it, not the flat swatch underneath.
+    glass_dark = blend("#000000", 0.08, p["og-glass"])
+
+    text_pairs = [
+        ("body --og-text on --og-surface",     p["og-text"],   p["og-surface"], 4.5),
+        (".muted --og-dim on --og-surface",    p["og-dim"],    p["og-surface"], 4.5),
+        ("h1 heading on --og-surface (large)", heading,        p["og-surface"], 3.0),
+        ("h3 heading on --og-surface",         heading,        p["og-surface"], 4.5),
+        ("code #8a3a00 on --og-surface",       "#8a3a00",      p["og-surface"], 4.5),
+        ("link --w7-link-c on --og-surface",   p["w7-link-c"], p["og-surface"], 4.5),
+        ("link --w7-link-c on --og-white",     p["w7-link-c"], p["og-white"],   4.5),
+        ("link hover on --og-surface",         p["w7-link-c-h"], p["og-surface"], 4.5),
+        ("link hover on --og-white",           p["w7-link-c-h"], p["og-white"], 4.5),
+        ("visited #6a3ca0 on --og-surface",    "#6a3ca0",      p["og-surface"], 4.5),
+        ("pre --og-text on --og-white",        p["og-text"],   p["og-white"],   4.5),
+        ("nav tab #17364f on #e8e8e8",         "#17364f",      "#e8e8e8",       4.5),
+        ("nav current on #68b3db",             glass_text,     "#68b3db",       4.5),
+        ("nav hover on #a7d9f5",               glass_text,     "#a7d9f5",       4.5),
+        ("brand on --og-glass",                glass_text,     p["og-glass"],   4.5),
+        ("brand on glass, darkest gradient stop", glass_text,  glass_dark,      4.5),
+        ("toggle labels on glass",             glass_text,     glass_dark,      4.5),
+        ("search placeholder on --og-white",   "#6b6b6b",      p["og-white"],   4.5),
+        ("thead th #23527c on gradient",       "#23527c",      head_lo,         4.5),
+        ("caption --og-dim on --og-surface",   p["og-dim"],    p["og-surface"], 4.5),
+        ("td --og-text on --og-white",         p["og-text"],   p["og-white"],   4.5),
+        ("td --og-text on even row",           p["og-text"],   even,            4.5),
+        ("td --og-text on hover row",          p["og-text"],   hover,           4.5),
+        ("td.good --og-good on --og-white",    p["og-good"],   p["og-white"],   4.5),
+        ("td.good --og-good on even row",      p["og-good"],   even,            4.5),
+        ("td.good --og-good on hover row",     p["og-good"],   hover,           4.5),
+        ("td.bad --og-bad on --og-white",      p["og-bad"],    p["og-white"],   4.5),
+        ("td.bad --og-bad on even row",        p["og-bad"],    even,            4.5),
+        ("td.bad --og-bad on hover row",       p["og-bad"],    hover,           4.5),
+        ("td link on --og-white",              p["w7-link-c"], p["og-white"],   4.5),
+        ("td link on even row",                p["w7-link-c"], even,            4.5),
+        ("td link on hover row",               p["w7-link-c"], hover,           4.5),
+        ("title bar text on --og-glass",       glass_text,     p["og-glass"],   4.5),
+        ("facts dt --og-dim on --og-surface",  p["og-dim"],    p["og-surface"], 4.5),
+        ("facts dd --og-text on --og-surface", p["og-text"],   p["og-surface"], 4.5),
+        ("facts dd.good on --og-surface",      p["og-good"],   p["og-surface"], 4.5),
+        ("facts dd.bad on --og-surface",       p["og-bad"],    p["og-surface"], 4.5),
+        ("field label #23527c on --og-white",  "#23527c",      p["og-white"],   4.5),
+        ("button #222 on gradient bottom",     btn_text,       btn_lo,          4.5),
+        ("button #222 on gradient top",        btn_text,       btn_hi,          4.5),
+        ("notes li --og-dim on --og-surface",  p["og-dim"],    p["og-surface"], 4.5),
+        ("status bar --og-dim on --og-surface", p["og-dim"],   p["og-surface"], 4.5),
+        ("chart ylab --og-dim on --og-white",  p["og-dim"],    p["og-white"],   4.5),
+        ("chart legend --og-text on --og-white", p["og-text"], p["og-white"],   4.5),
+        ("skip link --og-text on --og-white",  p["og-text"],   p["og-white"],   4.5),
+        ("footer --og-dim on #e4e4e4",         p["og-dim"],    "#e4e4e4",       4.5),
+        ("footer link on #e4e4e4",             p["w7-link-c"], "#e4e4e4",       4.5),
+    ]
+    ui_pairs = [
+        # The whole reason --w7-el-bd is redefined in openget-7.css: upstream's
+        # #8e8f8f is 2.85:1 here.
+        ("control border --w7-el-bd vs surface", p["w7-el-bd"], p["og-surface"], 3.0),
+        ("control border --w7-el-bd vs white",   p["w7-el-bd"], p["og-white"],   3.0),
+        ("focus ring #003f80 on --og-surface",   "#003f80",     p["og-surface"], 3.0),
+        ("focus ring #003f80 on --og-white",     "#003f80",     p["og-white"],   3.0),
+        ("focus ring #003f80 on even row",       "#003f80",     even,            3.0),
+        ("chart sell #a34a00 on --og-white",     "#a34a00",     p["og-white"],   3.0),
+        ("chart buy #12507e on --og-white",      "#12507e",     p["og-white"],   3.0),
+    ]
+    notes = ["table gridline #ececec on white is decorative; the row text carries the data"]
+    return text_pairs, ui_pairs, notes
+
+
+THEMES = [
+    ("Old School RuneScape (openget-osrs.css)", osrs),
+    ("Windows 7 (openget-7.css + vendor-7.css)", seven),
+]
+
+
+def main():
     fails = []
-    for title, pairs in (("text (1.4.3)", text_pairs), ("non-text (1.4.11)", ui_pairs)):
-        print(f"\n=== {title} ===")
-        for label, fg, bg, need in pairs:
-            r = cr(fg, bg)
-            ok = r >= need
-            if not ok:
-                fails.append((label, r, need))
-            print(f"{'PASS' if ok else 'FAIL':4} {r:6.2f} (need {need})  {label}")
+    total = 0
+    for name, build in THEMES:
+        text_pairs, ui_pairs, notes = build()
+        print(f"\n{'=' * 72}\n{name}\n{'=' * 72}")
+        for title, pairs in (("text (1.4.3)", text_pairs), ("non-text (1.4.11)", ui_pairs)):
+            print(f"\n--- {title} ---")
+            for label, fg, bg, need in pairs:
+                r = cr(fg, bg)
+                ok = r >= need
+                total += 1
+                if not ok:
+                    fails.append((name, label, r, need))
+                print(f"{'PASS' if ok else 'FAIL':4} {r:6.2f} (need {need})  {label}")
+        for n in notes:
+            print(f"\n({n})")
 
-    # Not a failure: gridlines are decoration, the y-axis labels carry the values. Printed so nobody promotes them to load-bearing by accident.
-    print(f"\n(gridline vs --void is {cr(grid, p['void']):.2f} — decorative, "
-          "the ylab text carries the numbers)")
-
+    print()
     if fails:
-        print(f"\n{len(fails)} FAILURES")
-        for label, r, need in fails:
-            print(f"  {r:5.2f} < {need}  {label}")
+        print(f"{len(fails)} FAILURES out of {total} pairs")
+        for name, label, r, need in fails:
+            print(f"  {r:5.2f} < {need}  [{name.split(' (')[0]}] {label}")
         return 1
-    print(f"\nAll {len(text_pairs) + len(ui_pairs)} pairs pass WCAG 2.2 AA.")
+    print(f"All {total} pairs across {len(THEMES)} themes pass WCAG 2.2 AA.")
     return 0
 
 

@@ -1,0 +1,10 @@
+SPDX-FileCopyrightText: 2021 Khang Nguyen Duy
+SPDX-License-Identifier: MIT
+
+7.css v0.21.1, https://khang-nd.github.io/7.css — vendored verbatim from
+https://unpkg.com/7.css@0.21.1/dist/7.css on 2026-08-10.
+sha256 7449894044051ef07ed0fc2c2d92178f265f76b0ec4e91de4517f0740bea8379
+
+Kept byte-identical to the upstream release so an upgrade is an overwrite and a
+diff against upstream is meaningful. Every correction we make to it — including
+the WCAG fixes it needs — lives in openget-7.css, which loads after it.

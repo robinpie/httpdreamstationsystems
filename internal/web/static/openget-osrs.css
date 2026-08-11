@@ -12,9 +12,9 @@
  GNU General Public License for more details.
 */
 
-/* OpenGET stylesheet.
+/* OpenGET skin: Old School RuneScape. The default, and the only one of the three that is this site's own visual identity rather than a borrowed desktop.
  *
- * The visual language is Old School RuneScape's own: near-black ground, dark brown chrome, the game's green links and gold headings, square pixel-crisp edges, bevelled interface panels, and parchment scrolls for anything that holds numbers. The palette is taken from oldschool.runescape.com's live stylesheet (#382418 chrome brown, #90c040 link green, #ffbb22 gold, #d9c27e/#d0b87c scroll parchment) so the thing reads as the right game.
+ * The visual language is the game's own: near-black ground, dark brown chrome, the game's green links and gold headings, square pixel-crisp edges, bevelled interface panels, and parchment scrolls for anything that holds numbers. The palette is taken from oldschool.runescape.com's live stylesheet (#382418 chrome brown, #90c040 link green, #ffbb22 gold, #d9c27e/#d0b87c scroll parchment) so the thing reads as the right game.
  *
  * Everything here is drawn from scratch in CSS. No Jagex image or logo is copied or hotlinked; their background textures are JPEGs and ours are layered gradients doing the same job.
  *
@@ -22,7 +22,7 @@
  *
  * Nothing here is copied from ge-tracker, whose functionality we clone and whose design we deliberately do not.
  *
- * One self-hosted font, no external requests, no JavaScript. One CSS file. */
+ * Structure lives in openget-layout.css. This file sets faces, colour and ornament only. */
 
 /* Kingthings Petrock, © Kevin King 2006, a registered trademark of Kingthings. Not ours; served unmodified with its copyright and trademark name records intact, converted TTF->WOFF2 with no subsetting or other alteration.
  *
@@ -85,12 +85,7 @@
   --drop: 1px 1px 0 #000;
 }
 
-* { box-sizing: border-box; }
-
-html { -webkit-text-size-adjust: 100%; }
-
 body {
-  margin: 0;
   background-color: var(--ground);
   /* Two offset speckles read as dirt and grit at a glance and cost nothing to ship, where their bg2.jpg is an image we are not going to borrow. */
   background-image:
@@ -100,8 +95,6 @@ body {
   background-position: 0 0, 3px 5px;
   color: var(--text);
   font-family: var(--sans);
-  font-size: 15px;
-  line-height: 1.5;
 }
 
 a { color: var(--link); text-decoration: none; }
@@ -113,47 +106,24 @@ a:visited { color: var(--link-vis); }
 tbody a:focus-visible { outline-color: var(--ink); }
 ::selection { background: var(--wood-lit); color: #fff; }
 
-/* Visually hidden, still read aloud and still focusable. Used for the page h1 on pages whose title is already carried by the masthead or the nav tab, and for the skip link until it takes focus. */
-.vh {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
-}
-
-/* Landmarks alone satisfy 2.4.1, but only for readers who navigate by them; a sighted keyboard user still faces fourteen nav links and a search box on every page without this. */
 .skip {
-  position: absolute;
-  left: -9999px;
-  top: 0;
-  z-index: 10;
   background: var(--parch-0);
   color: var(--ink);
-  padding: 8px 14px;
   font-weight: 700;
   border: 2px solid var(--wood-lit);
 }
-.skip:focus {
-  left: 0;
-  text-decoration: none;
-}
-main:focus { outline: none; }
 
 /* The interface bevel: lit on the top-left, shadowed on the bottom-right. Every raised panel in the game does this and it is what makes flat colour read as a carved wooden frame. */
 .masthead, nav.tabs a, .facts, .chartbox, .ogform, .notes, pre,
-table, button, .searchbox input, .field input, .field select, footer {
+table, button, .sitesearch input, .field input, .field select, footer,
+.status-bar {
   box-shadow:
     inset 1px 1px 0 rgba(255, 255, 255, 0.07),
     inset -1px -1px 0 rgba(0, 0, 0, 0.55);
 }
 
 /* Anything you type into or read out of is sunken instead: the bevel runs the other way, dark at the top-left. */
-.searchbox input, .field input, .field select, pre {
+.sitesearch input, .field input, .field select, pre {
   box-shadow:
     inset 2px 2px 3px rgba(0, 0, 0, 0.75),
     inset -1px -1px 0 rgba(255, 255, 255, 0.06);
@@ -169,85 +139,49 @@ table, button, .searchbox input, .field input, .field select, footer {
       rgba(0, 0, 0, 0.16) 0 2px, transparent 2px 6px, rgba(255, 255, 255, 0.03) 6px 7px, transparent 7px 13px),
     linear-gradient(var(--wood-mid), var(--wood-dark));
   border-bottom: 2px solid var(--wood-lit);
-  padding: 12px 16px 0;
-}
-
-.masthead-inner {
-  max-width: 1180px;
-  margin: 0 auto;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px 18px;
 }
 
 .brand {
   font-family: var(--title);
-  font-size: 30px;
   font-weight: 400;
   letter-spacing: 0.02em;
-  line-height: 1.1;
   color: var(--gold);
   text-shadow: 2px 2px 0 #000, 0 0 14px rgba(255, 187, 34, 0.22);
 }
 .brand a, .brand a:visited { color: inherit; }
 .brand a:hover { color: #ffd166; text-decoration: none; }
 .brand small {
-  display: block;
-  margin-top: 2px;
   font-family: var(--sans);
-  font-size: 11px;
   letter-spacing: 0.03em;
   color: var(--text-dim);
   text-shadow: var(--drop);
 }
 
-.searchbox { margin-left: auto; display: flex; gap: 6px; }
-.searchbox input {
+.sitesearch input {
   background: var(--void);
   /* --wood-pale, not --wood-lit: a black field on the brown masthead is identified by its border alone, and --wood-lit managed 1.70:1 against that background where 1.4.11 wants 3. --wood-pale gets 3.24:1. */
   border: 2px solid var(--wood-pale);
   color: var(--text);
-  padding: 5px 8px;
-  font: inherit;
-  min-width: 190px;
 }
-.searchbox input::placeholder { color: #7d745f; }
+.sitesearch input::placeholder { color: #7d745f; }
 
-/* The site-wide free-to-play filter. It sits in the masthead rather than on each list page because it applies to all of them at once, and it carries its own Apply button because there is no JavaScript here to submit on change — a checkbox that silently did nothing until you found a button elsewhere would be worse than an honest pair of controls. */
-.f2ptoggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
+.f2ptoggle, .themepick {
   color: var(--parch-1);
   text-shadow: var(--drop);
-  white-space: nowrap;
 }
-.f2ptoggle label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
-.f2ptoggle input[type="checkbox"] {
-  width: 15px;
-  height: 15px;
-  accent-color: var(--gold);
+.f2ptoggle input[type="checkbox"] { accent-color: var(--gold); }
+.themepick select {
+  background: var(--void);
+  border: 2px solid var(--wood-pale);
+  color: var(--text);
 }
-/* Smaller than the page's buttons: this one lives in the chrome beside a 13px label, and the default 18px padding would out-shout the search box. */
-.f2ptoggle button { padding: 3px 10px; font-size: 12px; }
 
-nav.tabs {
-  max-width: 1180px;
-  margin: 10px auto 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-}
 /* Interface tabs: raised stone that sinks into the page when it is the one you are standing on. */
 nav.tabs a {
-  padding: 6px 13px 5px;
   background: linear-gradient(var(--wood-mid), var(--wood));
   border: 2px solid var(--wood-lit);
   border-bottom: none;
   color: var(--parch-1);
-  font-size: 13px;
   text-shadow: var(--drop);
 }
 nav.tabs a:hover {
@@ -264,87 +198,52 @@ nav.tabs a[aria-current="page"] {
   box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.5);
 }
 
-main {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 20px 16px 40px;
-}
-
 /* --------------------------------------------------------------- content */
 
 h1 {
-  margin: 0 0 4px;
   font-family: var(--title);
   font-weight: 400;
-  font-size: 34px;
-  line-height: 1.15;
   color: var(--gold);
   text-shadow: 2px 2px 0 #000;
 }
-.subtitle {
-  margin: 0 0 20px;
-  color: var(--text-dim);
-  max-width: 74ch;
-  text-shadow: var(--drop);
-}
+.subtitle { color: var(--text-dim); text-shadow: var(--drop); }
 
 h2 {
-  margin: 30px 0 10px;
   font-family: var(--title);
   font-weight: 400;
-  font-size: 24px;
   color: var(--gold);
   text-shadow: var(--drop);
   /* The divider under a heading is a gold rule fading out to nothing, the way the game separates sections of an interface. */
   /* Solid brown first so a browser without border-image still gets a rule. */
   border-bottom: 2px solid var(--wood);
   border-image: linear-gradient(90deg, var(--wood-lit), var(--wood) 55%, transparent) 1;
-  padding-bottom: 5px;
 }
 h3 {
-  margin: 20px 0 8px;
   font-family: var(--title);
   font-weight: 400;
-  font-size: 18px;
   color: var(--parch-0);
   text-shadow: var(--drop);
 }
 
-.muted { color: var(--text-dim); font-size: 13.5px; }
+.muted { color: var(--text-dim); }
 
 code { font-family: var(--mono); color: var(--amber); }
 
 pre {
   background: var(--void);
   border: 2px solid var(--wood);
-  padding: 10px 12px;
-  overflow-x: auto;
   font-family: var(--mono);
-  font-size: 13px;
   color: var(--parch-1);
 }
 pre code { color: inherit; }
 
 /* ---------------------------------------------------------------- tables */
 
-.tablewrap { overflow-x: auto; margin: 14px 0 22px; }
-
-/* A real <caption> rather than a paragraph after the table: it names the table for anything listing them, and it lands above the scroll the way the text and gemtext renderers have always printed it. The caption box sits outside the table's own background, so this is text-dim on the page ground. */
-table caption {
-  caption-side: top;
-  text-align: left;
-  padding: 0 0 6px;
-  color: var(--text-dim);
-  font-size: 13.5px;
-  text-shadow: var(--drop);
-}
+/* The caption box sits outside the table's own background, so this is text-dim on the page ground. */
+table caption { color: var(--text-dim); text-shadow: var(--drop); }
 
 /* Numbers go on parchment, the way the Grand Exchange puts them on a scroll. */
 table {
-  border-collapse: separate;
-  border-spacing: 0;
-  width: 100%;
-  min-width: 640px;
   background-color: var(--parch-0);
   /* Faint horizontal fibre plus a corner-to-corner age gradient, so the parchment is not a flat rectangle of tan. */
   background-image:
@@ -353,37 +252,22 @@ table {
     linear-gradient(135deg, rgba(255, 255, 255, 0.16), transparent 40%, rgba(120, 84, 30, 0.13));
   color: var(--ink);
   border: 2px solid var(--wood);
-  font-size: 13.5px;
 }
 
 /* The header band is the dark interface bar sitting on top of the scroll. */
 thead th {
   background: linear-gradient(var(--wood-mid), var(--wood));
   color: var(--gold);
-  text-align: left;
-  padding: 8px 10px;
-  font-size: 12px;
   letter-spacing: 0.02em;
   border-bottom: 2px solid var(--wood-lit);
-  white-space: nowrap;
-  position: sticky;
-  top: 0;
   text-shadow: var(--drop);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 thead th a, thead th a:visited { color: inherit; }
 thead th a:hover { color: #ffd166; }
-thead th.r { text-align: right; }
 
-tbody td {
-  padding: 5px 10px;
-  border-bottom: 1px solid rgba(90, 62, 20, 0.22);
-}
-tbody td.r {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-family: var(--mono);
-}
+tbody td { border-bottom: 1px solid rgba(90, 62, 20, 0.22); }
+tbody td.r { font-family: var(--mono); }
 tbody tr:nth-child(even) { background: rgba(120, 84, 30, 0.10); }
 tbody tr:hover { background: rgba(255, 187, 34, 0.20); }
 tbody td a, tbody td a:visited { color: var(--link-ink); font-weight: 700; }
@@ -396,123 +280,77 @@ td.bad  { color: var(--bad-ink);  font-weight: 700; }
 
 /* The stat box is the in-game item panel: dark, framed, gold-labelled. */
 .facts {
-  display: inline-block;
-  vertical-align: top;
   background: linear-gradient(var(--wood-dark), var(--void));
   border: 2px solid var(--wood);
-  padding: 4px 14px 12px;
-  margin: 0 12px 12px 0;
-  min-width: 260px;
 }
 .facts h3 {
-  margin: 9px 0 7px;
   font-family: var(--sans);
   color: var(--gold);
-  font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   text-shadow: var(--drop);
 }
-.facts dl { margin: 0; display: grid; grid-template-columns: auto auto; gap: 3px 16px; }
-.facts dt { color: var(--text-dim); font-size: 13px; }
-.facts dd {
-  margin: 0;
-  text-align: right;
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 13px;
-  color: var(--parch-0);
-}
+.facts dt { color: var(--text-dim); }
+.facts dd { font-family: var(--mono); color: var(--parch-0); }
 .facts dd.good { color: var(--good); }
 .facts dd.bad  { color: var(--bad); }
 
 /* ----------------------------------------------------------------- links */
 
-ul.linklist { list-style: none; padding: 0; margin: 10px 0 20px; }
 /* The little gold lozenge is the game's own list marker. */
-ul.linklist li { padding: 3px 0 3px 16px; position: relative; }
-ul.linklist li::before {
+ul.linklist li::before, .notes li::before {
   content: "";
   position: absolute;
   left: 2px;
-  top: 11px;
   width: 5px;
   height: 5px;
   background: var(--gold-dim);
   transform: rotate(45deg);
 }
-ul.linklist .muted { font-size: 13px; }
+ul.linklist li::before { top: 11px; }
+.notes li::before { top: 7px; }
 
 /* ---------------------------------------------------------------- charts */
 
 .chartbox {
-  margin: 18px 0;
   background: linear-gradient(var(--wood-dark), var(--void));
   border: 2px solid var(--wood);
-  padding: 10px;
-  overflow-x: auto;
 }
-.chartbox figcaption {
-  color: var(--gold);
-  font-size: 13px;
-  margin-bottom: 8px;
-  text-shadow: var(--drop);
-}
-svg.chart { display: block; color: var(--text-dim); max-width: 100%; }
+.chartbox figcaption { color: var(--gold); text-shadow: var(--drop); }
+svg.chart { color: var(--text-dim); }
 svg.chart .grid { stroke: rgba(142, 114, 70, 0.22); stroke-width: 1; }
-svg.chart .ylab { fill: var(--text-dim); font-size: 10px; text-anchor: end; font-family: var(--mono); }
-svg.chart .xlab { fill: var(--text-dim); font-size: 10px; text-anchor: middle; font-family: var(--mono); }
-svg.chart .legend { fill: var(--parch-1); font-size: 11px; }
-svg.chart .chart-empty { fill: var(--text-dim); font-size: 13px; text-anchor: middle; }
+svg.chart .ylab, svg.chart .xlab { fill: var(--text-dim); font-family: var(--mono); }
+svg.chart .legend { fill: var(--parch-1); }
+svg.chart .chart-empty { fill: var(--text-dim); }
 
 /* ----------------------------------------------------------------- forms */
 
 .ogform {
   background: linear-gradient(var(--wood-dark), var(--void));
   border: 2px solid var(--wood);
-  padding: 14px;
-  margin: 14px 0 20px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px;
 }
-.ogform p { flex-basis: 100%; margin: 0 0 4px; }
-.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
 .field span { color: var(--gold-dim); text-shadow: var(--drop); }
 .field input, .field select {
   background: var(--void);
   /* Same as the search box: the form's own ground fades to black, so at the bottom of a form a black field sat on black identified only by a 2.44:1 border. --wood-pale is 4.65:1 against black. */
   border: 2px solid var(--wood-pale);
   color: var(--text);
-  padding: 5px 8px;
-  font: inherit;
 }
-.field small { font-size: 11.5px; }
 
-/* A checkbox sits beside its label, not under it, and wants none of the sunken bevel or padding a text field gets — those are drawn around the control and make a 13px box look like a broken one. order:-1 puts the box first without reordering the markup, so the label still wraps it and stays clickable. */
-.field.check { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 7px; }
+/* A checkbox wants none of the sunken bevel or padding a text field gets — those are drawn around the control and make a 13px box look like a broken one. */
 .field.check input {
-  order: -1;
-  width: 15px;
-  height: 15px;
-  padding: 0;
   border: 0;
   box-shadow: none;
   accent-color: var(--gold);
 }
-.field.check small { flex-basis: 100%; }
 
 /* A RuneScape button is a raised brown stone with gold lettering that presses in when you click it. */
 button {
   background: linear-gradient(var(--wood-lit), var(--wood));
   border: 2px solid var(--wood-pale);
   color: var(--gold);
-  padding: 6px 18px;
-  font: inherit;
   font-weight: 700;
-  cursor: pointer;
   text-shadow: var(--drop);
 }
 button:hover {
@@ -528,79 +366,40 @@ button:active {
 
 /* An in-game interface panel: a lit title bar over a framed dark box. Every window the game opens is built this way, so the notes stop reading as a web blockquote and start reading as part of the same furniture. */
 .notes {
-  margin: 26px 0 0;
   background: linear-gradient(var(--wood-dark), var(--void));
   border: 2px solid var(--wood);
-  padding: 0 0 11px;
 }
 .notes h3 {
-  margin: 0 0 10px;
-  padding: 5px 12px;
   background: linear-gradient(var(--wood-mid), var(--wood));
   border-bottom: 2px solid var(--wood-lit);
   font-family: var(--sans);
   color: var(--gold);
-  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.02em;
   text-shadow: var(--drop);
 }
-/* Same gold lozenge the link lists use, in place of a disc bullet. */
-.notes ul { margin: 0; padding: 0 14px 0 12px; list-style: none; }
-.notes li {
-  position: relative;
-  padding-left: 16px;
-  color: var(--text-dim);
-  font-size: 13px;
-  margin-bottom: 6px;
-}
-.notes li:last-child { margin-bottom: 0; }
-.notes li::before {
-  content: "";
-  position: absolute;
-  left: 2px;
-  top: 7px;
-  width: 5px;
-  height: 5px;
-  background: var(--gold-dim);
-  transform: rotate(45deg);
-}
+.notes li { color: var(--text-dim); }
 
-.paging { display: flex; gap: 12px; align-items: center; margin: 12px 0 20px; font-size: 13.5px; }
+/* The status bar is the same furniture again, one line high. */
+.status-bar {
+  background: linear-gradient(var(--wood-dark), var(--void));
+  border: 2px solid var(--wood);
+  color: var(--text-dim);
+}
+.status-bar-field { border: 1px solid rgba(255, 255, 255, 0.06); }
 
 /* ---------------------------------------------------------------- footer */
 
 footer {
   border-top: 2px solid var(--wood-lit);
   background: linear-gradient(var(--wood), var(--wood-dark));
-  padding: 18px 16px;
-  font-size: 12.5px;
   color: var(--text-dim);
 }
-footer .inner { max-width: 1180px; margin: 0 auto; }
-footer p { max-width: 90ch; margin: 5px 0; }
 footer .retro { font-family: var(--mono); }
-/* The 88x31 badge row. All three are that size, which is the whole reason the format survived. */
-footer .badges { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; }
-footer .badges img { display: block; }
 
-/* ------------------------------------------------------------ responsive */
+/* ------------------------------------------------------------ preferences */
 
-@media (max-width: 720px) {
-  body { font-size: 14px; }
-  .masthead-inner { flex-direction: column; align-items: stretch; }
-  .brand { font-size: 25px; }
-  .searchbox { margin-left: 0; }
-  .searchbox input { min-width: 0; flex: 1; }
-  /* The masthead is a column here, so the toggle would otherwise stretch its button across the full width of the screen. */
-  .f2ptoggle { justify-content: space-between; }
-  .facts { display: block; margin-right: 0; min-width: 0; }
-  h1 { font-size: 26px; }
-  h2 { font-size: 20px; }
-  main { padding: 14px 10px 30px; }
-}
-
-/* The game is dark and so are we; a light-preference reader gets brighter parchment rather than a second theme that would drift out of step. */
+/* The game is dark and so are we; a light-preference reader gets brighter parchment rather than a second theme that would drift out of step. Anyone who actually wants a light site now has two of them in the theme picker. */
 @media (prefers-color-scheme: light) {
   :root { --parch-0: #e8d49a; --parch-1: #dcc689; }
 }
@@ -610,12 +409,4 @@ footer .badges img { display: block; }
   /* --link-ink belongs here too: lifting only --link left the reader who asked for more contrast with the same table links everybody else gets, and the tables are where the links are. */
   :root { --text-dim: #ded8c8; --link: #a8dc50; --link-ink: #1f3d0a; --bad-ink: #800701; }
   body { background-image: none; }
-}
-
-@media print {
-  body { background: #fff; color: #000; }
-  .masthead, nav.tabs, .searchbox, .f2ptoggle, footer { display: none; }
-  table { background: #fff; color: #000; }
-  thead th { background: #eee; color: #000; }
-  a { color: #000; }
 }

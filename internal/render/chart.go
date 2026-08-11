@@ -184,7 +184,7 @@ func SVG(c Chart, width, height int) string {
 			x(t), height-8, escapeText(time.Unix(t, 0).UTC().Format("2 Jan")))
 	}
 
-	for _, s := range c.Series {
+	for i, s := range c.Series {
 		if len(s.Points) == 0 {
 			continue
 		}
@@ -207,12 +207,13 @@ func SVG(c Chart, width, height int) string {
 			}
 			fmt.Fprintf(&path, "L%.1f %.1f", x(p.X), y(p.Y))
 		}
-		fmt.Fprintf(&b, `<path class="series" d="%s" fill="none" stroke="%s" stroke-width="1.6" stroke-linejoin="round"%s/>`,
-			path.String(), escapeAttr(colour), dashAttr(s))
+		// The series index goes on the element as a class so a stylesheet can recolour the line. Series.Colour stays as the stroke attribute, which is a presentation attribute and therefore loses to any CSS rule: the literal is what renders where no stylesheet reaches (the standalone /chart endpoint, an SVG saved to disk), and the skin's own palette is what renders on the page. Without this every theme would draw the price line in the dark theme's gold, which is 1.8:1 on white.
+		fmt.Fprintf(&b, `<path class="series s%d" d="%s" fill="none" stroke="%s" stroke-width="1.6" stroke-linejoin="round"%s/>`,
+			i, path.String(), escapeAttr(colour), dashAttr(s))
 	}
 
 	lx := padL + 4
-	for _, s := range c.Series {
+	for i, s := range c.Series {
 		if len(s.Points) == 0 {
 			continue
 		}
@@ -221,8 +222,8 @@ func SVG(c Chart, width, height int) string {
 			colour = "currentColor"
 		}
 		// The key is a sample of the line itself rather than a colour chip: matching a solid square to a dashed line is the colour-only judgement the dash exists to avoid.
-		fmt.Fprintf(&b, `<line x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="2.4"%s/>`,
-			lx, padT+5, lx+16, padT+5, escapeAttr(colour), dashAttr(s))
+		fmt.Fprintf(&b, `<line class="series s%d" x1="%d" y1="%d" x2="%d" y2="%d" stroke="%s" stroke-width="2.4"%s/>`,
+			i, lx, padT+5, lx+16, padT+5, escapeAttr(colour), dashAttr(s))
 		fmt.Fprintf(&b, `<text class="legend" x="%d" y="%d">%s</text>`, lx+21, padT+9, escapeText(s.Name))
 		lx += 28 + 7*len(s.Name)
 	}

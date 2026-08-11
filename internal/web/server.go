@@ -84,6 +84,7 @@ func (s *Server) routes() {
 	m.HandleFunc("GET /about", s.page(s.about))
 	m.HandleFunc("GET /status", s.page(s.status))
 	m.HandleFunc("POST /f2p", s.postF2P)
+	m.HandleFunc("POST /theme", s.postTheme)
 
 	m.HandleFunc("GET /chart/{id}", s.chartSVG)
 	m.HandleFunc("GET /sitemap.xml", s.sitemap)
@@ -170,6 +171,8 @@ func (s *Server) renderDoc(w http.ResponseWriter, r *http.Request, doc *render.D
 		Credit:    views.Credit,
 		NoHeading: noHeading,
 		F2P:       f2pFrom(r),
+		Theme:     themeFrom(r),
+		Themes:    themes,
 		Return:    r.URL.RequestURI(),
 	}
 	if !doc.Updated.IsZero() {
@@ -259,7 +262,10 @@ type layoutData struct {
 	NoHeading bool
 	// F2P is the state of the site-wide free-to-play checkbox in the masthead.
 	F2P bool
-	// Return is where that checkbox's form comes back to, so ticking it on page 3 of the margin finder does not dump the reader on the front page.
+	// Theme is the skin this reader has chosen, and Themes is every skin on offer, for the picker beside the checkbox.
+	Theme  Theme
+	Themes []Theme
+	// Return is where those forms come back to, so ticking the checkbox on page 3 of the margin finder does not dump the reader on the front page.
 	Return string
 }
 
@@ -268,15 +274,17 @@ const layoutHTML = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#382418">
+<meta name="color-scheme" content="{{if .Theme.Dark}}dark{{else}}light{{end}}">
+<meta name="theme-color" content="{{.Theme.ThemeColor}}">
 <title>{{.PageTitle}}</title>
 {{if .Subtitle}}<meta name="description" content="{{.Subtitle}}">{{end}}
 {{if .NoIndex}}<meta name="robots" content="noindex, nofollow">{{end}}
 <meta property="og:title" content="{{.PageTitle}}">
 {{if .Subtitle}}<meta property="og:description" content="{{.Subtitle}}">{{end}}
 <meta property="og:type" content="website">
-<link rel="stylesheet" href="/static/openget.css">
+<link rel="stylesheet" href="/static/openget-layout.css">
+{{range .Theme.Sheets}}<link rel="stylesheet" href="/static/{{.}}">
+{{end}}
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='14'>%F0%9F%93%88</text></svg>">
 </head>
 <body>
@@ -286,13 +294,22 @@ const layoutHTML = `<!doctype html>
     <div class="brand"><a href="/">OpenGET</a>
       <small>Old School RuneScape Grand Exchange tracker</small>
     </div>
-    <form class="searchbox" method="get" action="/search" role="search">
+    <form class="sitesearch" method="get" action="/search" role="search">
       <input type="search" name="q" value="{{.Query}}" placeholder="Search items…" aria-label="Search items">
       <button type="submit">Go</button>
     </form>
     <form class="f2ptoggle" method="post" action="/f2p">
       <input type="hidden" name="return" value="{{.Return}}">
       <label><input type="checkbox" name="f2p" value="1"{{if .F2P}} checked{{end}}> Free-to-play only</label>
+      <button type="submit">Apply</button>
+    </form>
+    <form class="themepick" method="post" action="/theme">
+      <input type="hidden" name="return" value="{{.Return}}">
+      <label><span class="vh">Theme</span>
+        <select name="theme">
+          {{range .Themes}}<option value="{{.Key}}"{{if eq .Key $.Theme.Key}} selected{{end}}>{{.Label}}</option>{{end}}
+        </select>
+      </label>
       <button type="submit">Apply</button>
     </form>
   </div>
@@ -308,7 +325,7 @@ const layoutHTML = `<!doctype html>
   {{if .Title}}<h1 class="vh">{{.Title}}</h1>{{end}}
   {{end}}
   {{.Body}}
-  {{if .Updated}}<p class="muted">{{.Updated}}</p>{{end}}
+  {{if .Updated}}<div class="status-bar"><p class="status-bar-field muted">{{.Updated}}</p></div>{{end}}
 </main>
 <footer>
   <div class="inner">

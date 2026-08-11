@@ -53,11 +53,11 @@ func HTMLBody(d *Doc, o HTMLOptions) string {
 			fmt.Fprintf(&b, "<pre>%s</pre>\n", escapeText(v.Text))
 
 		case Facts:
-			b.WriteString(`<div class="facts">`)
+			b.WriteString(`<div class="facts window">`)
 			if v.Title != "" {
-				fmt.Fprintf(&b, "<h3>%s</h3>", escapeText(v.Title))
+				fmt.Fprintf(&b, `<h3 class="title-bar"><span class="title-bar-text">%s</span></h3>`, escapeText(v.Title))
 			}
-			b.WriteString("<dl>")
+			b.WriteString(`<dl class="window-body">`)
 			for _, kv := range v.Pairs {
 				title := ""
 				if kv.Hint != "" {
@@ -90,9 +90,9 @@ func HTMLBody(d *Doc, o HTMLOptions) string {
 			b.WriteString("</ul>\n")
 
 		case Chart:
-			b.WriteString(`<figure class="chartbox">`)
+			b.WriteString(`<figure class="chartbox window">`)
 			if v.Title != "" {
-				fmt.Fprintf(&b, `<figcaption>%s</figcaption>`, escapeText(v.Title))
+				fmt.Fprintf(&b, `<figcaption class="title-bar"><span class="title-bar-text">%s</span></figcaption>`, escapeText(v.Title))
 			}
 			b.WriteString(SVG(v, 720, v.Height))
 			b.WriteString("</figure>\n")
@@ -102,7 +102,8 @@ func HTMLBody(d *Doc, o HTMLOptions) string {
 			if method == "" {
 				method = "get"
 			}
-			fmt.Fprintf(&b, `<form class="ogform" method="%s" action="%s">`,
+			// A window with no title bar: both Windows skins treat .window as a raised panel on its own, which is exactly what a form wants, and inventing a caption to fill a title bar would put a heading in the reading order that the other four protocols do not have.
+			fmt.Fprintf(&b, `<form class="ogform window" method="%s" action="%s">`,
 				escapeAttr(method), escapeAttr(v.Action))
 			if v.Prompt != "" {
 				fmt.Fprintf(&b, `<p class="muted">%s</p>`, escapeText(v.Prompt))
@@ -122,7 +123,9 @@ func HTMLBody(d *Doc, o HTMLOptions) string {
 	}
 
 	if len(d.Footnotes) > 0 {
-		b.WriteString(`<div class="notes"><h3>Notes</h3><ul>`)
+		b.WriteString(`<div class="notes window">` +
+			`<h3 class="title-bar"><span class="title-bar-text">Notes</span></h3>` +
+			`<ul class="window-body">`)
 		for _, f := range d.Footnotes {
 			fmt.Fprintf(&b, "<li>%s</li>", escapeText(f))
 		}
