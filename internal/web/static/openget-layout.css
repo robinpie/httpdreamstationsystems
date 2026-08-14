@@ -61,12 +61,13 @@ main:focus { outline: none; }
 
 .masthead { padding: 12px 16px 0; }
 
+/* Centred, not baseline-aligned. Baseline is the obvious choice for a row of text and the wrong one here: a flex container takes its baseline from its FIRST flex item, and the three control clusters disagree about what that is. The search form starts with a text input and aligns on its text; the free-to-play form starts with a label wrapping a checkbox, and a checkbox has no text baseline, so the browser uses its bottom edge; the theme form's label starts with a visually-hidden span that is absolutely positioned and therefore not a flex item at all, leaving the select to align on its option text. Three reference lines, three heights, nothing level. Centres are the only thing these clusters have in common. */
 .masthead-inner {
   max-width: 1180px;
   margin: 0 auto;
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: 8px 18px;
 }
 
