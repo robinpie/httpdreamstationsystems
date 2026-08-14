@@ -66,15 +66,39 @@ def blend(fg, alpha, bg):
     )
 
 
+# Which @media preference block, if any, to merge over the base palette. Set by
+# main() so the theme functions below need to know nothing about variants.
+VARIANT = None
+
+
+def _props(block):
+    return dict(re.findall(r"--([a-z0-9-]+):\s*(#[0-9a-fA-F]{3,6})\s*;", block))
+
+
 def palette(name):
-    """Pull --name: #hex; pairs out of the first :root block of a stylesheet."""
+    """Pull --name: #hex; pairs out of the first :root block of a stylesheet,
+    then merge the :root overrides from the VARIANT media block over the top.
+
+    THE VARIANTS ARE WHY THIS FUNCTION IS NOT THREE LINES. Both skins redefine
+    part of their palette under prefers-contrast: more, and the OSRS skin also
+    does it under prefers-color-scheme: light. For as long as this script read
+    only the first :root block, those readers got a palette nothing had ever
+    measured — and they are, by definition, the readers who asked for contrast.
+    A skin may ship an override this script cannot see only by not shipping it.
+    """
     css = STATIC / name
     text = css.read_text(encoding="utf-8")
     start = text.index(":root {")
-    block = text[start:text.index("\n}", start)]
-    p = dict(re.findall(r"--([a-z0-9-]+):\s*(#[0-9a-fA-F]{3,6})\s*;", block))
+    p = _props(text[start:text.index("\n}", start)])
     if not p:
         sys.exit(f"no custom properties found in {css}")
+    if VARIANT:
+        m = re.search(r"@media \(" + re.escape(VARIANT) + r"\)\s*\{(.*?)\n\}",
+                      text, re.S)
+        if m:
+            r = re.search(r":root\s*\{(.*?)\}", m.group(1), re.S)
+            if r:
+                p.update(_props(r.group(1)))
     return p
 
 
@@ -83,64 +107,118 @@ def palette(name):
 # ---------------------------------------------------------------------------
 
 def osrs():
+    """The skin has exactly three grounds and every pair below names which one it is on.
+
+      SHEET   the parchment column main is drawn on. Dark ink only. --scroll is
+              the flat, unlit value and the paper's own lighting only brightens
+              it, so --scroll is the worst case and the sheet needs no composite.
+      FURNITURE  the black panels standing on the sheet, and <pre>. Light text.
+      STONE   the masthead and the footer. Light text. The masthead's texture
+              DOES lighten, so its pairs use --stone-lit — the composite of
+              --stone under the one lightening layer in that stack, declared in
+              the stylesheet next to the layer that produces it.
+    """
     p = palette("openget-osrs.css")
-    parch = p["parch-0"]
+    parch = p["parch-0"]                      # a table, one shade above the sheet
+    scroll = p["scroll"]
     even = blend("#78541e", 0.10, parch)      # tbody tr:nth-child(even)
     hover = blend("#ffbb22", 0.20, parch)     # tbody tr:hover
+    stone = p["stone-lit"]
     grid = blend(p["wood-pale"], 0.22, p["void"])
+    edge = blend("#3a260c", 0.38, scroll)     # the sheet's torn edge, 8px wide
 
     text_pairs = [
-        ("body --text on --ground",            p["text"],     p["ground"],    4.5),
-        (".muted --text-dim on --ground",      p["text-dim"], p["ground"],    4.5),
-        ("h1/h2 --gold on --ground (large)",   p["gold"],     p["ground"],    3.0),
-        ("h3 --parch-0 on --ground",           p["parch-0"],  p["ground"],    4.5),
-        ("code --amber on --ground",           p["amber"],    p["ground"],    4.5),
-        ("link --link on --ground",            p["link"],     p["ground"],    4.5),
-        ("visited --link-vis on --ground",     p["link-vis"], p["ground"],    4.5),
-        ("pre --parch-1 on --void",            p["parch-1"],  p["void"],      4.5),
-        ("nav tab --parch-1 on --wood-mid",    p["parch-1"],  p["wood-mid"],  4.5),
-        ("nav tab current --ink on --parch-0", p["ink"],      p["parch-0"],   4.5),
-        ("brand small --text-dim on --wood-mid", p["text-dim"], p["wood-mid"], 4.5),
-        ("search placeholder on --void",       "#7d745f",     p["void"],      4.5),
-        ("thead th --gold on --wood-mid",      p["gold"],     p["wood-mid"],  4.5),
-        ("caption --text-dim on --ground",     p["text-dim"], p["ground"],    4.5),
-        ("td --ink on parchment",              p["ink"],      parch,          4.5),
-        ("td --ink on even row",               p["ink"],      even,           4.5),
-        ("td.good --good-ink on parchment",    p["good-ink"], parch,          4.5),
-        ("td.good --good-ink on even row",     p["good-ink"], even,           4.5),
-        ("td.bad --bad-ink on parchment",      p["bad-ink"],  parch,          4.5),
-        ("td.bad --bad-ink on even row",       p["bad-ink"],  even,           4.5),
-        ("td link --link-ink on parchment",    p["link-ink"], parch,          4.5),
-        ("td link --link-ink on even row",     p["link-ink"], even,           4.5),
-        ("td link --link-ink on hover row",    p["link-ink"], hover,          4.5),
-        ("facts dt --text-dim on --wood-dark", p["text-dim"], p["wood-dark"], 4.5),
-        ("facts dd --parch-0 on --void",       p["parch-0"],  p["void"],      4.5),
-        ("facts dd.good --good on --void",     p["good"],     p["void"],      4.5),
-        ("facts dd.bad --bad on --wood-dark",  p["bad"],      p["wood-dark"], 4.5),
-        ("facts dd.bad --bad on --void",       p["bad"],      p["void"],      4.5),
-        ("field label --gold-dim on --void",   p["gold-dim"], p["void"],      4.5),
-        ("button --gold on --wood",            p["gold"],     p["wood"],      4.5),
-        ("notes li --text-dim on --wood-dark", p["text-dim"], p["wood-dark"], 4.5),
-        ("status bar --text-dim on --wood-dark", p["text-dim"], p["wood-dark"], 4.5),
-        ("chart ylab --text-dim on --void",    p["text-dim"], p["void"],      4.5),
-        ("chart legend --parch-1 on --void",   p["parch-1"],  p["void"],      4.5),
-        ("skip link --ink on --parch-0",       p["ink"],      p["parch-0"],   4.5),
-        ("footer --text-dim on --wood",        p["text-dim"], p["wood"],      4.5),
-        ("footer link --link on --wood",       p["link"],     p["wood"],      4.5),
+        # -- SHEET ----------------------------------------------------------
+        ("body --ink on --scroll",             p["ink"],       scroll,        4.5),
+        (".muted/.subtitle --ink-dim on --scroll", p["ink-dim"], scroll,      4.5),
+        ("caption --ink-dim on --scroll",      p["ink-dim"],   scroll,        4.5),
+        # h3 is 18px regular, which is NOT large text, so the heading colour is
+        # held to 4.5 rather than the 3.0 h1 and h2 could have claimed.
+        ("h1/h2/h3 --scroll-h on --scroll",    p["scroll-h"],  scroll,        4.5),
+        ("link --link-ink on --scroll",        p["link-ink"],  scroll,        4.5),
+        ("link hover --link-ink-hov on --scroll", p["link-ink-hov"], scroll,  4.5),
+        ("code --code-ink on --scroll",        p["code-ink"],  scroll,        4.5),
+        # -- SHEET, table on top of it --------------------------------------
+        ("td --ink on parchment",              p["ink"],       parch,         4.5),
+        ("td --ink on even row",               p["ink"],       even,          4.5),
+        ("td.good --good-ink on parchment",    p["good-ink"],  parch,         4.5),
+        ("td.good --good-ink on even row",     p["good-ink"],  even,          4.5),
+        ("td.bad --bad-ink on parchment",      p["bad-ink"],   parch,         4.5),
+        ("td.bad --bad-ink on even row",       p["bad-ink"],   even,          4.5),
+        ("td link --link-ink on parchment",    p["link-ink"],  parch,         4.5),
+        ("td link --link-ink on even row",     p["link-ink"],  even,          4.5),
+        ("td link --link-ink on hover row",    p["link-ink"],  hover,         4.5),
+        ("td link hover --link-ink-hov on hover row", p["link-ink-hov"], hover, 4.5),
+        ("thead th --gold on --wood-mid",      p["gold"],      p["wood-mid"], 4.5),
+        ("skip link --ink on --parch-0",       p["ink"],       p["parch-0"],  4.5),
+        ("nav tab current --ink on --parch-0", p["ink"],       p["parch-0"],  4.5),
+        # -- FURNITURE ------------------------------------------------------
+        ("panel caption --text on --void",     p["text"],      p["void"],     4.5),
+        ("facts dt --text-dim on --void",      p["text-dim"],  p["void"],     4.5),
+        ("facts dd --parch-0 on --void",       p["parch-0"],   p["void"],     4.5),
+        ("facts dd.good --good on --void",     p["good"],      p["void"],     4.5),
+        ("facts dd.bad --bad on --void",       p["bad"],       p["void"],     4.5),
+        ("notes li --text-dim on --void",      p["text-dim"],  p["void"],     4.5),
+        ("status bar --text-dim on --void",    p["text-dim"],  p["void"],     4.5),
+        ("panel link --link on --void",        p["link"],      p["void"],     4.5),
+        ("panel visited --link-vis on --void", p["link-vis"],  p["void"],     4.5),
+        ("panel code --amber on --void",       p["amber"],     p["void"],     4.5),
+        ("field label --gold-dim on --void",   p["gold-dim"],  p["void"],     4.5),
+        ("field hint --text-dim on --void",    p["text-dim"],  p["void"],     4.5),
+        ("field input --text on --void",       p["text"],      p["void"],     4.5),
+        ("pre --parch-1 on --void",            p["parch-1"],   p["void"],     4.5),
+        ("chart ylab --text-dim on --void",    p["text-dim"],  p["void"],     4.5),
+        ("chart legend --parch-1 on --void",   p["parch-1"],   p["void"],     4.5),
+        # -- STONE ----------------------------------------------------------
+        ("brand --gold on --stone-lit (large)", p["gold"],     stone,         3.0),
+        ("brand small --text-dim on --stone-lit", p["text-dim"], stone,       4.5),
+        ("toggle labels --parch-1 on --stone-lit", p["parch-1"], stone,       4.5),
+        ("search field --text on --void",      p["text"],      p["void"],     4.5),
+        ("search placeholder on --void",       "#7d745f",      p["void"],     4.5),
+        ("nav tab --link on --void",           p["link"],      p["void"],     4.5),
+        ("nav tab hover --link-hov on #150f07", p["link-hov"], "#150f07",     4.5),
+        # The button fill is a gradient under two darkening cross-hatches, so
+        # the flat --btn-hi end is the lightest pixel a label ever sits on.
+        ("button --text on --btn-hi",          p["text"],      p["btn-hi"],   4.5),
+        ("button --text on --btn-lo",          p["text"],      p["btn-lo"],   4.5),
+        ("button hover --text on --btn-hov",   p["text"],      p["btn-hov"],  4.5),
+        ("footer --text-dim on --stone-foot",  p["text-dim"],  p["stone-foot"], 4.5),
+        ("footer link --link on --stone-foot", p["link"],      p["stone-foot"], 4.5),
+        ("footer visited --link-vis on --stone-foot", p["link-vis"], p["stone-foot"], 4.5),
+        ("footer code --amber on --stone-foot", p["amber"],    p["stone-foot"], 4.5),
     ]
     ui_pairs = [
         ("input border vs black fill",         p["wood-pale"], p["void"],     3.0),
-        ("search border vs masthead",          p["wood-pale"], p["wood"],     3.0),
-        ("input border vs form ground",        p["wood-pale"], p["wood-dark"], 3.0),
-        ("button border vs form ground",       p["wood-pale"], p["void"],     3.0),
-        ("focus ring --gold on --ground",      p["gold"],      p["ground"],   3.0),
-        ("focus ring --gold on thead --wood",  p["gold"],      p["wood"],     3.0),
+        ("search border vs --stone-lit",       p["wood-pale"], stone,         3.0),
+        ("tab border vs --stone-lit",          p["wood-pale"], stone,         3.0),
+        ("button border vs --stone-lit",       p["wood-pale"], stone,         3.0),
+        ("button border vs --void panel",      p["wood-pale"], p["void"],     3.0),
+        ("checkbox accent --gold on --stone-lit", p["gold"],   stone,         3.0),
+        ("focus ring --gold on --stone-lit",   p["gold"],      stone,         3.0),
+        ("focus ring --gold on --void panel",  p["gold"],      p["void"],     3.0),
+        ("focus ring --gold on --stone-foot",  p["gold"],      p["stone-foot"], 3.0),
+        ("focus ring --gold on thead --wood-mid", p["gold"],   p["wood-mid"], 3.0),
+        # main flips the ring to ink, because gold on the sheet is 1.2.
+        ("focus ring --ink on --scroll",       p["ink"],       scroll,        3.0),
         ("focus ring --ink on parchment",      p["ink"],       parch,         3.0),
+        ("focus ring --ink on even row",       p["ink"],       even,          3.0),
         ("chart sell #ffbb22 on --void",       "#ffbb22",      p["void"],     3.0),
         ("chart buy #78adff on --void",        "#78adff",      p["void"],     3.0),
     ]
-    notes = [f"gridline vs --void is {cr(grid, p['void']):.2f} — decorative, "
-             "the ylab text carries the numbers"]
+    notes = [
+        f"gridline vs --void is {cr(grid, p['void']):.2f} — decorative, "
+        "the ylab text carries the numbers",
+        f"the sheet's torn edge composites to {edge} (--ink {cr(p['ink'], edge):.2f}, "
+        f"--scroll-h {cr(p['scroll-h'], edge):.2f}) and is the one gradient in this "
+        "skin that darkens a surface carrying dark text. It is 8px wide against "
+        "main's 16px padding, 10px at the narrow breakpoint, so no glyph is ever "
+        "drawn on it. Widening it means owing this table two more rows",
+        f"the olive rule under an h2 is {cr(p['olive'], scroll):.2f} on the sheet — "
+        "decorative, and the heading beside it carries the section name",
+        f"--parch-0 on --scroll is {cr(parch, scroll):.2f}: a table is meant to read "
+        "as a lighter sheet laid on the roll, and its 2px --wood frame at "
+        f"{cr(p['wood'], scroll):.2f} is what actually delimits it",
+    ]
     return text_pairs, ui_pairs, notes
 
 
@@ -233,23 +311,35 @@ THEMES = [
 ]
 
 
+VARIANTS = [
+    (None, "as shipped"),
+    ("prefers-color-scheme: light", "reader prefers a light UI"),
+    ("prefers-contrast: more", "reader asked for more contrast"),
+]
+
+
 def main():
+    global VARIANT
     fails = []
     total = 0
-    for name, build in THEMES:
-        text_pairs, ui_pairs, notes = build()
-        print(f"\n{'=' * 72}\n{name}\n{'=' * 72}")
-        for title, pairs in (("text (1.4.3)", text_pairs), ("non-text (1.4.11)", ui_pairs)):
-            print(f"\n--- {title} ---")
-            for label, fg, bg, need in pairs:
-                r = cr(fg, bg)
-                ok = r >= need
-                total += 1
-                if not ok:
-                    fails.append((name, label, r, need))
-                print(f"{'PASS' if ok else 'FAIL':4} {r:6.2f} (need {need})  {label}")
-        for n in notes:
-            print(f"\n({n})")
+    for VARIANT, why in VARIANTS:
+        for name, build in THEMES:
+            text_pairs, ui_pairs, notes = build()
+            head = name if VARIANT is None else f"{name}  @media ({VARIANT})"
+            print(f"\n{'=' * 72}\n{head}\n{why}\n{'=' * 72}")
+            for title, pairs in (("text (1.4.3)", text_pairs),
+                                 ("non-text (1.4.11)", ui_pairs)):
+                print(f"\n--- {title} ---")
+                for label, fg, bg, need in pairs:
+                    r = cr(fg, bg)
+                    ok = r >= need
+                    total += 1
+                    if not ok:
+                        fails.append((head, label, r, need))
+                    print(f"{'PASS' if ok else 'FAIL':4} {r:6.2f} (need {need})  {label}")
+            if VARIANT is None:
+                for n in notes:
+                    print(f"\n({n})")
 
     print()
     if fails:
@@ -257,7 +347,8 @@ def main():
         for name, label, r, need in fails:
             print(f"  {r:5.2f} < {need}  [{name.split(' (')[0]}] {label}")
         return 1
-    print(f"All {total} pairs across {len(THEMES)} themes pass WCAG 2.2 AA.")
+    print(f"All {total} pairs pass WCAG 2.2 AA: {len(THEMES)} themes "
+          f"x {len(VARIANTS)} preference variants.")
     return 0
 
 

@@ -109,14 +109,28 @@ a { color: var(--w7-link-c); text-decoration: none; }
 a:hover { color: var(--w7-link-c-h); text-decoration: underline; }
 a:visited { color: #6a3ca0; }
 
-/* 2.4.7 Focus Visible (Level A). Upstream sets outline:none on [type=search], on every text-like input and inside its combobox and menu components, and replaces it on the inputs with a 1px border tint and on the search box with nothing at all. That is the masthead search on every page of this site with no keyboard indicator whatsoever. Re-asserted here for everything focusable; the border tint upstream applies is left in place as reinforcement. */
+/* 2.4.7 Focus Visible (Level A). Upstream sets outline:none on [type=search], on every text-like input and inside its combobox and menu components, and replaces it on the inputs with a 1px border tint and on the search box with nothing at all. That is the masthead search on every page of this site with no keyboard indicator whatsoever. Re-asserted here for everything focusable; the border tint upstream applies is left in place as reinforcement.
+ *
+ * THE SECOND HALF OF THIS LIST IS ABOUT SPECIFICITY, NOT COVERAGE. Restating a selector upstream also uses wins on source order, which is why `[type=search]` and `button` and `a` were already fine. Two of upstream's rules are narrower than the plain element selectors above and went on winning after this block was written:
+ *
+ *   input[type=text]:focus and its five siblings, at (0,2,1), beat input:focus-visible at (0,1,1). Those fields kept outline:none and a border-colour tint that shifts #767676 to #467aa4 — a hue change of 1.01:1 luminance contrast, which is no indicator at all for anyone who cannot see the hue. The tax calculator's price, quantity and item-ID fields are those inputs.
+ *
+ *   select:not([multiple]):not(:disabled):focus, at (0,3,1), beat select:focus-visible at (0,1,1), leaving the theme picker in the masthead of every page with a 1px dotted ring inset 4px instead of the 2px ring everything beside it gets.
+ *
+ * Both are matched here at equal specificity so source order decides, and both keep upstream's inner glow underneath as reinforcement. Found by diffing screenshots of each tab stop with the ring on and off, because every one of these controls reports a focus style that a computed-style check reads as present. */
 :focus-visible,
 [type="search"]:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 button:focus-visible,
-a:focus-visible {
+a:focus-visible,
+input[type="text"]:focus-visible,
+input[type="number"]:focus-visible,
+input[type="email"]:focus-visible,
+input[type="password"]:focus-visible,
+input[type="url"]:focus-visible,
+select:not([multiple]):not(:disabled):focus-visible {
   outline: 2px solid #003f80;
   outline-offset: 1px;
 }
