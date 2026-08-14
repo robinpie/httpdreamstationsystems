@@ -75,7 +75,7 @@ items = [
 [[index]]
 id = "pvm"
 name = "PvM gear"
-blurb = "High-end boss drops. The most volatile basket here by a distance."
+blurb = "Boss drops and high-end gear, from the abyssal whip up to the twisted bow."
 items = [
   "Abyssal whip", "Dragon warhammer", "Armadyl chestplate", "Armadyl chainskirt",
   "Bandos chestplate", "Bandos tassets", "Primordial boots", "Occult necklace",

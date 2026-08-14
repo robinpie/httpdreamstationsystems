@@ -80,7 +80,7 @@ func (b *Builder) CalcIndex(ctx context.Context) (*render.Doc, error) {
 	}
 	d := &render.Doc{
 		Title:    "Money makers",
-		Subtitle: "Profit calculators priced at the current market, with the Grand Exchange tax already taken off the sale side.",
+		Subtitle: "Money-making methods priced at the current market.",
 		Path:     "/calc",
 	}
 	var items []render.Link
@@ -365,7 +365,6 @@ func (b *Builder) TaxCalc(ctx context.Context, price int64, qty int64, itemID in
 	}
 
 	d.Add(render.Heading{Level: 2, Text: "The rules"})
-	d.Add(render.Para{Text: "The Grand Exchange charges a 2% convenience fee on sales."})
 	d.Add(render.Facts{Pairs: []render.KV{
 		{Key: "Rate", Value: "2% of the sale price"},
 		{Key: "Paid by", Value: "the seller (buyer's listed price is post-tax)"},
@@ -672,7 +671,6 @@ func (b *Builder) IndicesPage(ctx context.Context) (*render.Doc, error) {
 		})
 	}
 	d.Add(t)
-	d.Add(render.Para{Text: "Every basket's full constituent list is published on its own page."})
 	d.Add(render.Para{Muted: true, Text: "Constituents are equally weighted unless stated otherwise. " +
 		"Equal weighting is used because it can be checked by hand against the published list."})
 	b.addFreshness(ctx, d)

@@ -166,7 +166,7 @@ func Finders() []Finder {
 		{
 			Slug:    "roi",
 			Title:   "Highest ROI",
-			Blurb:   "Profit as a percentage of the capital tied up. Cheap items dominate this list, which is the point.",
+			Blurb:   "Profit as a percentage of the capital tied up, rather than in coins per item.",
 			Options: store.ListOptions{Sort: "roi", Desc: true, Tradeable: true, MinVolume: 500, MaxAge: FreshWindow},
 			Note:    staleNote,
 		},
@@ -478,11 +478,11 @@ func (b *Builder) Search(ctx context.Context, q string) (*render.Doc, error) {
 	if err != nil {
 		return nil, err
 	}
-	d.Subtitle = fmt.Sprintf("%d result(s) for %q", len(items), q)
-	// A single exact hit is almost always what was meant; say so rather than making the reader pick their own search term out of a list of one.
+	noun := "results"
 	if len(items) == 1 {
-		d.Add(render.Para{Text: "One match: " + items[0].Name})
+		noun = "result"
 	}
+	d.Subtitle = fmt.Sprintf("%d %s for %q", len(items), noun, q)
 	d.Add(b.itemTable(items, ""))
 	b.f2pNote(d)
 	return d, nil
@@ -583,6 +583,7 @@ func (b *Builder) About(ctx context.Context) (*render.Doc, error) {
 	d.Add(render.Para{Text: "OpenGET is licensed under the GNU GPL version 2:"})
 	d.Add(render.Links{Items: []render.Link{
 		{Text: "View directory over FTP", Href: "ftp://dreamstation.systems/robinsSoftware/openget/"},
+		{Text: "View on GitHub", Href: "https://github.com/robinpie/openget"},
 	}})
 
 	d.Add(render.Heading{Level: 2, Text: "Where the data comes from"})

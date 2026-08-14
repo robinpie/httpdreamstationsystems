@@ -477,8 +477,7 @@ func (s *Server) tracker(ctx context.Context, r *http.Request) (*render.Doc, ren
 		}})
 	}
 
-	d.Note("Realised profit is simply money received minus money spent. It is not a FIFO inventory model: " +
-		"that would need a complete trade history to mean anything, and a hand-kept ledger never is complete.")
+	d.Note("Realised profit is simply money received minus money spent, not an inventory model.")
 	d.Note("Your ledger is private and has no public view.")
 	return d, render.HTMLOptions{}, nil
 }
