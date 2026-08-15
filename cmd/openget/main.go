@@ -202,6 +202,8 @@ func runOnce(ctx context.Context, ing *ingest.Ingester, job string) error {
 		return ing.BucketPoll(ctx, wiki.Step24h)
 	case "volumes":
 		return ing.Volumes(ctx)
+	case "shops":
+		return ing.ShopsNow(ctx)
 	case "stats":
 		return ing.Recompute(ctx)
 	case "maintenance":

@@ -349,7 +349,9 @@ func (b *Builder) ItemPage(ctx context.Context, id int, window string) (*render.
 		details.Pairs = append(details.Pairs, render.KV{Key: "Low alch", Value: render.GP(*it.LowAlch)})
 	}
 	if it.Value != nil {
-		details.Pairs = append(details.Pairs, render.KV{Key: "Shop value", Value: render.GP(*it.Value)})
+		// Not labelled "shop value": this is the base value from the game's item definitions, which every item carries whether or not a shop has ever stocked it. Calling it a shop price is what sent /store-profit looking for twisted bows on a shelf.
+		details.Pairs = append(details.Pairs, render.KV{Key: "Base value", Value: render.GP(*it.Value),
+			Hint: "The item's value in the game's own definitions. Alchemy and general-store rates derive from it; it is not a price any shop necessarily charges."})
 	}
 	// Both spells, computed here rather than read from item_stats.alch_profit: that column covers high alchemy only, and it was priced with whatever a nature rune cost at the last stats run, which would let two rows sitting next to each other disagree about the price of the same rune.
 	nature := b.buyPrice(ctx, calc.NatureRuneID)
@@ -531,7 +533,7 @@ func (b *Builder) Status(ctx context.Context, version string, freeDiskMB int64, 
 		}
 		arch.Pairs = append(arch.Pairs, render.KV{Key: step + " buckets", Value: val})
 	}
-	for _, t := range []string{"items", "latest", "volumes", "item_stats"} {
+	for _, t := range []string{"items", "latest", "volumes", "item_stats", "shop_offers"} {
 		arch.Pairs = append(arch.Pairs, render.KV{Key: t, Value: render.GP(counts[t]) + " rows"})
 	}
 	d.Add(arch)
@@ -588,8 +590,12 @@ func (b *Builder) About(ctx context.Context) (*render.Doc, error) {
 
 	d.Add(render.Heading{Level: 2, Text: "Where the data comes from"})
 	d.Add(render.Para{Text: Credit})
+	d.Add(render.Para{Text: "Shop inventories come from a second source: Bucket, the wiki's structured-data " +
+		"extension, which publishes what every shop in the game stocks and at what price. Only /store-profit uses it, " +
+		"and only because no price feed carries what a shopkeeper has on the shelf."})
 	d.Add(render.Links{Items: []render.Link{
 		{Text: "OSRS Wiki real-time prices documentation", Href: "https://oldschool.runescape.wiki/w/RuneScape:Real-time_Prices"},
+		{Text: "The wiki's Bucket API", Href: "https://oldschool.runescape.wiki/w/RuneScape:Bucket"},
 		{Text: "The OSRS Wiki", Href: "https://oldschool.runescape.wiki/"},
 		{Text: "RuneLite", Href: "https://runelite.net/"},
 	}})

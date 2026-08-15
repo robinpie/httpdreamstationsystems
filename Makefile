@@ -58,6 +58,7 @@ install: $(BIN)
 	install -m 0755 $(BIN) $(BINDIR)/$(BIN)
 	install -m 0644 data/recipes.toml $(DATADIR)/recipes.toml
 	install -m 0644 data/indices.toml $(DATADIR)/indices.toml
+	install -m 0644 data/shops.toml   $(DATADIR)/shops.toml
 	install -m 0644 contrib/openget-fetch.pl $(LIBDIR)/openget-fetch.pl
 	# Never clobber a live config: the deployed file carries the User-Agent and the retention policy.
 	[ -f $(CONFDIR)/config.toml ] || install -m 0644 contrib/config.toml $(CONFDIR)/config.toml

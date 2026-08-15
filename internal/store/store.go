@@ -368,6 +368,26 @@ var migrations = []string{
 	);
 	CREATE INDEX gemini_certs_token ON gemini_certs(token_hash);
 	`,
+
+	// -- 6 ------------------------------------------------------------------
+	// What each shop actually stocks, from the wiki's storeline bucket.
+	//
+	// /store-profit used to rank on items.value, the base value from the game's item definitions. That field exists for every item in the game whether or not anything sells it, and it is trivially small next to a boss drop's price, so the page ranked the whole catalogue by market price and filled with items no shop has ever stocked. This table is the missing half: the set of things a player can genuinely walk up and buy.
+	//
+	// One row per (item, shop, price). The same shop legitimately appears twice for one item at different prices — diary discounts and quest states are separate shelves — and the cheapest is the one worth showing.
+	`
+	CREATE TABLE shop_offers (
+		item_id    INTEGER NOT NULL REFERENCES items(id),
+		shop       TEXT NOT NULL,
+		price      INTEGER NOT NULL,  -- coins paid per item
+		stock      INTEGER NOT NULL,  -- base stock; -1 means unlimited
+		restock    TEXT NOT NULL DEFAULT '',
+		notes      TEXT NOT NULL DEFAULT '',  -- shop variant: diary tier, quest state
+		fetched_at INTEGER NOT NULL,
+		PRIMARY KEY (item_id, shop, price)
+	) WITHOUT ROWID;
+	CREATE INDEX shop_offers_price ON shop_offers(item_id, price);
+	`,
 }
 
 func (d *DB) migrate(ctx context.Context) error {
@@ -476,7 +496,7 @@ func (d *DB) SizeOnDisk() int64 {
 // TableCounts returns row counts for the tables worth showing on /status.
 func (d *DB) TableCounts(ctx context.Context) (map[string]int64, error) {
 	out := map[string]int64{}
-	for _, t := range []string{"items", "latest", "prices_5m", "prices_1h", "prices_24h", "volumes", "item_stats", "recipes", "tokens"} {
+	for _, t := range []string{"items", "latest", "prices_5m", "prices_1h", "prices_24h", "volumes", "item_stats", "recipes", "shop_offers", "tokens"} {
 		var n int64
 		if err := d.r.QueryRowContext(ctx, `SELECT count(*) FROM `+t).Scan(&n); err != nil {
 			return nil, fmt.Errorf("store: count %s: %w", t, err)

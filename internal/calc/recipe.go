@@ -58,7 +58,7 @@ type Extra struct {
 
 // Kinds are the calculator families, in the order they appear in the menu.
 //
-// High alchemy and store profit are deliberately absent: both apply uniformly to every item in the game rather than to a hand-listed set, so they are computed as whole-catalogue pages (/alch and /store-profit) instead of as several thousand near-identical recipe rows.
+// High alchemy and store profit are deliberately absent. Alchemy applies uniformly to every item in the game; store profit applies to whatever the wiki says shops currently stock, which is a thousand items across five hundred shops and changes on game updates. Neither is a hand-listed set, so both are computed as whole-catalogue pages (/alch and /store-profit) instead of as several thousand near-identical recipe rows.
 var Kinds = []struct {
 	Kind, Title, Blurb string
 }{

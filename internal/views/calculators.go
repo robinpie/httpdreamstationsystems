@@ -103,7 +103,7 @@ func (b *Builder) CalcIndex(ctx context.Context) (*render.Doc, error) {
 	d.Add(render.Links{Title: "Whole-catalogue calculators", Items: []render.Link{
 		{Text: "High alchemy", Href: "/alch", Desc: "every item, alch value against market price"},
 		{Text: "Low alchemy", Href: "/alch?spell=low", Desc: "the level 21 spell, 40% of the item's value"},
-		{Text: "Store profit", Href: "/store-profit", Desc: "shop value against market price"},
+		{Text: "Store profit", Href: "/store-profit", Desc: "shop shelf against market price"},
 		{Text: "GE tax calculator", Href: "/ge-tax-calculator", Desc: "what a sale actually pays out"},
 	}})
 	d.Add(render.Para{Muted: true, Text: "Inputs are costed at the price you would pay to buy them right now, " +
@@ -555,22 +555,39 @@ func (b *Builder) buyPrice(ctx context.Context, id int) int64 {
 	return *it.High
 }
 
-// StoreProfit lists items whose market price most exceeds their shop value.
+// StoreMinVolume is the 24-hour volume a shop item must trade before it earns a row.
 //
-// Not a recipe family: the shop value comes from /mapping's `value` field and applies to every item in the game, so it is a whole-catalogue query rather than a hand-listed set.
+// Shop stock is small and slow. Without a floor the page fills with novelty cosmetics that a shop sells five of and the market absorbs three of per day: a genuine margin on a thing you cannot repeat is not a money-making method, and it crowds out the ones that are.
+const StoreMinVolume = 100
+
+// StoreProfit lists items a shop sells for less than the Grand Exchange pays.
+//
+// Not a recipe family: the shop inventories cover a thousand items across five hundred shops, so it is a whole-catalogue query rather than a hand-listed set.
+//
+// The shop price here is a real shop's real price, from the wiki's storeline bucket by way of shop_offers. It is emphatically not items.value — that field is the base value from the game's item definitions, it exists for every item in the game whether or not anything stocks it, and ranking on it produced a page of twisted bows and third age that no shop has ever sold.
 func (b *Builder) StoreProfit(ctx context.Context, limit int) (*render.Doc, error) {
 	// Hand-written SQL rather than ListItems, so the site-wide toggle is spelt out here instead of arriving through b.filter.
 	members := ""
 	if b.F2POnly {
 		members = " AND i.members = 0"
 	}
+	// One row per item, at its cheapest shelf: an item on sale in nine shops is one method, not nine. min(price) picks the shelf, and the window function carries the matching shop and stock along with it.
 	rows, err := b.DB.Reader().QueryContext(ctx, `
-		SELECT i.id, i.name, i.value, s.high, s.tax, COALESCE(s.avg_vol_24h,0), i.buy_limit
-		  FROM items i JOIN item_stats s ON s.item_id = i.id
-		 WHERE i.removed = 0 AND i.value IS NOT NULL AND i.value > 0
-		   AND s.high IS NOT NULL AND s.avg_vol_24h > 0`+members+`
-		 ORDER BY (s.high - COALESCE(s.tax,0) - i.value) DESC
-		 LIMIT ?`, limit)
+		WITH cheapest AS (
+			SELECT item_id, shop, price, stock,
+			       row_number() OVER (PARTITION BY item_id ORDER BY price, shop) AS rn
+			  FROM shop_offers
+		)
+		SELECT i.id, i.name, c.shop, c.price, c.stock,
+		       s.high, s.tax, COALESCE(s.avg_vol_24h,0)
+		  FROM cheapest c
+		  JOIN items i      ON i.id = c.item_id
+		  JOIN item_stats s ON s.item_id = c.item_id
+		 WHERE c.rn = 1 AND i.removed = 0
+		   AND s.high IS NOT NULL AND s.avg_vol_24h >= ?
+		   AND (s.high - COALESCE(s.tax,0) - c.price) > 0`+members+`
+		 ORDER BY (s.high - COALESCE(s.tax,0) - c.price) DESC
+		 LIMIT ?`, StoreMinVolume, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -578,47 +595,61 @@ func (b *Builder) StoreProfit(ctx context.Context, limit int) (*render.Doc, erro
 
 	d := &render.Doc{
 		Title:    "Store profit",
-		Subtitle: "Items worth far more on the Grand Exchange than their base shop value.",
+		Subtitle: "Items a shop sells for less than the Grand Exchange pays.",
 		Path:     "/store-profit",
 	}
 	t := render.Table{
 		Columns: []render.Column{
 			{Title: "Item", Retro: true},
-			{Title: "Shop value", Align: render.AlignRight, Retro: true},
+			{Title: "Shop", Retro: true},
+			{Title: "Shop price", Align: render.AlignRight, Retro: true},
 			{Title: "Sells for", Align: render.AlignRight, Retro: true},
 			{Title: "Tax", Align: render.AlignRight},
 			{Title: "Profit", Align: render.AlignRight, Retro: true},
-			{Title: "Limit", Align: render.AlignRight},
+			{Title: "Stock", Align: render.AlignRight},
 			{Title: "Vol 24h", Align: render.AlignRight, Retro: true},
 		},
 	}
+	n := 0
 	for rows.Next() {
 		var id int
-		var name string
-		var value, high, tax, vol int64
-		var limitN *int
-		if err := rows.Scan(&id, &name, &value, &high, &tax, &vol, &limitN); err != nil {
+		var name, shop string
+		var price, stock, high, tax, vol int64
+		if err := rows.Scan(&id, &name, &shop, &price, &stock, &high, &tax, &vol); err != nil {
 			return nil, err
 		}
-		profit := high - tax - value
-		lim := render.Dash
-		if limitN != nil {
-			lim = render.GP(int64(*limitN))
+		st := render.GP(stock)
+		if stock == store.StockUnlimited {
+			st = "unlimited"
 		}
+		profit := high - tax - price
 		t.Rows = append(t.Rows, []render.Cell{
 			render.CL(name, ItemPath(id)),
-			render.C(render.GP(value)),
+			render.C(shop),
+			render.C(render.GP(price)),
 			render.C(render.GP(high)),
 			render.C(render.GP(tax)),
 			render.Cell{Text: render.GP(profit), Tone: render.Tone(profit)},
-			render.C(lim),
+			render.C(st),
 			render.C(render.GPShort(vol)),
 		})
+		n++
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if n == 0 {
+		// Distinguishable from "no item is profitable today": the table is populated by a separate daily job against a separate upstream, and an empty one usually means that job has not run.
+		cnt, _ := b.DB.ShopOfferCount(ctx)
+		if cnt == 0 {
+			d.Note("Shop inventories have not been fetched yet, so this page has nothing to rank.")
+			return d, nil
+		}
 	}
 	d.Add(t)
-	d.Note("\"Shop value\" is the item's base value from the game's item definitions. Actual shop prices move with " +
-		"stock, most shops sell a limited quantity, and many of these items are not sold in any shop at all — " +
-		"so treat this as a shortlist to check in game, not a guaranteed method.")
+	d.Note("Shop prices rise as you buy the shelf down and fall back as it restocks, so the price shown is what the " +
+		"first one costs, not the hundredth. Stock is what the shop holds when full.")
+	d.Note("Items trading under %s a day are left out.", render.GPShort(StoreMinVolume))
 	b.f2pNote(d)
 	b.addFreshness(ctx, d)
 	return d, nil

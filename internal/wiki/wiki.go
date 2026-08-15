@@ -106,8 +106,13 @@ func (c *Client) UserAgent() string { return c.ua }
 // ErrNotModified is returned when a conditional request got a 304. Callers that just want to skip a poll cycle can treat it as a no-op.
 var ErrNotModified = errors.New("wiki: not modified")
 
-// get fetches path (e.g. "/latest") and decodes JSON into v. If cond is true the request is conditional on the previously-seen ETag and may return ErrNotModified.
+// get fetches path (e.g. "/latest") relative to the prices API root and decodes JSON into v. If cond is true the request is conditional on the previously-seen ETag and may return ErrNotModified.
 func (c *Client) get(ctx context.Context, path string, cond bool, v any) error {
+	return c.getURL(ctx, c.base+path, path, cond, v)
+}
+
+// getURL is get against a fully-qualified URL, for the endpoints that do not hang off the prices root. key names the request in error messages and in the ETag cache, so a long bucket query and a prices path can never collide there.
+func (c *Client) getURL(ctx context.Context, url, key string, cond bool, v any) error {
 	var lastErr error
 	// Three attempts with backoff. Upstream is Cloudflare-fronted and occasionally 5xxs or rate-limits; a transient blip should not abort a 40-minute backfill.
 	for attempt := 0; attempt < 3; attempt++ {
@@ -122,7 +127,7 @@ func (c *Client) get(ctx context.Context, path string, cond bool, v any) error {
 		if err := c.limit.wait(ctx); err != nil {
 			return err
 		}
-		err := c.once(ctx, path, cond, v)
+		err := c.once(ctx, url, key, cond, v)
 		if err == nil || errors.Is(err, ErrNotModified) || errors.Is(err, context.Canceled) {
 			return err
 		}
@@ -151,8 +156,8 @@ func (e *HTTPError) Error() string {
 	return fmt.Sprintf("wiki: GET %s: HTTP %d: %s", e.Path, e.Status, b)
 }
 
-func (c *Client) once(ctx context.Context, path string, cond bool, v any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base+path, nil)
+func (c *Client) once(ctx context.Context, url, key string, cond bool, v any) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return err
 	}
@@ -162,7 +167,7 @@ func (c *Client) once(ctx context.Context, path string, cond bool, v any) error 
 	req.Header.Set("Accept-Encoding", "gzip")
 	if cond {
 		c.mu.Lock()
-		e, ok := c.etags[path]
+		e, ok := c.etags[key]
 		c.mu.Unlock()
 		if ok && e.etag != "" {
 			req.Header.Set("If-None-Match", e.etag)
@@ -180,24 +185,24 @@ func (c *Client) once(ctx context.Context, path string, cond bool, v any) error 
 	}
 	if resp.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return &HTTPError{Status: resp.StatusCode, Path: path, Body: strings.TrimSpace(string(b))}
+		return &HTTPError{Status: resp.StatusCode, Path: key, Body: strings.TrimSpace(string(b))}
 	}
 
 	var r io.Reader = resp.Body
 	if strings.EqualFold(resp.Header.Get("Content-Encoding"), "gzip") {
 		gz, err := gzip.NewReader(resp.Body)
 		if err != nil {
-			return fmt.Errorf("wiki: gzip %s: %w", path, err)
+			return fmt.Errorf("wiki: gzip %s: %w", key, err)
 		}
 		defer gz.Close()
 		r = gz
 	}
 	if err := json.NewDecoder(r).Decode(v); err != nil {
-		return fmt.Errorf("wiki: decode %s: %w", path, err)
+		return fmt.Errorf("wiki: decode %s: %w", key, err)
 	}
 	if tag := resp.Header.Get("ETag"); tag != "" {
 		c.mu.Lock()
-		c.etags[path] = etagEntry{etag: tag, seen: time.Now()}
+		c.etags[key] = etagEntry{etag: tag, seen: time.Now()}
 		c.mu.Unlock()
 	}
 	return nil

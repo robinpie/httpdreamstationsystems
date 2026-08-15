@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -72,6 +73,7 @@ func (in *Ingester) Run(ctx context.Context) {
 		{"24h", in.cfg.Poll.Daily.Duration, func(c context.Context) error { return in.BucketPoll(c, wiki.Step24h) }},
 		{"volumes", in.cfg.Poll.Volumes.Duration, in.Volumes},
 		{"mapping", in.cfg.Poll.Daily.Duration, in.Mapping},
+		{"shops", in.cfg.Poll.Daily.Duration, in.Shops},
 	}
 	for _, j := range jobs {
 		if j.every <= 0 {
@@ -240,6 +242,62 @@ func (in *Ingester) BucketPoll(ctx context.Context, step wiki.Timestep) error {
 		return err
 	}
 	in.log.Debug("bucket stored", "step", table, "bucket", b.Timestamp, "rows", n)
+	return nil
+}
+
+// MetaShopsFetched is the meta key holding when shop inventories were last read. Exposed so /store-profit can date its own data.
+const MetaShopsFetched = "shops_fetched_at"
+
+// Shops refreshes what each shop in the game stocks, from the wiki's storeline bucket.
+//
+// A second upstream, and the only one that is not the prices API: shop inventories are not price data and nothing in the real-time feed carries them. Two requests — the data changes on game updates, not on trades.
+//
+// A failure here is survivable. The previous fetch stays in the table and /store-profit keeps working on it, which is why this returns its error to the job runner rather than taking anything down.
+func (in *Ingester) Shops(ctx context.Context) error { return in.shops(ctx, false) }
+
+// ShopsNow refetches regardless of how recent the stored copy is. This is what `-once shops` runs, because the reason to ask for it by hand is usually that data/shops.toml just changed.
+func (in *Ingester) ShopsNow(ctx context.Context) error { return in.shops(ctx, true) }
+
+func (in *Ingester) shops(ctx context.Context, force bool) error {
+	// Every job in the table runs once at startup. For a daily job against a wiki that changes weekly, that turns a restart loop into a stream of pointless requests, so skip when the stored copy is still young.
+	if !force {
+		last, err := in.db.GetMetaTime(ctx, MetaShopsFetched)
+		if err == nil && !last.IsZero() && time.Since(last) < in.cfg.Poll.Daily.Duration {
+			if n, err := in.db.ShopOfferCount(ctx); err == nil && n > 0 {
+				in.log.Debug("shop offers still fresh, skipping fetch",
+					"age", time.Since(last).Round(time.Minute), "offers", n)
+				return nil
+			}
+		}
+	}
+
+	lines, err := in.api.StoreLines(ctx)
+	if err != nil {
+		return err
+	}
+	// Read the exclusions each time rather than caching them at startup, so correcting a bad shop is an edit and a re-run, not a restart.
+	ex := store.ShopExclusions{}
+	if in.cfg.DataDir != "" {
+		ex, err = store.LoadShopExclusions(filepath.Join(in.cfg.DataDir, "shops.toml"))
+		if err != nil {
+			return err
+		}
+	}
+	now := time.Now()
+	stored, dropped, err := in.db.ReplaceShopOffers(ctx, lines, ex, now)
+	if err != nil {
+		return err
+	}
+	if stored == 0 {
+		// Items were not loaded yet, so nothing was written and nothing was destroyed. Do not stamp the clock, or the freshness guard would suppress the retry.
+		in.log.Warn("shop offers not stored: the items table is still empty")
+		return nil
+	}
+	if err := in.db.SetMetaTime(ctx, MetaShopsFetched, now); err != nil {
+		in.log.Warn("could not record shop fetch time", "err", err)
+	}
+	in.log.Info("shop offers updated", "offers", stored, "rows", len(lines),
+		"unusable", dropped, "excluded_shops", len(ex))
 	return nil
 }
 
