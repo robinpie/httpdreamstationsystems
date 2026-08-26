@@ -1,0 +1,48 @@
+[Unit]
+Description=OpenGET — OSRS Grand Exchange price tracker
+Documentation=https://grandexchange.dreamstation.systems/about
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/openget -config /etc/openget/config.toml
+User=openget
+Group=openget
+Restart=always
+RestartSec=5
+
+# The archive is the asset: never let a restart loop or an OOM kill quietly stop ingestion, and give the process a moment to finish a write on stop.
+TimeoutStopSec=30
+KillSignal=SIGTERM
+
+# Hardening. The daemon needs to write the database and the two retro trees, and to make outbound HTTPS calls to prices.runescape.wiki.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+CapabilityBoundingSet=
+
+ReadWritePaths=/var/lib/openget
+# The retro generator writes gophermaps and gemtext into the trees that gophernicus and molly-brown already serve, so no new daemon or listening socket is introduced for either protocol.
+ReadWritePaths=/srv/gopher/ge
+ReadWritePaths=/srv/gemini/ge
+
+# This box has under a gigabyte of RAM and is already into swap. The cap is a backstop against a runaway query, set well above the ~80 MB the daemon uses with its SQLite page cache at the configured size.
+MemoryMax=320M
+
+[Install]
+WantedBy=multi-user.target

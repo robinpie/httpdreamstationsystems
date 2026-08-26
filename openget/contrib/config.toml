@@ -1,0 +1,57 @@
+# OpenGET configuration. Installed to /etc/openget/config.toml.
+#
+# Every value here has a built-in default; this file exists to document the knobs and to carry the two things that must not be defaults: the contact address in the User-Agent, and the retention policy.
+
+# REQUIRED. The OSRS Wiki API policy-blocks default library User-Agents and asks for a descriptive one carrying contact details. openget refuses to start without one, so this cannot be forgotten.
+user_agent = "grandexchange.dreamstation.systems - email robin@dreamstation.systems"
+
+listen   = "127.0.0.1:4151"   # 4151 is the Abyssal whip's item id, and free on this box
+db_path  = "/var/lib/openget/openget.db"
+data_dir = "/usr/local/share/openget"
+base_url = "https://grandexchange.dreamstation.systems"
+
+[poll]
+# Prices update on RuneLite's 5-minute cadence and the CDN sets cache-control max-age=60, so nothing is gained by going faster.
+latest   = "60s"
+five_min = "5m"
+hourly   = "1h"
+daily    = "24h"
+volumes  = "1h"
+min_gap  = "500ms"   # minimum spacing between any two upstream requests
+timeout  = "60s"
+
+[retention]
+# Upstream's /timeseries returns at most 365 points at any timestep, so 5m history older than about 1.3 days can never be re-fetched from anywhere. What is pruned here is gone for good — raise these before lowering them.
+#
+# Rough sizes at ~1,700 actively traded items: the 5m tier costs about 20 MB per day, so 30 days is roughly 600 MB.
+five_min = "720h"     # 30 days
+hourly   = "17520h"   # 2 years
+daily    = "0"        # forever
+volumes  = "2160h"    # 90 days
+
+# Pause ingestion if free space on the database's filesystem falls below this. The archive matters, but so does the rest of the box: NTP, mail and the other services all live on the same 19 GB root filesystem, and a full disk takes down everything rather than just this.
+min_free_disk_mb = 512
+
+[backfill]
+# One-time historical seed from per-item /timeseries calls. Roughly 4,650 requests at 2/sec is about 40 minutes, once. Items are taken most-traded first, so an interrupted run still leaves the popular ones complete.
+#
+# This runs against a free service staffed by volunteers. Do not raise rate_per_sec; the config validator refuses anything above 5.
+enabled      = true
+steps        = ["24h"]
+rate_per_sec = 2
+batch_size   = 250
+pause        = "1m"
+
+[retro]
+enabled     = true
+gopher_dir  = "/srv/gopher/ge"
+gemini_dir  = "/srv/gemini/ge"    # Spartan shares this tree, so it is served too
+write_every = "5m"
+top_n       = 50
+
+[limits]
+favourites    = 500
+ledger_rows   = 50000
+alerts        = 100
+mint_per_hour = 20
+prune_after   = "8760h"   # 12 months untouched
