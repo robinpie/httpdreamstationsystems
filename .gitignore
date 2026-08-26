@@ -1,0 +1,7 @@
+# Runtime artifacts 
+
+# /rootdomain/ntpstats.txt: written directly into /srv/http by ntpstatsgen.timer
+/rootdomain/ntpstats.txt
+
+# Local documentation
+README.local.md
