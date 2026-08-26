@@ -316,7 +316,9 @@ const layoutHTML = `<!doctype html>
     </form>
   </div>
   <nav class="tabs">
-    {{range .Nav}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}</a>{{end}}
+    {{/* The newline between the links is load-bearing for text browsers: nav.tabs is a flex container, so graphical browsers drop whitespace-only text nodes between flex items and the gap property alone spaces the tabs, while Lynx (which reads no CSS) collapses it to the single space that keeps "Home Items Margins" from rendering as "HomeItemsMargins". */}}
+    {{range .Nav}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Label}}</a>
+    {{end}}
   </nav>
 </header>
 <main id="content" tabindex="-1">
