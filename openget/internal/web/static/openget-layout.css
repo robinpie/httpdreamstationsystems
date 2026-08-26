@@ -129,8 +129,12 @@ main {
 
 h1 { margin: 0 0 4px; font-size: 34px; line-height: 1.15; }
 .subtitle { margin: 0 0 20px; max-width: 74ch; }
-h2 { margin: 30px 0 10px; font-size: 24px; padding-bottom: 5px; }
-h3 { margin: 20px 0 8px; font-size: 18px; }
+/* :not([class]) is the line between a section heading and a panel's own title bar. Both are h2 now — the panels used to hardcode h3, which made every item and calculator page skip a level — but only the section heading wants the 24px and the rule the skins draw under it. A heading emitted by a Heading block never carries a class; .title-bar and .linkhead always do. */
+h2:not([class]) { margin: 30px 0 10px; font-size: 24px; padding-bottom: 5px; }
+h3:not([class]) { margin: 20px 0 8px; font-size: 18px; }
+
+/* A label on a list of links, not a section of the page: the size and spacing the bare h3 above had, since that is what these were before they were levelled. */
+.linkhead { margin: 20px 0 8px; font-size: 18px; }
 
 .muted { font-size: 13.5px; }
 
@@ -166,8 +170,10 @@ thead th {
 }
 thead th.r { text-align: right; }
 
-tbody td { padding: 5px 10px; }
-tbody td.r { text-align: right; font-variant-numeric: tabular-nums; }
+tbody :is(td, th) { padding: 5px 10px; }
+tbody :is(td, th).r { text-align: right; font-variant-numeric: tabular-nums; }
+/* The first cell of each row is a <th scope="row"> so the item it names is announced with every figure beside it. It is still a body cell to look at: the UA's bold-and-centred default for th is a header-row style, and applied down a column of item names it would read as emphasis nobody meant. */
+tbody th { font-weight: inherit; text-align: inherit; }
 
 /* ----------------------------------------------------------------- facts */
 
@@ -178,7 +184,7 @@ tbody td.r { text-align: right; font-variant-numeric: tabular-nums; }
   margin: 0 12px 12px 0;
   min-width: 260px;
 }
-.facts h3 { margin: 9px 0 7px; font-size: 12px; }
+.facts :is(h2, h3) { margin: 9px 0 7px; font-size: 12px; }
 .facts dl { margin: 0; display: grid; grid-template-columns: auto auto; gap: 3px 16px; }
 .facts dt { font-size: 13px; }
 .facts dd {
@@ -219,7 +225,7 @@ svg.chart .chart-empty { font-size: 13px; text-anchor: middle; }
 .field input, .field select { padding: 5px 8px; font: inherit; }
 .field small { font-size: 11.5px; }
 
-/* A checkbox sits beside its label, not under it. order:-1 puts the box first without reordering the markup, so the label still wraps it and stays clickable. */
+/* A checkbox sits beside its label, not under it. order:-1 puts the box first without reordering the markup — the label precedes the input in the DOM and points at it by for=, which keeps the whole label clickable and keeps the hint below out of the control's accessible name. */
 .field.check { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 7px; }
 .field.check input { order: -1; width: 15px; height: 15px; padding: 0; }
 .field.check small { flex-basis: 100%; }
@@ -231,7 +237,7 @@ button, select { min-height: 24px; }
 /* ----------------------------------------------------------------- notes */
 
 .notes { margin: 26px 0 0; padding: 0 0 11px; }
-.notes h3 { margin: 0 0 10px; padding: 5px 12px; font-size: 13px; }
+.notes :is(h2, h3) { margin: 0 0 10px; padding: 5px 12px; font-size: 13px; }
 .notes ul { margin: 0; padding: 0 14px 0 12px; list-style: none; }
 .notes li { position: relative; padding-left: 16px; font-size: 13px; margin-bottom: 6px; }
 .notes li:last-child { margin-bottom: 0; }
@@ -264,7 +270,7 @@ footer .badges img { display: block; }
   .f2ptoggle, .themepick { justify-content: space-between; }
   .facts { display: block; margin-right: 0; min-width: 0; }
   h1 { font-size: 26px; }
-  h2 { font-size: 20px; }
+  h2:not([class]) { font-size: 20px; }
   main { padding: 14px 10px 30px; }
 }
 

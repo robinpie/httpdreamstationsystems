@@ -176,8 +176,10 @@ func (s *Server) renderDoc(w http.ResponseWriter, r *http.Request, doc *render.D
 	}
 	// Two fields rather than one string: a Windows status bar is segmented, and the relative age and the absolute clock time are answering two different questions anyway ("is this fresh?" and "fresh as of when?").
 	if !doc.Updated.IsZero() {
-		data.UpdatedAgo = "Prices updated " + render.Ago(doc.Updated)
+		data.UpdatedAgo = render.Ago(doc.Updated)
 		data.UpdatedAt = doc.Updated.UTC().Format("15:04:05") + " UTC"
+		// Both fields are the same instant said two ways, and both are wrapped in <time datetime> pointing at it. These pages carry a minute of shared cache, so a reader can quite legitimately be told "24s ago" by a page that was rendered a minute earlier; the timestamp is the part that stays true.
+		data.UpdatedISO = doc.Updated.UTC().Format(time.RFC3339)
 	}
 	if doc.NoIndex {
 		w.Header().Set("X-Robots-Tag", "noindex, nofollow")
@@ -251,9 +253,10 @@ type layoutData struct {
 	Subtitle  string
 	Body      template.HTML
 	Nav       []navEntry
-	// UpdatedAgo and UpdatedAt are the two status bar fields: "Prices updated 3m ago" and "14:22:01 UTC".
+	// UpdatedAgo and UpdatedAt are the two status bar fields: "3m ago" and "14:22:01 UTC". UpdatedISO is the same instant in RFC 3339, for the datetime attribute both of them carry.
 	UpdatedAgo string
 	UpdatedAt  string
+	UpdatedISO string
 	Query      string
 	Version    string
 	NoIndex    bool
@@ -296,16 +299,16 @@ const layoutHTML = `<!doctype html>
     <div class="brand"><a href="/">OpenGET</a>
       <small>Old School RuneScape Grand Exchange tracker</small>
     </div>
-    <form class="sitesearch" method="get" action="/search" role="search">
+    <form class="sitesearch" method="get" action="/search" role="search" aria-label="Search items">
       <input type="search" name="q" value="{{.Query}}" placeholder="Search items…" aria-label="Search items">
       <button type="submit">Go</button>
     </form>
-    <form class="f2ptoggle" method="post" action="/f2p">
+    <form class="f2ptoggle" method="post" action="/f2p" aria-label="Membership filter">
       <input type="hidden" name="return" value="{{.Return}}">
       <label><input type="checkbox" name="f2p" value="1"{{if .F2P}} checked{{end}}> Free-to-play only</label>
       <button type="submit">Apply</button>
     </form>
-    <form class="themepick" method="post" action="/theme">
+    <form class="themepick" method="post" action="/theme" aria-label="Site theme">
       <input type="hidden" name="return" value="{{.Return}}">
       <label><span class="vh">Theme</span>
         <select name="theme">
@@ -330,8 +333,8 @@ const layoutHTML = `<!doctype html>
   {{end}}
   {{.Body}}
   {{if .UpdatedAgo}}<div class="status-bar">
-    <p class="status-bar-field muted">{{.UpdatedAgo}}</p>
-    <p class="status-bar-field muted">{{.UpdatedAt}}</p>
+    <p class="status-bar-field muted">Prices updated <time datetime="{{.UpdatedISO}}">{{.UpdatedAgo}}</time></p>
+    <p class="status-bar-field muted"><time datetime="{{.UpdatedISO}}">{{.UpdatedAt}}</time></p>
   </div>{{end}}
 </main>
 <footer>

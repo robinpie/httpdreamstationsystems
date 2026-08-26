@@ -651,7 +651,7 @@ func (s *Server) alertsPage(ctx context.Context, r *http.Request) (*render.Doc, 
 		Caption: "Your alerts",
 		Empty:   "No alerts set.",
 		Columns: []render.Column{
-			{Title: "Item", Retro: true},
+			{Title: "Item", Retro: true, RowHeader: true},
 			{Title: "Condition", Retro: true},
 			{Title: "Threshold", Align: render.AlignRight, Retro: true},
 			{Title: "Last fired", Retro: true},
@@ -664,15 +664,15 @@ func (s *Server) alertsPage(ctx context.Context, r *http.Request) (*render.Doc, 
 				label = c.Label
 			}
 		}
-		fired := "never"
+		fired := render.Cell{Text: "never"}
 		if !a.LastFired.IsZero() {
-			fired = render.Ago(a.LastFired)
+			fired = render.Cell{Text: render.Ago(a.LastFired), At: a.LastFired}
 		}
 		t.Rows = append(t.Rows, []render.Cell{
 			render.CL(a.ItemName, views.ItemPath(a.ItemID)),
 			render.C(label),
 			render.C(render.GP(int64(a.Threshold))),
-			render.C(fired),
+			fired,
 		})
 	}
 	d.Add(t)
@@ -691,7 +691,7 @@ func (s *Server) alertsPage(ctx context.Context, r *http.Request) (*render.Doc, 
 	}
 	for _, e := range events {
 		et.Rows = append(et.Rows, []render.Cell{
-			render.C(render.Ago(e.FiredAt)), render.C(e.Message),
+			render.Cell{Text: render.Ago(e.FiredAt), At: e.FiredAt}, render.C(e.Message),
 		})
 	}
 	d.Add(et)

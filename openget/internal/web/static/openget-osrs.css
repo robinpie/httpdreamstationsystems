@@ -317,8 +317,8 @@ h1, h2, h3 {
   color: var(--scroll-h);
   text-shadow: var(--emboss);
 }
-/* The rule under a section heading is the olive line their news items are separated by, fading out to the right. Solid first so a browser without border-image still gets a rule. */
-h2 {
+/* The rule under a section heading is the olive line their news items are separated by, fading out to the right. Solid first so a browser without border-image still gets a rule. :not([class]) keeps it off the panel title bars, which are h2 as well now and draw their own frame. */
+h2:not([class]) {
   border-bottom: 2px solid var(--olive);
   border-image: linear-gradient(90deg, var(--olive), rgba(107, 123, 23, 0.4) 62%, transparent) 1;
 }
@@ -374,15 +374,16 @@ thead th {
 thead th a, thead th a:visited { color: inherit; font-weight: inherit; }
 thead th a:hover { color: #ffd166; }
 
-tbody td { border-bottom: 1px solid rgba(90, 62, 20, 0.22); }
-tbody td.r { font-family: var(--mono); }
+/* :is(td, th) throughout: the column that names each row is a <th scope="row">, and every one of these rules is about being a body cell rather than about being a <td>. The link colour in particular — miss it and the item name in column one drops to the generic main-content link weight. */
+tbody :is(td, th) { border-bottom: 1px solid rgba(90, 62, 20, 0.22); }
+tbody :is(td, th).r { font-family: var(--mono); }
 tbody tr:nth-child(even) { background: rgba(120, 84, 30, 0.10); }
 tbody tr:hover { background: rgba(255, 187, 34, 0.20); }
-tbody td a, tbody td a:visited { color: var(--link-ink); font-weight: 700; }
-tbody td a:hover { color: var(--link-ink-hov); }
+tbody :is(td, th) a, tbody :is(td, th) a:visited { color: var(--link-ink); font-weight: 700; }
+tbody :is(td, th) a:hover { color: var(--link-ink-hov); }
 
-td.good { color: var(--good-ink); font-weight: 700; }
-td.bad  { color: var(--bad-ink);  font-weight: 700; }
+:is(td, th).good { color: var(--good-ink); font-weight: 700; }
+:is(td, th).bad  { color: var(--bad-ink);  font-weight: 700; }
 
 /* -------------------------------------------------------- dark furniture */
 
@@ -391,7 +392,7 @@ td.bad  { color: var(--bad-ink);  font-weight: 700; }
   background: var(--void);
   border: 2px solid var(--wood);
 }
-.facts h3, .notes h3, .chartbox figcaption {
+.facts :is(h2, h3), .notes :is(h2, h3), .chartbox figcaption {
   background: none;
   border: 0;
   font-family: var(--sans);
@@ -441,7 +442,7 @@ svg.chart .chart-empty { fill: var(--text-dim); }
 
 /* ----------------------------------------------------------------- forms */
 
-.field span { color: var(--gold-dim); text-shadow: var(--drop); }
+.field > label { color: var(--gold-dim); text-shadow: var(--drop); }
 .field input, .field select {
   background: var(--void);
   /* Same as the search box: a black field on a black panel is identified only by its border, and --wood-pale is 4.65:1 against black where --wood was 2.44. */
@@ -525,10 +526,10 @@ footer .retro { font-family: var(--mono); }
   main::before, main::after { display: none; }
   h1, h2, h3 { color: #000; text-shadow: none; }
   /* Every selector that beat the plain `a` rule on screen beats it on paper too, so each one is restated rather than left to the layout sheet's single `a { color: #000 }`. */
-  a:where(main *), tbody td a, thead th a,
+  a:where(main *), tbody :is(td, th) a, thead th a,
   .facts a, .notes a, .chartbox a, .ogform a, .status-bar a { color: #000; }
   .facts, .notes, .chartbox, .ogform, .status-bar { background: #fff; color: #000; }
-  .facts h3, .notes h3, .chartbox figcaption { color: #000; text-shadow: none; }
+  .facts :is(h2, h3), .notes :is(h2, h3), .chartbox figcaption { color: #000; text-shadow: none; }
   .facts dt, .facts dd, .notes li, .status-bar { color: #000; }
   table { background: #fff; color: #000; box-shadow: none; }
   thead th { background: #eee; color: #000; text-shadow: none; }

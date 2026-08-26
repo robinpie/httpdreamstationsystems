@@ -214,7 +214,7 @@ func (b *Builder) itemTable(items []*store.Item, caption string) render.Table {
 		Caption: caption,
 		Empty:   "No items match those filters.",
 		Columns: []render.Column{
-			{Title: "Item", SortKey: "name", Retro: true},
+			{Title: "Item", SortKey: "name", Retro: true, RowHeader: true},
 			{Title: "Buy", Align: render.AlignRight, SortKey: "low", Retro: true,
 				Hint: "Instant-sell price: what you can buy for right now"},
 			{Title: "Sell", Align: render.AlignRight, SortKey: "high", Retro: true,
@@ -334,8 +334,8 @@ func (b *Builder) ItemPage(ctx context.Context, id int, window string) (*render.
 		facts.Pairs = append(facts.Pairs, render.KV{Key: "Tax status", Value: "exempt from the convenience fee"})
 	}
 	facts.Pairs = append(facts.Pairs,
-		render.KV{Key: "Last buy seen", Value: render.AgoUnix(it.HighTime)},
-		render.KV{Key: "Last sell seen", Value: render.AgoUnix(it.LowTime)})
+		render.KV{Key: "Last buy seen", Value: render.AgoUnix(it.HighTime), At: unixAt(it.HighTime)},
+		render.KV{Key: "Last sell seen", Value: render.AgoUnix(it.LowTime), At: unixAt(it.LowTime)})
 	d.Add(facts)
 
 	details := render.Facts{Title: "Item", Pairs: []render.KV{
@@ -415,9 +415,13 @@ func (b *Builder) ItemPage(ctx context.Context, id int, window string) (*render.
 
 	var winLinks []render.Link
 	for _, w := range Windows {
-		winLinks = append(winLinks, render.Link{Text: w.Label, Href: ItemPath(it.ID) + "?w=" + w.Key})
+		winLinks = append(winLinks, render.Link{
+			Text: w.Label, Href: ItemPath(it.ID) + "?w=" + w.Key,
+			// Which range is on screen was previously visible only in the chart's own caption; the link list gave five identical-looking choices with no indication that one of them was where you already stood.
+			Current: w.Key == win.Key,
+		})
 	}
-	d.Add(render.Links{Title: "Chart range", Items: winLinks})
+	d.Add(render.Links{Title: "Chart range", NavLabel: "Chart range", Items: winLinks})
 
 	if vol, at, _ := b.DB.LatestVolume(ctx, it.ID); vol > 0 {
 		d.Add(render.Facts{Title: "Volume", Pairs: []render.KV{
@@ -450,6 +454,14 @@ func deref(p *int64) int64 {
 		return 0
 	}
 	return *p
+}
+
+// unixAt turns the API's optional unix timestamps into a time for <time datetime>. A nil pointer means the price has never been observed, and stays the zero time, which timeWrap leaves unmarked.
+func unixAt(p *int64) time.Time {
+	if p == nil {
+		return time.Time{}
+	}
+	return time.Unix(*p, 0)
 }
 
 func yesNo(b bool) string {
@@ -567,7 +579,9 @@ func (b *Builder) Status(ctx context.Context, version string, freeDiskMB int64, 
 			res = render.Cell{Text: "failed: " + r.Note, Tone: -1}
 		}
 		t.Rows = append(t.Rows, []render.Cell{
-			render.C(r.Job), render.C(render.Ago(r.Started)), render.C(took), res,
+			render.C(r.Job),
+			render.Cell{Text: render.Ago(r.Started), At: r.Started},
+			render.C(took), res,
 		})
 	}
 	d.Add(t)

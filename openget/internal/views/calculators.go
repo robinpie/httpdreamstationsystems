@@ -159,7 +159,7 @@ func (b *Builder) CalcKind(ctx context.Context, kind string) (*render.Doc, error
 	t := render.Table{
 		Empty: empty,
 		Columns: []render.Column{
-			{Title: "Method", Retro: true},
+			{Title: "Method", Retro: true, RowHeader: true},
 			{Title: "Cost", Align: render.AlignRight, Retro: true},
 			{Title: "Revenue", Align: render.AlignRight, Hint: "After the 2% GE tax on each item sold"},
 			{Title: "Tax", Align: render.AlignRight},
@@ -482,7 +482,7 @@ func (b *Builder) AlchList(ctx context.Context, o AlchOptions) (*render.Doc, err
 	t := render.Table{
 		Caption: spell.Title + " profit",
 		Columns: []render.Column{
-			{Title: "Item", Retro: true},
+			{Title: "Item", Retro: true, RowHeader: true},
 			{Title: "Buy at", Align: render.AlignRight, Retro: true},
 			{Title: spell.Short, Align: render.AlignRight, Retro: true},
 			{Title: "Profit", Align: render.AlignRight, Retro: true},
@@ -600,7 +600,7 @@ func (b *Builder) StoreProfit(ctx context.Context, limit int) (*render.Doc, erro
 	}
 	t := render.Table{
 		Columns: []render.Column{
-			{Title: "Item", Retro: true},
+			{Title: "Item", Retro: true, RowHeader: true},
 			{Title: "Shop", Retro: true},
 			{Title: "Shop price", Align: render.AlignRight, Retro: true},
 			{Title: "Sells for", Align: render.AlignRight, Retro: true},
@@ -672,7 +672,7 @@ func (b *Builder) IndicesPage(ctx context.Context) (*render.Doc, error) {
 	}
 	t := render.Table{
 		Columns: []render.Column{
-			{Title: "Index", Retro: true},
+			{Title: "Index", Retro: true, RowHeader: true},
 			{Title: "Items", Align: render.AlignRight, Retro: true},
 			{Title: "Level", Align: render.AlignRight, Retro: true},
 			{Title: "Change", Align: render.AlignRight, Retro: true},
@@ -750,7 +750,7 @@ func (b *Builder) IndexPage(ctx context.Context, id string) (*render.Doc, error)
 	t := render.Table{
 		Caption: "Constituents",
 		Columns: []render.Column{
-			{Title: "Item", Retro: true},
+			{Title: "Item", Retro: true, RowHeader: true},
 			{Title: "Weight", Align: render.AlignRight, Retro: true},
 			{Title: "Price", Align: render.AlignRight, Retro: true},
 		},

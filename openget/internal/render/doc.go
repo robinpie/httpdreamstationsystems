@@ -92,6 +92,8 @@ const (
 type Column struct {
 	Title string
 	Align Align
+	// RowHeader marks the column that names its row — the item, the method, the index. HTML promotes those cells to <th scope="row">, so a screen reader reading across row 40 announces "Abyssal whip, Margin, 3,393" rather than a bare number. Set it only on a column that genuinely identifies the row: on a grid of timestamps or a one-column list it adds noise and no meaning.
+	RowHeader bool
 	// SortKey, when set, makes the column header a sort link on the web.
 	SortKey string
 	// Hint is a tooltip / footnote explaining the column.
@@ -108,6 +110,8 @@ type Cell struct {
 	Tone int
 	// Numeric is the underlying value, used for machine-readable output.
 	Numeric *float64
+	// At, when set, is the instant Text describes ("3m ago", "22:24:20 UTC"). HTML wraps the cell in <time datetime>, which is the difference between a string a machine has to guess at and one it can read — and these pages are served with a minute of shared cache, so the rendered "3m ago" is not necessarily true when it is read.
+	At time.Time
 }
 
 // C builds a plain cell.
@@ -135,12 +139,20 @@ type Link struct {
 	Text string
 	Href string
 	Desc string
+	// Current marks the entry the reader is already looking at, becoming aria-current="page" in HTML. Text protocols ignore it.
+	Current bool
+	// Rel is the HTML link relationship ("prev", "next"). Ignored outside HTML.
+	Rel string
 }
 
 // Links is a list of links — a menu on Gopher, a list on the web.
 type Links struct {
 	Title string
-	Items []Link
+	// Level is the heading level for Title on the web. Zero means 2, as for Facts.
+	Level int
+	// NavLabel, when set, wraps the list in <nav aria-label="..."> on the web, for a set of links that is a way around the page rather than part of its content. Empty leaves it a plain list.
+	NavLabel string
+	Items    []Link
 }
 
 func (Links) isBlock() {}
@@ -152,11 +164,15 @@ type KV struct {
 	Hint  string
 	Tone  int
 	Link  string
+	// At is Cell.At for a fact panel: the instant Value describes, rendered as <time datetime> on the web.
+	At time.Time
 }
 
 // Facts is a definition list: the item page's price/margin/limit panel.
 type Facts struct {
 	Title string
+	// Level is the heading level for Title on the web. Zero means 2 — these panels are page sections, and hardcoding a depth here is what made every item and calculator page jump from h1 straight to h3. Set it only when a panel is genuinely nested under a Heading of its own.
+	Level int
 	Pairs []KV
 }
 

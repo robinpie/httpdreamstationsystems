@@ -239,14 +239,16 @@ func (s *Server) addPaging(d *render.Doc, r *http.Request, path string, total in
 	}
 	var items []render.Link
 	if page > 1 {
-		items = append(items, render.Link{Text: "← previous", Href: link(page - 1)})
+		items = append(items, render.Link{Text: "← previous", Href: link(page - 1), Rel: "prev"})
 	}
 	if page < pages {
-		items = append(items, render.Link{Text: "next →", Href: link(page + 1)})
+		items = append(items, render.Link{Text: "next →", Href: link(page + 1), Rel: "next"})
 	}
+	// A named nav rather than a bare list: "next →" says nothing on its own in a list of links, and on these pages it is the only way further into the results.
 	d.Add(render.Links{
-		Title: fmt.Sprintf("Page %d of %d — %s items match", page, pages, render.GP(int64(total))),
-		Items: items,
+		Title:    fmt.Sprintf("Page %d of %d — %s items match", page, pages, render.GP(int64(total))),
+		NavLabel: "Pagination",
+		Items:    items,
 	})
 }
 
