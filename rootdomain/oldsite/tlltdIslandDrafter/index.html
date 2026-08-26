@@ -1,0 +1,967 @@
+<!--
+  Tomodachi Life: Living the Dream Island Drafter
+  Copyright (C) 2026
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License along
+  with this program; if not, write to the Free Software Foundation, Inc.,
+  51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tomodachi Life: Living the Dream Island Drafter</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+      font-family: 'Courier New', Courier, monospace;
+      background: #111;
+      color: #ddd;
+    }
+
+    /* ── Sidebar ──────────────────────────────────────────── */
+
+    #sidebar {
+      width: 188px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+      border-right: 2px solid #ccc;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    #app-title {
+      padding: 8px 10px;
+      font-size: 10px;
+      line-height: 1.45;
+      color: #000;
+      border-bottom: 1px solid #ccc;
+      font-weight: bold;
+    }
+
+    .section-label {
+      padding: 6px 10px 2px;
+      font-size: 9px;
+      color: #000;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* Palette + Buildings list */
+    #palette, #buildings {
+      list-style: none;
+      padding: 2px 5px;
+    }
+
+    #palette li, #buildings li {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 4px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      color: #000;
+      border: 2px solid transparent;
+    }
+
+    #palette li:hover,  #buildings li:hover  { background: #e8e8e8; }
+    #palette li.active, #buildings li.active { border-color: #000; background: #e8e8e8; }
+
+    .swatch {
+      width: 30px;
+      height: 18px;
+      border-radius: 3px;
+      border: 1px solid rgba(0,0,0,0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 7px;
+      font-weight: bold;
+      color: #fff;
+      text-shadow: 0 0 3px #000, 0 0 3px #000;
+      flex-shrink: 0;
+    }
+
+    /* Tools */
+    #tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 4px 8px;
+    }
+
+    .tool-btn {
+      padding: 4px 7px;
+      background: #e8e8e8;
+      border: 2px solid #bbb;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 10px;
+      color: #000;
+      font-family: inherit;
+    }
+
+    .tool-btn:hover  { background: #d0d0d0; }
+    .tool-btn.active { border-color: #000; background: #d0d0d0; }
+
+    /* File buttons */
+    .file-btns {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 4px 8px;
+    }
+
+    .file-btn {
+      padding: 5px 8px;
+      background: #e8e8e8;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 10px;
+      color: #000;
+      font-family: inherit;
+      text-align: left;
+    }
+
+    .file-btn:hover { background: #d0d0d0; }
+
+    .zoom-btns {
+      display: flex;
+      gap: 3px;
+      padding: 4px 8px;
+    }
+
+    .zoom-btns .file-btn { flex: 1; text-align: center; }
+
+    .view-opts {
+      padding: 4px 10px;
+      font-size: 11px;
+      color: #000;
+    }
+
+    .view-opts label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+
+    #coords {
+      padding: 4px 10px;
+      font-size: 10px;
+      color: #000;
+      border-bottom: 1px solid #ccc;
+    }
+
+    #hotkeys {
+      margin-top: auto;
+      padding: 6px 10px 10px;
+      border-top: 1px solid #ccc;
+      font-size: 9px;
+      color: #000;
+    }
+
+    .hk-title {
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 3px;
+    }
+
+    .hk-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 4px;
+      padding: 1px 0;
+    }
+
+    .hk-row span:first-child {
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    /* ── Canvas area ──────────────────────────────────────── */
+
+    #canvas-wrap {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+      background: #0a0a0a;
+    }
+
+    #canvas {
+      display: block;
+      position: absolute;
+      top: 0; left: 0;
+      cursor: crosshair;
+    }
+
+    #canvas.mode-pan { cursor: grab; }
+    #canvas.panning  { cursor: grabbing; }
+  </style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div id="app-title">Tomodachi Life:<br>Living the Dream<br>Island Drafter</div>
+
+  <div id="coords">X: &mdash; &nbsp; Y: &mdash;</div>
+
+  <div class="section-label">Tiles</div>
+  <ul id="palette"></ul>
+
+  <div class="section-label">Buildings</div>
+  <ul id="buildings"></ul>
+
+  <div class="section-label">Tools</div>
+  <div id="tools"></div>
+
+  <div class="view-opts">
+    <label><input type="checkbox" id="chk-labels" checked> Show letters</label>
+  </div>
+
+  <div class="section-label">Zoom</div>
+  <div class="zoom-btns">
+    <button class="file-btn" id="btn-zoom-out">&#x2212; Zoom Out</button>
+    <button class="file-btn" id="btn-zoom-in" >&#x2b; Zoom In</button>
+  </div>
+
+  <div class="section-label">File</div>
+  <div class="file-btns">
+    <button class="file-btn" id="btn-new" >New  (Ctrl+N)</button>
+    <button class="file-btn" id="btn-save">Save (Ctrl+S)</button>
+    <button class="file-btn" id="btn-load">Load (Ctrl+O)</button>
+    <input type="file" id="file-input" accept=".vie" style="display:none">
+  </div>
+
+  <div id="hotkeys">
+    <div class="hk-title">Hotkeys</div>
+    <div class="hk-row"><span>Ctrl+Z / Y</span><span>Undo / Redo</span></div>
+    <div class="hk-row"><span>Ctrl+S</span><span>Save</span></div>
+    <div class="hk-row"><span>Ctrl+O</span><span>Load</span></div>
+    <div class="hk-row"><span>Ctrl+N</span><span>New</span></div>
+    <div class="hk-row"><span>Space</span><span>Toggle pan</span></div>
+    <div class="hk-row"><span>E</span><span>Erase building</span></div>
+    <div class="hk-row"><span>R</span><span>Rotate building</span></div>
+    <div class="hk-row"><span>-</span><span>Select sea tile</span></div>
+    <div class="hk-row"><span>Scroll</span><span>Zoom</span></div>
+    <div class="hk-row"><span>Right-drag</span><span>Pan</span></div>
+  </div>
+</div>
+
+<div id="canvas-wrap">
+  <canvas id="canvas"></canvas>
+</div>
+
+<script>
+'use strict';
+
+/* ── Constants ──────────────────────────────────────────────── */
+
+const COLS       = 118;
+const ROWS       = 78;
+const TILE_PX    = 12;
+const MAX_UNDO   = 100;
+const ZOOM_STEPS = [0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8];
+
+const TILES = [
+  { id: 'Se',  name: 'Sea',                    color: '#4a90d9' },
+  { id: 'SB',  name: 'Sandy Beach',            color: '#f5d78e' },
+  { id: 'SP',  name: 'Steel Plate',            color: '#9aaab4' },
+  { id: 'SPP', name: 'Steel Plate Path',       color: '#9aaab4', path: true },
+  { id: 'WB',  name: 'Wooden Boards',          color: '#c8874a' },
+  { id: 'WBP', name: 'Wooden Boards Path',     color: '#c8874a', path: true },
+  { id: 'Sa',  name: 'Sand',                   color: '#e8c97a' },
+  { id: 'SaP', name: 'Sand Path',              color: '#e8c97a', path: true },
+  { id: 'CB',  name: 'Cherry Blossoms',        color: '#f7b8d0' },
+  { id: 'CBP', name: 'Cherry Blossoms Path',   color: '#f7b8d0', path: true },
+  { id: 'Gv',  name: 'Gravel',                 color: '#9e9e9e' },
+  { id: 'GvP', name: 'Gravel Path',            color: '#9e9e9e', path: true },
+  { id: 'AC',  name: 'Arched Cobblestone',     color: '#7a7060' },
+  { id: 'ACP', name: 'Arched Cobblestone Path',color: '#7a7060', path: true },
+  { id: 'Co',  name: 'Cobblestone',            color: '#8a8070' },
+  { id: 'CoP', name: 'Cobblestone Path',       color: '#8a8070', path: true },
+  { id: 'Br',  name: 'Bricks',                 color: '#c0503a' },
+  { id: 'BrP', name: 'Bricks Path',            color: '#c0503a', path: true },
+  { id: 'Gr',  name: 'Grass',                  color: '#5aad5a' },
+  { id: 'GrP', name: 'Grass Path',             color: '#5aad5a', path: true },
+  { id: 'Cl',  name: 'Clovers',                color: '#3d9e3d' },
+  { id: 'ClP', name: 'Clovers Path',           color: '#3d9e3d', path: true },
+  { id: 'As',  name: 'Asphalt',                color: '#555555' },
+  { id: 'AsP', name: 'Asphalt Path',           color: '#555555', path: true },
+  { id: 'Di',  name: 'Dirt',                   color: '#a0724a' },
+  { id: 'DiP', name: 'Dirt Path',              color: '#a0724a', path: true },
+  { id: 'Cn',  name: 'Concrete',               color: '#b0b0b0' },
+  { id: 'CnP', name: 'Concrete Path',          color: '#b0b0b0', path: true },
+];
+
+const TILE_BY_ID = Object.fromEntries(TILES.map((t, i) => [t.id, i]));
+
+const BUILDINGS = [
+  { id: 'main-buildings',  name: 'Main Buildings',  w: 4,  h: 5 },
+  { id: 'small-house',     name: 'Small House',     w: 3,  h: 5 },
+  { id: 'big-house',       name: 'Big House',       w: 6,  h: 5 },
+  { id: 'restaurant',      name: 'Restaurant',      w: 6,  h: 6 },
+  { id: 'marketplace',     name: 'Marketplace',     w: 3,  h: 4 },
+  { id: 'fountain',        name: 'Fountain',        w: 10, h: 6 },
+  { id: 'ferris-wheel',    name: 'Ferris Wheel',    w: 9,  h: 6 },
+];
+const BUILDING_BY_ID = Object.fromEntries(BUILDINGS.map(b => [b.id, b]));
+
+function buildingDims(b) {
+  const def = BUILDING_BY_ID[b.id];
+  return b.rotated ? { w: def.h, h: def.w } : { w: def.w, h: def.h };
+}
+
+/* ── State ──────────────────────────────────────────────────── */
+
+let grid       = new Uint8Array(COLS * ROWS); // 0 = Sea by default
+let zoom       = 1;
+let panX       = 0;
+let panY       = 0;
+let selTile    = 0;
+let selTool    = 'brush1';
+let undoStack  = [];
+let redoStack  = [];
+let painting   = false;
+let panning    = false;
+let panAnchorX = 0, panAnchorY = 0;
+let panOriginX = 0, panOriginY = 0;
+let strokeSnap   = null;
+let showLabels   = true; // overwritten below after DOM ready
+let buildings    = [];   // [{ id, col, row }, ...]
+let selBuilding  = null;   // index into BUILDINGS, or null
+let hoverCell    = null;   // { col, row } or null, for placement preview
+let prevTool        = 'brush1'; // tool to restore when toggling pan off
+let buildingRotated = false;    // whether the pending placement is rotated 90°
+
+/* ── DOM refs ───────────────────────────────────────────────── */
+
+const canvas   = document.getElementById('canvas');
+const ctx      = canvas.getContext('2d');
+const wrap     = document.getElementById('canvas-wrap');
+const coordsEl = document.getElementById('coords');
+
+/* ── Palette ────────────────────────────────────────────────── */
+
+const paletteEl = document.getElementById('palette');
+TILES.forEach((tile, i) => {
+  const li     = document.createElement('li');
+  const swatch = document.createElement('div');
+  swatch.className   = 'swatch';
+  swatch.style.background = tile.color;
+  swatch.textContent = tile.id;
+  const label  = document.createElement('span');
+  label.textContent = tile.name;
+  li.append(swatch, label);
+  li.addEventListener('click', () => setTile(i));
+  paletteEl.appendChild(li);
+});
+
+function setTile(i) {
+  selTile = i;
+  paletteEl.querySelectorAll('li').forEach((el, j) =>
+    el.classList.toggle('active', j === i));
+  if (selTool === 'place-building') setTool('brush1');
+}
+setTile(0);
+
+/* ── Buildings palette ──────────────────────────────────────── */
+
+const buildingsEl = document.getElementById('buildings');
+BUILDINGS.forEach((def, i) => {
+  const li    = document.createElement('li');
+  const label = document.createElement('span');
+  label.textContent = def.name;
+  const size  = document.createElement('span');
+  size.textContent  = `${def.w}×${def.h}`;
+  size.style.cssText = 'margin-left:auto; color:#666; font-size:9px;';
+  li.append(label, size);
+  li.addEventListener('click', () => {
+    if (selBuilding === i) { setTool('brush1'); return; }
+    selBuilding     = i;
+    selTool         = 'place-building';
+    buildingRotated = false;
+    toolsEl.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+    buildingsEl.querySelectorAll('li').forEach((el, j) =>
+      el.classList.toggle('active', j === i));
+    hoverCell = null;
+  });
+  buildingsEl.appendChild(li);
+});
+
+/* ── Tools ──────────────────────────────────────────────────── */
+
+const TOOL_DEFS = [
+  { id: 'brush1',         label: '1×1'       },
+  { id: 'brush2',         label: '2×2'       },
+  { id: 'brush3',         label: '3×3'       },
+  { id: 'brush4',         label: '4×4'       },
+  { id: 'brush5',         label: '5×5'       },
+  { id: 'brush9',         label: '9×9'       },
+  { id: 'fill',           label: 'Fill'      },
+  { id: 'pan',            label: 'Pan'       },
+  { id: 'erase-building', label: 'Erase Bld' },
+];
+
+const toolsEl = document.getElementById('tools');
+TOOL_DEFS.forEach(def => {
+  const btn = document.createElement('button');
+  btn.className  = 'tool-btn';
+  btn.textContent = def.label;
+  btn.dataset.id  = def.id;
+  btn.addEventListener('click', () => setTool(def.id));
+  toolsEl.appendChild(btn);
+});
+
+function setTool(id) {
+  if (selTool !== 'pan') prevTool = selTool;
+  selTool     = id;
+  selBuilding = null;
+  document.querySelectorAll('#buildings li').forEach(el => el.classList.remove('active'));
+  toolsEl.querySelectorAll('.tool-btn').forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.id === id));
+  canvas.classList.toggle('mode-pan', id === 'pan');
+}
+setTool('brush1');
+
+/* ── Canvas / resize ────────────────────────────────────────── */
+
+function resizeCanvas() {
+  canvas.width  = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  render();
+}
+
+new ResizeObserver(resizeCanvas).observe(wrap);
+
+panX = (wrap.clientWidth  - COLS * TILE_PX) / 2;
+panY = (wrap.clientHeight - ROWS * TILE_PX) / 2;
+resizeCanvas();
+
+/* ── Render ─────────────────────────────────────────────────── */
+
+function render() {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const tw = TILE_PX * zoom;
+
+  const c0 = Math.max(0,    Math.floor(-panX / tw));
+  const r0 = Math.max(0,    Math.floor(-panY / tw));
+  const c1 = Math.min(COLS, Math.ceil((W - panX) / tw));
+  const r1 = Math.min(ROWS, Math.ceil((H - panY) / tw));
+
+  // Tile fills
+  for (let r = r0; r < r1; r++) {
+    for (let c = c0; c < c1; c++) {
+      const x  = Math.floor(c * tw + panX);
+      const y  = Math.floor(r * tw + panY);
+      const nx = Math.floor((c + 1) * tw + panX);
+      const ny = Math.floor((r + 1) * tw + panY);
+      const tile = TILES[grid[r * COLS + c]];
+      ctx.fillStyle = tile.color;
+      ctx.fillRect(x, y, nx - x, ny - y);
+      if (tile.path) {
+        const w = nx - x, h = ny - y;
+        const inset = Math.max(1, Math.round(tw * 0.12));
+        const lw    = Math.max(1, tw * 0.09);
+        ctx.lineWidth   = lw * 3;
+        ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+        ctx.strokeRect(x + inset, y + inset, w - 2 * inset, h - 2 * inset);
+        ctx.lineWidth   = lw;
+        ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+        ctx.strokeRect(x + inset, y + inset, w - 2 * inset, h - 2 * inset);
+      }
+    }
+  }
+
+  // Grid lines (skip at very small zoom to reduce clutter)
+  if (zoom >= 0.75) {
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+    ctx.lineWidth   = 0.5;
+    for (let c = c0; c <= c1; c++) {
+      const x = Math.floor(c * tw + panX) + 0.5;
+      ctx.moveTo(x, Math.floor(r0 * tw + panY));
+      ctx.lineTo(x, Math.floor(r1 * tw + panY));
+    }
+    for (let r = r0; r <= r1; r++) {
+      const y = Math.floor(r * tw + panY) + 0.5;
+      ctx.moveTo(Math.floor(c0 * tw + panX), y);
+      ctx.lineTo(Math.floor(c1 * tw + panX), y);
+    }
+    ctx.stroke();
+  }
+
+  // Abbreviations (white text, black outline) — rendered before buildings so buildings stay on top
+  if (showLabels) {
+    const fontSize  = Math.max(3, tw * 0.55);
+    const strokeW   = Math.max(0.5, fontSize * 0.22);
+    ctx.font         = `bold ${fontSize}px monospace`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth    = strokeW;
+    ctx.strokeStyle  = 'rgba(0,0,0,0.9)';
+
+    for (let r = r0; r < r1; r++) {
+      for (let c = c0; c < c1; c++) {
+        const x  = Math.floor(c * tw + panX);
+        const y  = Math.floor(r * tw + panY);
+        const nx = Math.floor((c + 1) * tw + panX);
+        const ny = Math.floor((r + 1) * tw + panY);
+        const cx = (x + nx) / 2;
+        const cy = (y + ny) / 2;
+        const id = TILES[grid[r * COLS + c]].id;
+        ctx.strokeText(id, cx, cy);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(id, cx, cy);
+      }
+    }
+  }
+
+  // Buildings always on top
+  renderBuilding(buildings, 'rgba(100,100,110,0.78)', 'rgba(0,0,0,0.85)', 'rgba(255,255,255,0.9)');
+
+  // Placement preview
+  if (selTool === 'place-building' && selBuilding !== null && hoverCell) {
+    const def     = BUILDINGS[selBuilding];
+    const preview = { id: def.id, col: hoverCell.col, row: hoverCell.row, rotated: buildingRotated };
+    const { w: pw, h: ph } = buildingDims(preview);
+    const fits    = preview.col + pw <= COLS && preview.row + ph <= ROWS && preview.col >= 0 && preview.row >= 0;
+    const overlaps = fits && buildings.some(b => {
+      const { w: bw, h: bh } = buildingDims(b);
+      return preview.col < b.col + bw && preview.col + pw > b.col &&
+             preview.row < b.row + bh && preview.row + ph > b.row;
+    });
+    const color = (!fits || overlaps) ? 'rgba(180,40,40,0.55)' : 'rgba(60,140,60,0.45)';
+    renderBuilding([preview], color, 'rgba(0,0,0,0.7)', 'rgba(255,255,255,0.8)');
+  }
+}
+
+function renderBuilding(list, fillColor, strokeDark, strokeLight) {
+  const tw = TILE_PX * zoom;
+  for (const b of list) {
+    const { w: bw, h: bh } = buildingDims(b);
+    const x   = Math.floor(b.col * tw + panX);
+    const y   = Math.floor(b.row * tw + panY);
+    const nx  = Math.floor((b.col + bw) * tw + panX);
+    const ny  = Math.floor((b.row + bh) * tw + panY);
+    const w   = nx - x, h = ny - y;
+
+    ctx.fillStyle = fillColor;
+    ctx.fillRect(x, y, w, h);
+
+    ctx.lineWidth   = 2;
+    ctx.strokeStyle = strokeDark;
+    ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
+    ctx.lineWidth   = 1;
+    ctx.strokeStyle = strokeLight;
+    ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+
+    // Name, word-wrapped to two lines if wide enough
+    const bdef   = BUILDING_BY_ID[b.id];
+    const maxFontH = Math.max(6, h * 0.22);
+    const maxFontW = Math.max(6, w / Math.max(...bdef.name.split(' ').map(s => s.length)) * 1.5);
+    const fontSize = Math.min(maxFontH, maxFontW, 18);
+    ctx.font         = `bold ${fontSize}px monospace`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineWidth    = Math.max(1, fontSize * 0.2);
+
+    const words = bdef.name.split(' ');
+    const mid   = Math.ceil(words.length / 2);
+    const lines = words.length > 1
+      ? [words.slice(0, mid).join(' '), words.slice(mid).join(' ')]
+      : [bdef.name];
+    const lineH = fontSize * 1.2;
+    const startY = y + h / 2 - (lines.length - 1) * lineH / 2;
+
+    lines.forEach((line, i) => {
+      const ly = startY + i * lineH;
+      ctx.strokeStyle = 'rgba(0,0,0,0.9)';
+      ctx.strokeText(line, x + w / 2, ly);
+      ctx.fillStyle = '#fff';
+      ctx.fillText(line, x + w / 2, ly);
+    });
+  }
+}
+
+/* ── Coordinate helpers ─────────────────────────────────────── */
+
+function canvasXY(e) {
+  const r = canvas.getBoundingClientRect();
+  return { sx: e.clientX - r.left, sy: e.clientY - r.top };
+}
+
+function screenToCell(sx, sy) {
+  const tw = TILE_PX * zoom;
+  return {
+    col: Math.floor((sx - panX) / tw),
+    row: Math.floor((sy - panY) / tw),
+  };
+}
+
+function inBounds(col, row) {
+  return col >= 0 && col < COLS && row >= 0 && row < ROWS;
+}
+
+/* ── Paint ──────────────────────────────────────────────────── */
+
+const ODD_BRUSH_HALF  = { brush1: 0, brush3: 1, brush5: 2, brush9: 4 };
+const EVEN_BRUSH_HALF = { brush2: 1, brush4: 2 };
+
+function paint(sx, sy) {
+  const tw = TILE_PX * zoom;
+  const evenHalf = EVEN_BRUSH_HALF[selTool];
+  if (evenHalf !== undefined) {
+    // Snap to nearest grid intersection, then fill the surrounding NxN block
+    const ic = Math.round((sx - panX) / tw);
+    const ir = Math.round((sy - panY) / tw);
+    for (let dr = -evenHalf; dr < evenHalf; dr++)
+      for (let dc = -evenHalf; dc < evenHalf; dc++) {
+        const c = ic + dc, r = ir + dr;
+        if (inBounds(c, r)) grid[r * COLS + c] = selTile;
+      }
+  } else {
+    const col  = Math.floor((sx - panX) / tw);
+    const row  = Math.floor((sy - panY) / tw);
+    const half = ODD_BRUSH_HALF[selTool] ?? 0;
+    for (let dr = -half; dr <= half; dr++)
+      for (let dc = -half; dc <= half; dc++) {
+        const c = col + dc, r = row + dr;
+        if (inBounds(c, r)) grid[r * COLS + c] = selTile;
+      }
+  }
+}
+
+function floodFill(col, row) {
+  if (!inBounds(col, row)) return;
+  const target = grid[row * COLS + col];
+  if (target === selTile) return;
+  const stack = [col + row * COLS];
+  const seen  = new Uint8Array(COLS * ROWS);
+  while (stack.length) {
+    const idx = stack.pop();
+    if (seen[idx] || grid[idx] !== target) continue;
+    seen[idx]  = 1;
+    grid[idx]  = selTile;
+    const c = idx % COLS, r = (idx / COLS) | 0;
+    if (c > 0)        stack.push(idx - 1);
+    if (c < COLS - 1) stack.push(idx + 1);
+    if (r > 0)        stack.push(idx - COLS);
+    if (r < ROWS - 1) stack.push(idx + COLS);
+  }
+}
+
+/* ── Undo / Redo ────────────────────────────────────────────── */
+
+function snapshot() {
+  return { grid: grid.slice(), buildings: buildings.map(b => ({ ...b })) };
+}
+
+function applySnapshot(snap) {
+  grid      = snap.grid.slice();
+  buildings = snap.buildings.map(b => ({ ...b }));
+}
+
+function pushUndo(snap) {
+  undoStack.push(snap);
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  redoStack = [];
+}
+
+function undo() {
+  if (!undoStack.length) return;
+  redoStack.push(snapshot());
+  applySnapshot(undoStack.pop());
+  render();
+}
+
+function redo() {
+  if (!redoStack.length) return;
+  undoStack.push(snapshot());
+  applySnapshot(redoStack.pop());
+  render();
+}
+
+/* ── Mouse ──────────────────────────────────────────────────── */
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+canvas.addEventListener('mousedown', e => {
+  e.preventDefault();
+
+  const isPanGesture = e.button === 2 || (e.button === 0 && selTool === 'pan');
+  if (isPanGesture) {
+    panning    = true;
+    panAnchorX = e.clientX;
+    panAnchorY = e.clientY;
+    panOriginX = panX;
+    panOriginY = panY;
+    canvas.classList.add('panning');
+    return;
+  }
+
+  if (e.button !== 0) return;
+
+  const { sx, sy }   = canvasXY(e);
+  const { col, row } = screenToCell(sx, sy);
+
+  if (selTool === 'place-building' && selBuilding !== null) {
+    const def     = BUILDINGS[selBuilding];
+    const placing = { id: def.id, col, row, rotated: buildingRotated };
+    const { w: pw, h: ph } = buildingDims(placing);
+    if (col + pw > COLS || row + ph > ROWS || col < 0 || row < 0) return;
+    const overlaps = buildings.some(b => {
+      const { w: bw, h: bh } = buildingDims(b);
+      return col < b.col + bw && col + pw > b.col &&
+             row < b.row + bh && row + ph > b.row;
+    });
+    if (overlaps) return;
+    pushUndo(snapshot());
+    buildings.push(placing);
+    render();
+    return;
+  }
+
+  if (selTool === 'erase-building') {
+    const idx = buildings.findIndex(b => {
+      const { w: bw, h: bh } = buildingDims(b);
+      return col >= b.col && col < b.col + bw &&
+             row >= b.row && row < b.row + bh;
+    });
+    if (idx !== -1) {
+      pushUndo(snapshot());
+      buildings.splice(idx, 1);
+      render();
+    }
+    return;
+  }
+
+  strokeSnap = snapshot();
+  painting   = true;
+
+  if (selTool === 'fill') {
+    pushUndo(strokeSnap);
+    strokeSnap = null;
+    painting   = false;
+    floodFill(col, row);
+  } else {
+    paint(sx, sy);
+  }
+  render();
+});
+
+window.addEventListener('mousemove', e => {
+  if (panning) {
+    panX = panOriginX + (e.clientX - panAnchorX);
+    panY = panOriginY + (e.clientY - panAnchorY);
+    render();
+    return;
+  }
+
+  const { sx, sy }   = canvasXY(e);
+  const { col, row } = screenToCell(sx, sy);
+
+  coordsEl.textContent = inBounds(col, row)
+    ? `X: ${col + 1} \u00a0 Y: ${row + 1}`
+    : 'X: \u2014 \u00a0 Y: \u2014';
+
+  if (selTool === 'place-building') {
+    hoverCell = { col, row };
+    render();
+    return;
+  }
+
+  hoverCell = null;
+
+  if (painting && selTool !== 'fill') {
+    paint(sx, sy);
+    render();
+  }
+});
+
+window.addEventListener('mouseup', () => {
+  if (panning) {
+    panning = false;
+    canvas.classList.remove('panning');
+    return;
+  }
+  if (painting) {
+    if (strokeSnap !== null) { pushUndo(strokeSnap); strokeSnap = null; }
+    painting = false;
+  }
+});
+
+canvas.addEventListener('mouseleave', () => { hoverCell = null; render(); });
+
+/* ── Zoom ───────────────────────────────────────────────────── */
+
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  const { sx, sy } = canvasXY(e);
+  let zi = ZOOM_STEPS.indexOf(zoom);
+  zi  = e.deltaY < 0
+    ? Math.min(zi + 1, ZOOM_STEPS.length - 1)
+    : Math.max(zi - 1, 0);
+  const nz = ZOOM_STEPS[zi];
+  if (nz === zoom) return;
+  const wx = (sx - panX) / zoom;
+  const wy = (sy - panY) / zoom;
+  panX = sx - wx * nz;
+  panY = sy - wy * nz;
+  zoom = nz;
+  render();
+}, { passive: false });
+
+/* ── File ───────────────────────────────────────────────────── */
+
+function newProject() {
+  if (!confirm('Start a new project? Unsaved changes will be lost.')) return;
+  grid      = new Uint8Array(COLS * ROWS);
+  buildings = [];
+  undoStack = [];
+  redoStack = [];
+  render();
+}
+
+function saveProject() {
+  const rows = [];
+  for (let r = 0; r < ROWS; r++) {
+    const row = [];
+    for (let c = 0; c < COLS; c++) row.push(TILES[grid[r * COLS + c]].id);
+    rows.push(row);
+  }
+  const json = JSON.stringify({ version: '1.2', tiles: rows, buildings }, null, 2);
+  const a    = Object.assign(document.createElement('a'), {
+    href:     URL.createObjectURL(new Blob([json], { type: 'application/json' })),
+    download: 'island.vie',
+  });
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function loadProject() {
+  document.getElementById('file-input').click();
+}
+
+document.getElementById('file-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  e.target.value = '';
+  const reader = new FileReader();
+  reader.onload = ev => {
+    let data;
+    try { data = JSON.parse(ev.target.result); }
+    catch { alert('Could not parse file as JSON.'); return; }
+
+    const SUPPORTED = ['1.0', '1.1', '1.2'];
+    if (!SUPPORTED.includes(data.version)) {
+      alert(`Unsupported file version: ${data.version}`); return;
+    }
+    if (!Array.isArray(data.tiles) || data.tiles.length !== ROWS) {
+      alert(`Invalid file: expected ${ROWS} rows.`); return;
+    }
+    const ng = new Uint8Array(COLS * ROWS);
+    for (let r = 0; r < ROWS; r++) {
+      if (!Array.isArray(data.tiles[r]) || data.tiles[r].length !== COLS) {
+        alert(`Invalid file: row ${r} must have ${COLS} entries.`); return;
+      }
+      for (let c = 0; c < COLS; c++) {
+        const idx = TILE_BY_ID[data.tiles[r][c]];
+        if (idx === undefined) {
+          alert(`Unknown tile "${data.tiles[r][c]}" at row ${r}, col ${c}.`); return;
+        }
+        ng[r * COLS + c] = idx;
+      }
+    }
+    const nb = [];
+    if (data.version === '1.2') {
+      for (const b of (data.buildings ?? [])) {
+        if (!BUILDING_BY_ID[b.id]) { alert(`Unknown building "${b.id}".`); return; }
+        nb.push({ id: b.id, col: b.col, row: b.row, rotated: !!b.rotated });
+      }
+    }
+    grid      = ng;
+    buildings = nb;
+    undoStack = [];
+    redoStack = [];
+    render();
+  };
+  reader.readAsText(file);
+});
+
+const chkLabels = document.getElementById('chk-labels');
+showLabels = chkLabels.checked;
+chkLabels.addEventListener('change', e => {
+  showLabels = e.target.checked;
+  render();
+});
+
+document.getElementById('btn-new' ).addEventListener('click', newProject);
+document.getElementById('btn-save').addEventListener('click', saveProject);
+document.getElementById('btn-load').addEventListener('click', loadProject);
+
+document.getElementById('btn-zoom-in').addEventListener('click', () => {
+  const zi = ZOOM_STEPS.indexOf(zoom);
+  if (zi < ZOOM_STEPS.length - 1) {
+    const nz = ZOOM_STEPS[zi + 1];
+    panX = (canvas.width  / 2) - ((canvas.width  / 2) - panX) * (nz / zoom);
+    panY = (canvas.height / 2) - ((canvas.height / 2) - panY) * (nz / zoom);
+    zoom = nz;
+    render();
+  }
+});
+
+document.getElementById('btn-zoom-out').addEventListener('click', () => {
+  const zi = ZOOM_STEPS.indexOf(zoom);
+  if (zi > 0) {
+    const nz = ZOOM_STEPS[zi - 1];
+    panX = (canvas.width  / 2) - ((canvas.width  / 2) - panX) * (nz / zoom);
+    panY = (canvas.height / 2) - ((canvas.height / 2) - panY) * (nz / zoom);
+    zoom = nz;
+    render();
+  }
+});
+
+/* ── Keyboard shortcuts ─────────────────────────────────────── */
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && e.key === 'z') { e.preventDefault(); undo(); return; }
+  if (mod && e.key === 'y') { e.preventDefault(); redo(); return; }
+  if (mod && e.key === 's') { e.preventDefault(); saveProject(); return; }
+  if (mod && e.key === 'o') { e.preventDefault(); loadProject(); return; }
+  if (mod && e.key === 'n') { e.preventDefault(); newProject(); return; }
+  if (mod) return;
+
+  if (e.key === ' ') {
+    e.preventDefault();
+    setTool(selTool === 'pan' ? prevTool : 'pan');
+  }
+  if (e.key === 'e' || e.key === 'E') setTool('erase-building');
+  if (e.key === '-')                   setTile(TILE_BY_ID['Se']);
+  if ((e.key === 'r' || e.key === 'R') && selTool === 'place-building') {
+    buildingRotated = !buildingRotated;
+    render();
+  }
+});
+</script>
+</body>
+</html>

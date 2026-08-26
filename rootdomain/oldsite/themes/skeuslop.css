@@ -1,0 +1,379 @@
+/* vista — make the page look like Windows Vista (Aero).
+ *
+ * The palette and type are lifted from win32subsystem.live's Vista FAQ
+ * (Segoe UI, #e8eaef page, #4465a2 blue headings, rgb(19,112,171) links,
+ * #b6bcc6 hairline dividers); the Aero vocabulary that page only implied —
+ * frosted glass, glossy buttons, rounded white panes, blue focus glow — is
+ * rebuilt here in CSS.
+ *
+ * Visual vocabulary:
+ *   - cool light grey-blue page with a soft blue glow at the very top
+ *   - a frosted "Aero glass" command bar (real backdrop-blur where supported)
+ *   - glossy two-tone buttons with a 50% gloss break and a blue hover glow
+ *   - white, rounded, softly-shadowed content pane (a Vista task pane)
+ *   - thin blue Segoe UI headings under hairline dividers
+ *   - rounded Explorer-style tables with glossy column headers + row hover
+ */
+
+:root {
+  --v-bg:        #e8eaef;  /* page base — cool light grey-blue     */
+  --v-bg-glow:   #d4e4f6;  /* blue glow at the top of the page     */
+  --v-ink:       #575757;  /* body text grey (from the reference)  */
+  --v-head:      #4465a2;  /* Vista blue — headings / accents      */
+  --v-link:      #1370ab;  /* rgb(19,112,171) link blue            */
+  --v-link-hot:  #074ae5;  /* rgb(7,74,229) hover blue             */
+  --v-visited:   #6c5b9e;  /* muted plum for visited links         */
+  --v-rule:      #b6bcc6;  /* divider hairline (.divider)          */
+  --v-panel:     #ffffff;  /* white content pane                   */
+  --v-panel-bd:  #d3d9e3;  /* content pane border                  */
+  --v-glass:     #3a5a8c;  /* glass text / chrome ink              */
+  --v-aero:      #7ab8eb;  /* Aero glow blue                       */
+  --v-sel:       #bcdcf4;  /* text selection blue                  */
+  --v-info-bd:   #bcd4ec;  /* info-panel border                    */
+
+  --v-font: "Segoe UI", "Selawik", "Frutiger", "Tahoma", "Verdana", "Arial", sans-serif;
+  --v-mono: "Consolas", "Lucida Console", "DejaVu Sans Mono", "Courier New", monospace;
+
+  /* Combobox dropdown arrow, drawn once and reused. */
+  --v-arrow: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='9'%20height='6'%3E%3Cpath%20d='M0,0%20H9%20L4.5,6%20Z'%20fill='%233a5a8c'/%3E%3C/svg%3E");
+}
+
+html {
+  background-color: var(--v-bg);
+}
+
+body {
+  margin: 0;
+  padding: 0 0 3rem;
+  color: var(--v-ink);
+  font-family: var(--v-font);
+  font-size: 14px;
+  line-height: 1.55;
+  background-color: var(--v-bg);
+  /* Vista's top-of-page glow: a blue band that fades into the flat base.
+     no-repeat, anchored at the top — like the reference's repeat-x strip. */
+  background-image: linear-gradient(to bottom,
+      var(--v-bg-glow) 0px,
+      #e2eaf4 140px,
+      var(--v-bg) 330px);
+  background-repeat: no-repeat;
+}
+
+/* ---- header: a frosted Aero glass command bar ------------------------ */
+
+.site-header {
+  position: sticky;          /* let content scroll *under* the glass */
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 34px;
+  padding: 4px 12px;
+  color: var(--v-glass);
+  /* Aero glass = a glossy white overlay (with a hard gloss break at 50%)
+     over a translucent blue. backdrop-filter does the real frosting. */
+  background:
+    linear-gradient(to bottom,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.18) 49%,
+      rgba(255, 255, 255, 0.05) 50%,
+      rgba(226, 239, 251, 0.22) 100%),
+    linear-gradient(to bottom, rgba(176, 206, 238, 0.72), rgba(142, 182, 228, 0.66));
+  border-bottom: 1px solid rgba(120, 160, 205, 0.85);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.22),
+    0 1px 4px rgba(70, 110, 160, 0.25);
+  -webkit-backdrop-filter: blur(10px) saturate(135%);
+  backdrop-filter: blur(10px) saturate(135%);
+}
+
+.site-nav {
+  display: flex;
+  gap: 2px;
+}
+
+/* glossy Aero command-bar buttons */
+.site-nav a {
+  display: inline-block;
+  padding: 3px 12px;
+  color: var(--v-glass);
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+
+.site-nav a:visited {
+  color: var(--v-glass);
+}
+
+.site-nav a:hover {
+  border-color: rgba(255, 255, 255, 0.9) rgba(150, 185, 225, 0.9) rgba(150, 185, 225, 0.9) rgba(255, 255, 255, 0.9);
+  background: linear-gradient(to bottom,
+    rgba(255, 255, 255, 0.85) 0%,
+    rgba(255, 255, 255, 0.35) 50%,
+    rgba(220, 235, 250, 0.5) 51%,
+    rgba(208, 228, 248, 0.7) 100%);
+  box-shadow: inset 0 0 4px rgba(255, 255, 255, 0.9), 0 0 5px rgba(122, 184, 235, 0.7);
+  color: #14346a;
+}
+
+.site-nav a:active {
+  background: linear-gradient(to bottom, rgba(190, 214, 240, 0.85), rgba(208, 228, 248, 0.7));
+  box-shadow: inset 0 1px 3px rgba(70, 110, 160, 0.45);
+}
+
+/* ---- theme switcher: a Vista combobox -------------------------------- */
+
+#theme-switcher {
+  top: 6px;
+  right: 10px;
+}
+
+#theme-switcher select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  margin: 0;
+  font-family: var(--v-font);
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--v-glass);
+  padding: 3px 26px 4px 10px;
+  border: 1px solid #7593b8;
+  border-radius: 4px;
+  background-color: #ffffff;
+  background-image:
+    var(--v-arrow),
+    linear-gradient(to bottom, #ffffff 0%, #f2f7fc 48%, #e7f0fa 52%, #f3f8fd 100%);
+  background-repeat: no-repeat, no-repeat;
+  background-position: right 8px center, center;
+  background-size: 9px 6px, auto;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9), 0 1px 1px rgba(80, 120, 170, 0.18);
+  cursor: pointer;
+}
+
+#theme-switcher select:hover {
+  border-color: #5b9bd5;
+  box-shadow: inset 0 0 4px rgba(255, 255, 255, 0.9), 0 0 6px rgba(122, 184, 235, 0.85);
+}
+
+#theme-switcher select:focus {
+  outline: none;
+  border-color: #3c87d8;
+  box-shadow: 0 0 0 2px rgba(120, 184, 235, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* ---- main: a white, rounded Vista task pane -------------------------- */
+
+main {
+  box-sizing: border-box;
+  /* fill the window but cap line length on very wide screens. */
+  width: min(66rem, 100% - 2rem);
+  margin: 1.5rem auto 2rem;
+  padding: 1.4rem 1.9rem 1.8rem;
+  background: var(--v-panel);
+  border: 1px solid var(--v-panel-bd);
+  border-radius: 7px;
+  box-shadow: 0 1px 2px rgba(70, 110, 160, 0.12), 0 6px 18px rgba(70, 110, 160, 0.10);
+}
+
+/* ---- typography ------------------------------------------------------ */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--v-font);
+  color: var(--v-head);
+  line-height: 1.25;
+}
+
+/* Vista headings are thin and blue, under a hairline divider. */
+h1 {
+  font-size: 1.8em;
+  font-weight: 400;
+  margin: 0.1em 0 0.5em;
+  padding-bottom: 0.22em;
+  border-bottom: 1px solid var(--v-rule);
+}
+
+h2 {
+  font-size: 1.35em;
+  font-weight: 400;
+  margin: 1.4em 0 0.5em;
+  padding-bottom: 0.16em;
+  border-bottom: 1px solid #d6dbe4;
+}
+
+h3 { font-size: 1.12em; font-weight: 600; margin: 1.3em 0 0.4em; }
+h4 { font-size: 1em;    font-weight: 700; margin: 1.2em 0 0.3em; color: var(--v-ink); }
+
+p { margin: 0.7em 0; }
+
+a {
+  color: var(--v-link);
+  text-decoration: none;
+}
+a:hover { color: var(--v-link-hot); text-decoration: underline; }
+a:visited { color: var(--v-visited); }
+
+/* ---- home/blog lists ------------------------------------------------- */
+
+.projects, .contact, .posts {
+  list-style: none;
+  padding-left: 0;
+  margin: 0.6em 0;
+}
+
+.projects li, .posts li {
+  padding: 3px 0;
+}
+
+.sep {
+  color: var(--v-rule);
+  margin: 0 0.5em;
+}
+
+.posts time { color: #7f8794; }
+
+.contact .label {
+  display: inline-block;
+  min-width: 4.5em;
+  color: #7f8794;
+}
+
+/* ---- code: clean white panels, Consolas ------------------------------ */
+
+code, pre, .samples {
+  font-family: var(--v-mono);
+}
+
+code {
+  font-size: 0.9em;
+  background: #eef4fb;
+  border: 1px solid #d4e1f0;
+  border-radius: 3px;
+  padding: 0 4px;
+  color: #33507a;
+}
+
+pre {
+  font-size: 0.875em;
+  background: #fbfdff;
+  border: 1px solid #cdd8e6;
+  border-radius: 5px;
+  padding: 11px 13px;
+  margin: 1em 0;
+  overflow-x: auto;
+  box-shadow: inset 0 1px 3px rgba(80, 120, 170, 0.10);
+  color: #2f3a48;
+}
+
+pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 1em;
+  color: inherit;
+}
+
+/* ---- blockquote: a Vista info panel ---------------------------------- */
+
+blockquote {
+  margin: 1em 0;
+  padding: 0.6em 1em;
+  background: linear-gradient(to bottom, #f5f9fe, #eaf2fc);
+  border: 1px solid var(--v-info-bd);
+  border-left: 4px solid #6f9fd8;
+  border-radius: 5px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+blockquote blockquote {
+  background: #ffffff;
+  border-left-color: #9bbbe0;
+  margin: 0.5em 0;
+}
+
+blockquote p { margin: 0.4em 0; }
+
+.quote-title {
+  font-weight: 600;
+  color: var(--v-head);
+  margin: 0.2em 0 0.4em;
+}
+
+/* gzip output sample lines */
+.samples {
+  margin: 0.4em 0 0.1em;
+  padding: 8px 10px;
+  font-size: 0.84em;
+  color: #5b6675;
+  background: #fbfdff;
+  border: 1px solid #d4dfec;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+/* ---- tables: Explorer list view -------------------------------------- */
+
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  margin: 1em 0;
+  background: #ffffff;
+  border: 1px solid #c6d2e1;
+  border-radius: 5px;
+  overflow: hidden;          /* clip the header gloss to the rounded corners */
+}
+
+th {
+  text-align: left;
+  padding: 6px 12px;
+  font-weight: 600;
+  color: #3a527c;
+  background: linear-gradient(to bottom, #fbfdff 0%, #eaf1f9 48%, #e1ebf6 52%, #edf3fb 100%);
+  border-bottom: 1px solid #c6d2e1;
+  border-right: 1px solid #e4ebf4;
+}
+
+td {
+  padding: 6px 12px;
+  border-bottom: 1px solid #e8edf4;
+  border-right: 1px solid #eef2f7;
+}
+
+tbody tr:nth-child(even) { background: #f4f8fd; }
+tbody tr:hover { background: #e3eefb; }   /* Aero row hover */
+
+/* ---- separators & media ---------------------------------------------- */
+
+hr {
+  border: 0;
+  height: 0;
+  border-top: 1px solid var(--v-rule);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.8);
+  margin: 1.7em 0;
+}
+
+figure {
+  margin: 1.2em 0;
+  text-align: center;
+}
+
+figure img {
+  border: 1px solid #c3cedd;
+  background: #ffffff;
+  padding: 4px;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(70, 110, 160, 0.18);
+}
+
+ul:not(.projects):not(.contact):not(.posts):not(.samples) {
+  padding-left: 1.4em;
+}
+
+::selection {
+  background: var(--v-sel);
+  color: #13325c;
+}

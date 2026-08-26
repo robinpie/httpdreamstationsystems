@@ -1,0 +1,368 @@
+/* motif — make the page look like an OSF/Motif (Xm) X11 application.
+ *
+ * Motif's whole look comes from one idea: every widget is drawn with a
+ * `shadowThickness` (default 2px) bevel made of TWO flat colours — a light
+ * "top shadow" on the top+left edges and a dark "bottom shadow" on the
+ * bottom+right. Raised widgets (push buttons) light from the top-left;
+ * sunken ones (text fields, troughs) invert it. There are no gradients and
+ * no rounded corners — everything is flat grey with hard 3D edges.
+ *
+ * Visual vocabulary:
+ *   - battleship-grey window face (#b0b0b0), pure-black bold Helvetica text
+ *   - raised 2px-bevel push buttons for the nav; they sink when armed
+ *   - an XmOptionMenu (raised button + little raised indicator) switcher
+ *   - sunken 2px-bevel text areas (XmText) for code, white work area
+ *   - etched-in separators (XmSeparator): one dark line over one light line
+ *   - chunky Motif scrollbars (sunken trough, raised slider) on overflow
+ */
+
+:root {
+  --mtf-bg:      #b0b0b0;  /* window / widget face                     */
+  --mtf-light:   #e1e1e1;  /* top shadow  — top+left bevel (highlight) */
+  --mtf-dark:    #6f6f6f;  /* bottom shadow — bottom+right bevel       */
+  --mtf-darker:  #4a4a4a;  /* deeper line for etched grooves           */
+  --mtf-arm:     #9c9c9c;  /* armColor — pressed button face           */
+  --mtf-base:    #ffffff;  /* XmText work-area background              */
+  --mtf-text:    #101010;  /* foreground — near-black ink              */
+  --mtf-dim:     #3d3d3d;  /* secondary text                          */
+  --mtf-link:    #1c3aa0;  /* a plain X11-era blue                     */
+  --mtf-visited: #5e2e92;  /* visited purple                          */
+  --mtf-select:  #2f5fb0;  /* XmText selection blue                    */
+
+  /* CDE/Motif shipped Lucida — Lucida Sans for UI, Lucida Typewriter for
+     monospace. Fall back to Helvetica/Courier (the older X defaults). */
+  --mtf-font: "Lucida Sans", "Lucida Grande", "Lucida Sans Unicode", "Helvetica Neue", "Helvetica", "Nimbus Sans", "Arial", sans-serif;
+  --mtf-mono: "Lucida Sans Typewriter", "Lucida Console", "Courier New", "Nimbus Mono PS", "Liberation Mono", "Courier", monospace;
+
+  /* OptionMenu indicator: a tiny raised tile (light top-left, dark bottom-
+     right) — Motif draws a small raised rectangle here, not an arrow. */
+  --mtf-indicator: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='13'%20height='9'%3E%3Crect%20width='13'%20height='9'%20fill='%23b0b0b0'/%3E%3Crect%20width='13'%20height='2'%20fill='%23e1e1e1'/%3E%3Crect%20width='2'%20height='9'%20fill='%23e1e1e1'/%3E%3Crect%20y='7'%20width='13'%20height='2'%20fill='%236f6f6f'/%3E%3Crect%20x='11'%20width='2'%20height='9'%20fill='%236f6f6f'/%3E%3C/svg%3E");
+}
+
+html {
+  background: var(--mtf-bg);
+}
+
+body {
+  margin: 0;
+  padding: 0 0 3rem;
+  background: var(--mtf-bg);
+  color: var(--mtf-text);
+  font-family: var(--mtf-font);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ---- header: an XmMenuBar / toolbar ---------------------------------- */
+
+.site-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 5px 6px;
+  background: var(--mtf-bg);
+  /* the bar itself is a thin raised strip */
+  border-bottom: 2px solid;
+  border-bottom-color: var(--mtf-dark);
+  box-shadow: inset 0 1px 0 var(--mtf-light);
+}
+
+.site-nav {
+  display: flex;
+  gap: 6px;
+}
+
+/* nav items: raised 2px-bevel XmPushButtons */
+.site-nav a {
+  display: inline-block;
+  padding: 4px 14px;
+  color: var(--mtf-text);
+  font-weight: bold;
+  text-decoration: none;
+  background: var(--mtf-bg);
+  border: 2px solid;
+  border-color: var(--mtf-light) var(--mtf-dark) var(--mtf-dark) var(--mtf-light);
+  border-radius: 0;            /* Motif corners are always square */
+}
+
+.site-nav a:visited { color: var(--mtf-text); }
+.site-nav a:hover   { text-decoration: none; }
+
+/* armed — the bevel inverts and the face darkens; the label sinks 1px */
+.site-nav a:active {
+  background: var(--mtf-arm);
+  border-color: var(--mtf-dark) var(--mtf-light) var(--mtf-light) var(--mtf-dark);
+  padding: 5px 13px 3px 15px;
+}
+
+/* ---- theme switcher: an XmOptionMenu ---------------------------------- */
+
+#theme-switcher {
+  top: 5px;
+  right: 6px;
+}
+
+#theme-switcher select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  margin: 0;
+  font-family: var(--mtf-font);
+  font-size: 13px;
+  font-weight: bold;
+  line-height: 1.2;
+  color: var(--mtf-text);
+  padding: 4px 26px 4px 10px;
+  background-color: var(--mtf-bg);
+  background-image: var(--mtf-indicator);
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  border: 2px solid;
+  border-color: var(--mtf-light) var(--mtf-dark) var(--mtf-dark) var(--mtf-light);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+#theme-switcher select:active {
+  border-color: var(--mtf-dark) var(--mtf-light) var(--mtf-light) var(--mtf-dark);
+}
+
+/* the focus "highlight" rectangle Motif draws around the active widget */
+#theme-switcher select:focus {
+  outline: 1px solid var(--mtf-text);
+  outline-offset: 1px;
+}
+
+/* ---- main: the application's raised work area ------------------------- */
+
+main {
+  box-sizing: border-box;
+  width: min(66rem, 100% - 2rem);
+  margin: 1.25rem auto;
+  padding: 1.1rem 1.75rem 1.6rem;
+  background: var(--mtf-bg);
+  /* a raised XmFrame around the whole client area */
+  border: 2px solid;
+  border-color: var(--mtf-light) var(--mtf-dark) var(--mtf-dark) var(--mtf-light);
+  border-radius: 0;
+}
+
+/* ---- typography ------------------------------------------------------- */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--mtf-font);
+  font-weight: bold;
+  color: var(--mtf-text);
+  line-height: 1.25;
+}
+
+/* h1 sits over an etched-in separator: a dark line above a light one */
+h1 {
+  font-size: 1.7em;
+  margin: 0.1em 0 0.55em;
+  padding-bottom: 0.25em;
+  border-bottom: 2px solid;
+  border-image: linear-gradient(to bottom, var(--mtf-dark) 50%, var(--mtf-light) 50%) 1;
+}
+
+h2 {
+  font-size: 1.3em;
+  margin: 1.4em 0 0.5em;
+  padding-bottom: 0.15em;
+  border-bottom: 1px solid var(--mtf-dark);
+}
+
+h3 { font-size: 1.12em; margin: 1.3em 0 0.4em; }
+h4 { font-size: 1em;    margin: 1.2em 0 0.3em; }
+
+p { margin: 0.7em 0; }
+
+a {
+  color: var(--mtf-link);
+  text-decoration: underline;
+}
+a:hover   { text-decoration: underline; }
+a:visited { color: var(--mtf-visited); }
+
+/* ---- home/blog lists -------------------------------------------------- */
+
+.projects, .contact, .posts {
+  list-style: none;
+  padding-left: 0;
+  margin: 0.6em 0;
+}
+
+.projects li, .posts li { padding: 3px 0; }
+
+.sep {
+  color: var(--mtf-dark);
+  margin: 0 0.5em;
+}
+
+.posts time { color: var(--mtf-dim); }
+
+.contact .label {
+  display: inline-block;
+  min-width: 4.5em;
+  font-weight: bold;
+  color: var(--mtf-dim);
+}
+
+/* ---- code: a sunken XmText work area ---------------------------------- */
+
+code, pre, .samples {
+  font-family: var(--mtf-mono);
+}
+
+code {
+  font-size: 0.92em;
+  background: var(--mtf-base);
+  border: 1px solid var(--mtf-dark);
+  border-radius: 0;
+  padding: 0 3px;
+}
+
+/* sunken 2px bevel: top+left dark, bottom+right light (inverted raise) */
+pre {
+  font-size: 0.9em;
+  background: var(--mtf-base);
+  color: var(--mtf-text);
+  border: 2px solid;
+  border-color: var(--mtf-dark) var(--mtf-light) var(--mtf-light) var(--mtf-dark);
+  border-radius: 0;
+  padding: 9px 11px;
+  margin: 1em 0;
+  overflow-x: auto;
+}
+
+pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 1em;
+}
+
+/* ---- blockquote: an etched-in XmFrame --------------------------------- */
+
+blockquote {
+  margin: 1em 0;
+  padding: 0.55em 0.95em;
+  background: var(--mtf-bg);
+  border: 2px solid;
+  border-color: var(--mtf-dark) var(--mtf-light) var(--mtf-light) var(--mtf-dark);
+  border-radius: 0;
+}
+
+blockquote blockquote { background: var(--mtf-base); margin: 0.5em 0; }
+blockquote p { margin: 0.4em 0; }
+
+.quote-title {
+  font-weight: bold;
+  margin: 0.2em 0 0.4em;
+}
+
+/* gzip output sample lines — another sunken text area */
+.samples {
+  margin: 0.4em 0 0.1em;
+  padding: 7px 9px;
+  font-size: 0.86em;
+  color: var(--mtf-dim);
+  background: var(--mtf-base);
+  border: 2px solid;
+  border-color: var(--mtf-dark) var(--mtf-light) var(--mtf-light) var(--mtf-dark);
+  overflow-x: auto;
+}
+
+/* ---- tables: an XmList, column headers as raised buttons -------------- */
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+  background: var(--mtf-base);
+  /* sunken frame around the whole list */
+  border: 2px solid;
+  border-color: var(--mtf-dark) var(--mtf-light) var(--mtf-light) var(--mtf-dark);
+}
+
+th {
+  text-align: left;
+  padding: 4px 11px;
+  font-weight: bold;
+  color: var(--mtf-text);
+  background: var(--mtf-bg);
+  /* each header is a raised push button */
+  border: 2px solid;
+  border-color: var(--mtf-light) var(--mtf-dark) var(--mtf-dark) var(--mtf-light);
+}
+
+td {
+  padding: 4px 11px;
+  border: 1px solid var(--mtf-bg);
+}
+
+tbody tr:nth-child(even) { background: #eef0f2; }
+
+/* ---- separators & media ----------------------------------------------- */
+
+/* XmSeparator, SHADOW_ETCHED_IN: a dark line sitting on a light line */
+hr {
+  border: 0;
+  height: 2px;
+  margin: 1.6em 0;
+  background: linear-gradient(to bottom, var(--mtf-dark) 0, var(--mtf-dark) 1px, var(--mtf-light) 1px, var(--mtf-light) 2px);
+}
+
+figure {
+  margin: 1.2em 0;
+  text-align: center;
+}
+
+/* an image in a sunken XmFrame */
+figure img {
+  background: var(--mtf-base);
+  padding: 3px;
+  border: 2px solid;
+  border-color: var(--mtf-dark) var(--mtf-light) var(--mtf-light) var(--mtf-dark);
+}
+
+ul:not(.projects):not(.contact):not(.posts):not(.samples) {
+  padding-left: 1.4em;
+}
+
+::selection {
+  background: var(--mtf-select);
+  color: #ffffff;
+}
+
+/* ---- scrollbars: chunky Motif XmScrollBar (WebKit/Blink) -------------- */
+
+::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+
+/* the trough is sunken */
+::-webkit-scrollbar-track {
+  background: var(--mtf-arm);
+  border: 2px solid;
+  border-color: var(--mtf-dark) var(--mtf-light) var(--mtf-light) var(--mtf-dark);
+}
+
+/* the slider is a raised push button */
+::-webkit-scrollbar-thumb {
+  background: var(--mtf-bg);
+  border: 2px solid;
+  border-color: var(--mtf-light) var(--mtf-dark) var(--mtf-dark) var(--mtf-light);
+}
+
+/* the step arrows at each end are raised buttons too */
+::-webkit-scrollbar-button {
+  background: var(--mtf-bg);
+  border: 2px solid;
+  border-color: var(--mtf-light) var(--mtf-dark) var(--mtf-dark) var(--mtf-light);
+  width: 16px;
+  height: 16px;
+}
+
+::-webkit-scrollbar-corner { background: var(--mtf-arm); }

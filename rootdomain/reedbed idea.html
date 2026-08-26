@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>reedbed idea</title>
+</head>
+<body>
+
+<p>okay so here's my rough plan for reedbed</p>
+
+<p>the protocol will be called <code>katare</code>. one protcol message is a <code>kata</code>. URI form <code>katare://host[:440]/&lt;package&gt;</code></p>
+
+<p>TCP port 440. server speaks first, request-response, one in flight at a time</p>
+
+<p>CRLF-terminated lines &lt;= 1024 bytes including CRLF, tokens separated by a single SP</p>
+
+<p>first token is the verb (requests) or the status (responses). a line whose final two tokens are <code>kyx &lt;n&gt;</code> is followed immediately by exactly <code>n</code> octets of opaque body, no terminator. default cap is 64 MiB but is server-configurable and advertised</p>
+
+<p>all keywords are lowercase ASCII, case-sensitive (we use zh/gh rather than ž/ǧ)</p>
+
+<p>unlike batelu, numbers on the wire are decimal ASCII</p>
+
+<p>reads will be prefixed <code>ko</code>, writes won't</p>
+
+<pre>
+ko jexa &lt;query...&gt;              read
+ko besal &lt;izim&gt; [&lt;waktanimra&gt;]  read
+ko ghazema &lt;izim&gt; &lt;waktanimra&gt;  read
+ko cizujo &lt;izim&gt; &lt;constraint&gt;   read
+kalit / kango / kaldy / koja    write or session control
+</pre>
+
+<p>so a parser can therefore classify a request before it knows the verb, and a read-only mirror can reject anything not starting with <code>ko</code>.</p>
+
+<h2>the handshake</h2>
+
+<pre>
+S: dijabon katare/1 &lt;server-izim&gt;
+C: dijabon katare/1 &lt;client-izim&gt;            e.g. oboe/0.1
+S: si &lt;capability&gt;...                        e.g. si jexa cizujo kango sema
+</pre>
+
+<p>capabilities are bare words naming the optional verbs/features the server supports. this is the extension mechanism</p>
+
+<h2>verbs</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr>
+<th>Request</th>
+<th>Meaning</th>
+<th>Success response</th>
+</tr>
+<tr>
+<td><code>ko jexa &lt;query...&gt;</code></td>
+<td>search</td>
+<td><code>si kyx &lt;n&gt;</code> + record body (0 matches is <code>si kyx 0</code>, not an error)</td>
+</tr>
+<tr>
+<td><code>ko besal &lt;izim&gt;</code></td>
+<td>package metadata, all releases</td>
+<td><code>si kyx &lt;n&gt;</code> + records</td>
+</tr>
+<tr>
+<td><code>ko besal &lt;izim&gt; &lt;waktanimra&gt;</code></td>
+<td>one release's metadata</td>
+<td><code>si kyx &lt;n&gt;</code> + one record</td>
+</tr>
+<tr>
+<td><code>ko ghazema &lt;izim&gt; &lt;waktanimra&gt;</code></td>
+<td>fetch the archive</td>
+<td><code>si &lt;sema&gt; kyx &lt;n&gt;</code> + kabuk octets</td>
+</tr>
+<tr>
+<td><code>ko cizujo &lt;izim&gt; &lt;constraint&gt;</code></td>
+<td>server-side dependency resolution (optional capability)</td>
+<td><code>si kyx &lt;n&gt;</code> + flat resolved set, one <code>&lt;izim&gt; &lt;waktanimra&gt; &lt;sema&gt;</code> per line</td>
+</tr>
+<tr>
+<td><code>kalit &lt;token&gt;</code></td>
+<td>authenticate</td>
+<td><code>si &lt;account-izim&gt;</code></td>
+</tr>
+<tr>
+<td><code>kango &lt;izim&gt; &lt;waktanimra&gt; &lt;sema&gt; kyx &lt;n&gt;</code> + body</td>
+<td>publish</td>
+<td><code>si</code></td>
+</tr>
+<tr>
+<td><code>kaldy &lt;izim&gt; &lt;waktanimra&gt; [&lt;kata...&gt;]</code></td>
+<td>yank a release</td>
+<td><code>si</code></td>
+</tr>
+<tr>
+<td><code>koja</code></td>
+<td>close</td>
+<td><code>koja</code>, then close</td>
+</tr>
+</table>
+
+<p><code>ghazema</code> echoes the digest on the response line so the client can verify while streaming. <code>kango</code>/<code>kaldy</code> require a prior successful <code>kalit</code>. <code>cizujo</code> exists so the client does not need a solver; when the server doesn't advertise it, the client walks <code>ko besal</code> recursively instead.</p>
+
+<h2>statuses</h2>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr>
+<th>Status</th>
+<th>Means</th>
+</tr>
+<tr><td><code>si</code></td><td>success</td></tr>
+<tr><td><code>kyx &lt;n&gt;</code></td><td>trailing on a status line: body follows</td></tr>
+<tr><td><code>keresebyr</code></td><td>not found</td></tr>
+<tr><td><code>sentyre</code></td><td>already exists / conflict (republished version)</td></tr>
+<tr><td><code>wuwoji &lt;kata...&gt;</code></td><td>client error; human-readable reason follows</td></tr>
+<tr><td><code>ezhazebyr</code></td><td>unauthenticated or not the owner</td></tr>
+<tr><td><code>ramuzhu &lt;sego&gt;</code></td><td>server failure; retry after N seconds</td></tr>
+<tr><td><code>vazoj &lt;sego&gt;</code></td><td>rate-limited; wait N seconds</td></tr>
+<tr><td><code>byr</code></td><td>plain negative (just a reserved thing for future use rn, no verb returns it currently)</td></tr>
+<tr><td><code>koja</code></td><td>session closing</td></tr>
+</table>
+
+<p>a client recieving an unknown status SHOULD treat it as fatal and close</p>
+
+<h2>record bodies</h2>
+
+<p><code>jexa</code>, <code>besal</code> and <code>cizujo</code> bodies are line-oriented <code>key: value</code>, records separated by a blank line</p>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<tr>
+<th>Key</th>
+<th>Value</th>
+</tr>
+<tr><td><code>izim</code></td><td>package name</td></tr>
+<tr><td><code>waktanimra</code></td><td>version</td></tr>
+<tr><td><code>warna</code></td><td><code>vivlijotiki</code> (library -> <code>oboe get</code>) or <code>pawi</code> (tool -> <code>oboe install</code>)</td></tr>
+<tr><td><code>kakwam</code></td><td>one-line description</td></tr>
+<tr><td><code>tojar</code></td><td>author</td></tr>
+<tr><td><code>terezh</code></td><td>licence (SPDX id)</td></tr>
+<tr><td><code>punjur</code></td><td>upstream repository URL</td></tr>
+<tr><td><code>asulna</code></td><td>homepage</td></tr>
+<tr><td><code>ozhon</code></td><td>archive size in bytes</td></tr>
+<tr><td><code>sema</code></td><td><code>sha256:&lt;64 lowercase hex&gt;</code> of the kabuk</td></tr>
+<tr><td><code>cizujo</code></td><td>one dependency, repeatable: <code>&lt;izim&gt; &lt;constraint&gt;</code></td></tr>
+<tr><td><code>wakta</code></td><td>publish time, RFC 3339 UTC</td></tr>
+<tr><td><code>kaldy</code></td><td>present only when yanked; value is the reason</td></tr>
+</table>
+
+<h2>the <code>kabuk</code> archive</h2>
+
+<pre>
+kabuk1\n
+&lt;path&gt;\n&lt;nbytes&gt;\n&lt;nbytes octets&gt;      -- repeated
+sampura\n                              -- terminator
+</pre>
+
+<p>rules: <code>path</code> is a relative POSIX path, UTF-8, &lt;= 512 bytes, no leading <code>/</code>, no <code>..</code> component, no backslash, no NUL. <code>nbytes</code> decimal ASCII. Entries sorted by path in byte order; directories implicit; no modes, no mtimes, no uid/gid, so the same tree always produces the same bytes and therefore the same digest. <code>sema</code> is SHA-256 over the whole octet stream including magic and terminator.</p>
+
+<h2>names, versions, constraints</h2>
+
+<ul>
+<li><code>izim</code>: <code>[a-z][a-z0-9_]*</code>, &le; 64 bytes. Must be a valid Oboe identifier because <code>import foo</code> uses the bare name. <code>math</code>, <code>random</code> and <code>os</code> are reserved (they are runtime built-ins, <code>compiler/src/codegen.c:115-155</code>).</li>
+<li><code>waktanimra</code>: <code>MAJOR.MINOR.PATCH</code>, optionally <code>-&lt;tag&gt;</code>, decimal.</li>
+<li>Constraints (project.jsonc <code>dependencies</code> values): <code>=X.Y.Z</code>, <code>&gt;=X.Y.Z</code>, <code>^X.Y.Z</code>, <code>*</code>.</li>
+</ul>
+
+<h2>session rules</h2>
+
+<p>idle timeout 300 s: server sends <code>koja</code> and closes. the server MUST NOT send unsolicited lines other than this and the greeting. Malformed framing is <code>wuwoji</code> + close.</p>
+
+</body>
+</html>

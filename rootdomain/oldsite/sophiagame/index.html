@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asset walk</title>
+<style>
+  :root { --teal:#2fb6b0; --copper:#d98a3c; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { height:100%; background:#0a1418; overflow:hidden;
+    font-family:"Courier New",monospace; color:#cfeeec; }
+  #game { display:block; image-rendering:pixelated; image-rendering:crisp-edges;
+    width:100vw; height:100vh; background:#0a1418; cursor:none; }
+
+  /* HUD */
+  #hud { position:fixed; top:14px; left:14px; pointer-events:none;
+    padding:10px 16px 12px; border-radius:8px;
+    background:rgba(4,12,16,.6); border:1px solid rgba(127,233,255,.25);
+    backdrop-filter:blur(2px); color:#eafcff;
+    text-shadow:0 1px 2px #000, 0 0 3px #000, 0 0 10px rgba(0,0,0,.9); }
+  #hud .row { display:flex; align-items:center; gap:10px; font-size:20px;
+    letter-spacing:1px; }
+  #hud img { width:34px; height:34px; image-rendering:pixelated;
+    filter:drop-shadow(0 0 6px #4fd9ff); }
+  #hud .count { color:#aef3ff; font-weight:bold; }
+  #hud .small { font-size:12px; opacity:.85; margin-top:6px; letter-spacing:2px; }
+
+
+  #toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%);
+    font-size:18px; color:#7fe9ff; text-shadow:0 0 10px #000; opacity:0;
+    transition:opacity .4s; pointer-events:none; letter-spacing:1px; }
+  #toast.show { opacity:1; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div class="row">
+    <img src="assets/Soul%20Low%20Res.gif" alt="soul">
+    <span><span class="count" id="soulCount">0</span> / <span id="soulTotal">0</span> souls</span>
+  </div>
+  <div class="small">WASD / arrows to walk · SHIFT to dash</div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+/* ---------- asset loading ---------- */
+// Static PNGs
+const SRC = {
+  diver:    'assets/Sprite-0020.png',
+  ground:   'assets/CaveGroundTile.png',
+  cobble:   'assets/StoneCobble.png',
+  teal1:    'assets/TealCobble.png',
+  teal2:    'assets/TealCobble2.png',
+  teal3:    'assets/TealCobble3.png',
+  tree:     'assets/Tree1.png',
+  barrel:   'assets/Barrel.png',
+  mushroom: 'assets/Mushrooms1.png',
+  slug:     'assets/SLUG.png',
+  hut:      'assets/Sprite-0007-Recovered.png',
+  house:    'assets/Sprite-0005.png',
+  pump:     'assets/Sprite-0006.png',
+  smallhut: 'assets/Sprite-0017.png',
+  arches:   'assets/Sprite-0018.png',
+  well:     'assets/Sprite-0019.png',
+};
+const IMG = {};
+Object.keys(SRC).forEach(k => { const im=new Image(); im.src=SRC[k]; IMG[k]=im; });
+
+// Animated GIFs — drawImage() of a <gif> only ever paints frame 0, so we parse
+// the GIF ourselves (pure JS, no ImageDecoder dependency) and cycle the frames.
+const GIF_SRC = {
+  water:   'assets/Shitty%20Water.gif',
+  soul:    'assets/Soul.gif',
+  skyline: 'assets/City%20Skyline.gif',
+};
+const GIFS = {};
+class GifSprite {
+  constructor(){ this.frames=[]; this.ready=false; this.w=1; this.h=1; this.i=0; this.t=0; }
+  current(){ return this.frames.length ? this.frames[this.i].canvas : null; }
+  advance(dt){
+    if(this.frames.length<2) return;
+    this.t += dt*1000;
+    let guard=0;
+    while(this.t >= this.frames[this.i].dur && guard++<this.frames.length){
+      this.t -= this.frames[this.i].dur;
+      this.i = (this.i+1) % this.frames.length;
+    }
+  }
+}
+
+// --- minimal GIF87a/89a decoder -> array of {canvas,dur} composited frames ---
+function decodeGif(buf){
+  const d = new Uint8Array(buf); let p = 0;
+  const u8 = () => d[p++];
+  const u16 = () => { const v = d[p] | (d[p+1]<<8); p+=2; return v; };
+  p = 6;                                   // skip "GIF89a"
+  const W = u16(), H = u16();
+  const packed = u8(); u8(); u8();         // bg color + aspect ratio
+  const gctSize = 2 << (packed & 7);
+  const readCT = n => { const t = new Uint8Array(n*3); for(let i=0;i<n*3;i++) t[i]=u8(); return t; };
+  const gct = (packed & 0x80) ? readCT(gctSize) : null;
+
+  const frames = [];
+  const full = new Uint8ClampedArray(W*H*4);     // persistent compositing buffer
+  let gce = { delay:100, transp:-1, disposal:0 };
+  const snapshot = () => { const c=document.createElement('canvas'); c.width=W; c.height=H;
+    c.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(full),W,H),0,0); return c; };
+
+  while(p < d.length){
+    const b = u8();
+    if(b === 0x3B) break;                        // trailer
+    if(b === 0x21){                              // extension
+      const label = u8();
+      if(label === 0xF9){ u8(); const f=u8(); gce.disposal=(f>>2)&7;
+        gce.delay=u16()*10; const ti=u8(); gce.transp=(f&1)?ti:-1; u8(); }
+      else { let s; while((s=u8())!==0) p+=s; }  // skip other sub-blocks
+    } else if(b === 0x2C){                        // image descriptor
+      const ix=u16(), iy=u16(), iw=u16(), ih=u16(), ip=u8();
+      const ct = (ip & 0x80) ? readCT(2 << (ip & 7)) : gct;
+      const interlaced = ip & 0x40;
+      const minCode = u8();
+      const lzw=[]; { let s; while((s=u8())!==0){ for(let i=0;i<s;i++) lzw.push(u8()); } }
+      const idx = lzwDecode(minCode, lzw, iw*ih);
+      const order = interlaced ? deinterlace(ih) : null;
+      for(let r=0;r<ih;r++){ const dr = order ? order[r] : r;
+        for(let c=0;c<iw;c++){ const pix = idx[r*iw+c];
+          if(pix === gce.transp) continue;
+          const o = ((iy+dr)*W + (ix+c))*4;
+          full[o]=ct[pix*3]; full[o+1]=ct[pix*3+1]; full[o+2]=ct[pix*3+2]; full[o+3]=255; } }
+      frames.push({ canvas:snapshot(), dur:Math.max(gce.delay,40) });
+      if(gce.disposal === 2)                      // restore region to background
+        for(let r=0;r<ih;r++) for(let c=0;c<iw;c++){ const o=((iy+r)*W+(ix+c))*4;
+          full[o]=full[o+1]=full[o+2]=full[o+3]=0; }
+      gce = { delay:100, transp:-1, disposal:0 };
+    } else break;
+  }
+  return { W, H, frames };
+}
+function deinterlace(h){ const o=new Array(h); let r=0;
+  for(const [s,st] of [[0,8],[4,8],[2,4],[1,2]]) for(let i=s;i<h;i+=st) o[r++]=i; return o; }
+function lzwDecode(minCode, data, pixels){
+  const clear=1<<minCode, eoi=clear+1; let size=minCode+1, next=eoi+1;
+  let dict=[]; const init=()=>{ dict=[]; for(let i=0;i<clear;i++) dict[i]=[i]; dict[clear]=[]; dict[eoi]=null; };
+  init();
+  const out=new Uint8Array(pixels); let op=0, bit=0, prev=null;
+  const read=()=>{ let c=0; for(let i=0;i<size;i++){ c |= ((data[bit>>3]>>(bit&7))&1)<<i; bit++; } return c; };
+  while(op<pixels){
+    const code=read();
+    if(code===clear){ init(); size=minCode+1; next=eoi+1; prev=null; continue; }
+    if(code===eoi) break;
+    let entry;
+    if(dict[code]) entry=dict[code];
+    else if(code===next && prev) entry=prev.concat(prev[0]);
+    else break;
+    for(let i=0;i<entry.length;i++) out[op++]=entry[i];
+    if(prev){ dict[next++]=prev.concat(entry[0]);
+      if(next === (1<<size) && size<12) size++; }
+    prev=entry;
+  }
+  return out;
+}
+async function loadGif(name, url){
+  const g = new GifSprite(); GIFS[name] = g;
+  try {
+    const buf = await (await fetch(url)).arrayBuffer();
+    const { W, H, frames } = decodeGif(buf);
+    if(!frames.length) throw new Error('no frames');
+    g.frames = frames; g.w = W; g.h = H; g.ready = true;
+  } catch(e) {
+    // Fallback: single static frame via <img>.
+    const im = new Image();
+    im.onload = () => { const c=document.createElement('canvas');
+      c.width=im.naturalWidth; c.height=im.naturalHeight;
+      c.getContext('2d').drawImage(im,0,0);
+      g.frames=[{canvas:c,dur:9999}]; g.w=im.naturalWidth; g.h=im.naturalHeight; g.ready=true; };
+    im.src = url;
+  }
+}
+Object.entries(GIF_SRC).forEach(([k,v]) => loadGif(k, v));
+
+/* ---------- world ---------- */
+const WORLD = { w: 2400, h: 1800 };
+const TILE = 64;
+
+const PLAZA = { x: 1200, y: 900, r: 140 };
+
+// water ponds tucked into the corners: {x,y,w,h} in tiles.
+// Defined up front so everything else can avoid them.
+const ponds = [
+  {x:280,  y:300,  w:5, h:4},
+  {x:1860, y:1360, w:6, h:4},
+  {x:1700, y:240,  w:4, h:3},
+];
+
+// scattered decor: {img, x, y, scale, solid(radius)}
+const decor = [];
+function place(img, x, y, scale, r) { decor.push({img, x, y, scale, r:r||0}); }
+
+// --- geometry helpers ---
+function onWater(x, y, pad=0){
+  return ponds.some(p => x > p.x-pad && x < p.x+p.w*TILE+pad &&
+                         y > p.y-pad && y < p.y+p.h*TILE+pad);
+}
+function distToSeg(px,py, ax,ay, bx,by){
+  const dx=bx-ax, dy=by-ay, l2=dx*dx+dy*dy;
+  let t = l2 ? ((px-ax)*dx+(py-ay)*dy)/l2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px-(ax+dx*t), py-(ay+dy*t));
+}
+function nearSolid(x, y, gap){
+  return decor.some(d => d.r && Math.hypot(d.x-x, d.y-y) < d.r+gap);
+}
+
+const rng = mulberry32(1337);
+
+// --- procedural village: buildings cluster on one side of the plaza ---
+// Each is the destination of a plaza path, so we keep them: off water, spaced
+// from each other, and crucially NOT sitting across the path to another building.
+const buildingDefs = [
+  {img:'house',    scale:1.3, r:120},
+  {img:'arches',   scale:1.6, r:120},
+  {img:'hut',      scale:1.4, r:110},
+  {img:'well',     scale:1.4, r:70},
+  {img:'pump',     scale:1.4, r:70},
+  {img:'smallhut', scale:1.6, r:60},
+];
+const buildings = [];
+const villageArc = rng()*Math.PI*2;       // which way the settlement faces
+for(const def of buildingDefs){
+  let spot = null;
+  for(let tries=0; tries<240 && !spot; tries++){
+    const ang = villageArc + (rng()-0.5)*3.4;   // ~195° spread → a clustered side
+    const rad = 290 + rng()*240;
+    const x = PLAZA.x + Math.cos(ang)*rad;
+    const y = PLAZA.y + Math.sin(ang)*rad;
+    if(x<170||x>WORLD.w-170||y<210||y>WORLD.h-210) continue;
+    if(onWater(x, y, 50)) continue;
+    // breathing room from other buildings (cluster, but don't overlap)
+    if(buildings.some(b => Math.hypot(b.x-x, b.y-y) < b.r+def.r+44)) continue;
+    // don't sit on a path already running to another building...
+    if(buildings.some(b => distToSeg(x, y, PLAZA.x, PLAZA.y, b.x, b.y) < def.r+78)) continue;
+    // ...and this one's own path mustn't cut through another building
+    if(buildings.some(b => distToSeg(b.x, b.y, PLAZA.x, PLAZA.y, x, y) < b.r+78)) continue;
+    spot = {x, y};
+  }
+  if(!spot){ // fallback: evenly fan out so we never drop a building
+    const ang = villageArc + buildings.length*1.05;
+    spot = { x: PLAZA.x+Math.cos(ang)*360, y: PLAZA.y+Math.sin(ang)*360 };
+  }
+  buildings.push({ img:def.img, x:spot.x, y:spot.y, scale:def.scale, r:def.r });
+  place(def.img, spot.x, spot.y, def.scale, def.r);
+  decor[decor.length-1].useMask = true; // collide against opaque pixels, not the bbox
+}
+
+// path = the plaza disc plus a spoke from the plaza to each building
+function pathEnd(b){
+  const dx=PLAZA.x-b.x, dy=PLAZA.y-b.y, d=Math.hypot(dx,dy)||1;
+  return { x: b.x + dx/d*(b.r*0.6), y: b.y + dy/d*(b.r*0.6) };
+}
+function onPath(x, y, pad=0){
+  if(Math.hypot(x-PLAZA.x, y-PLAZA.y) < PLAZA.r+pad) return true;
+  return buildings.some(b => {
+    const e = pathEnd(b);
+    return distToSeg(x, y, PLAZA.x, PLAZA.y, e.x, e.y) < 64+pad;
+  });
+}
+
+// rejection sampler: first {x,y} that passes `ok`, or null
+function findSpot(ok, tries=60){
+  for(let i=0;i<tries;i++){
+    const x = 140 + rng()*(WORLD.w-280);
+    const y = 180 + rng()*(WORLD.h-320);
+    if(ok(x, y)) return {x, y};
+  }
+  return null;
+}
+
+// trees & barrels are SOLID: off water, off paths, clear of each other/buildings
+function scatterSolid(img, n, scaleFn, r){
+  let placed=0, guard=0;
+  while(placed<n && guard++ < n*50){
+    const s = findSpot((x,y) => !onWater(x,y,40) && !onPath(x,y,28) &&
+                                !nearSolid(x,y,r+26), 1);
+    if(s){ place(img, s.x, s.y, scaleFn(), r); placed++; }
+  }
+}
+scatterSolid('tree',   14, () => .55+rng()*.4,  42);
+scatterSolid('barrel', 18, () => .22+rng()*.12, 22);
+
+// mushrooms are decorative (non-solid): keep them off water and off the path
+for(let i=0;i<26;i++){
+  const s = findSpot((x,y) => !onWater(x,y,24) && !onPath(x,y,8));
+  if(s) place('mushroom', s.x, s.y, .7+rng()*.6, 0);
+}
+
+// souls to collect: reachable spots — off water, not buried in solids
+const souls = [];
+for(let i=0;i<12;i++){
+  const s = findSpot((x,y) => !onWater(x,y,60) && !nearSolid(x,y,40))
+            || { x:PLAZA.x, y:PLAZA.y };
+  souls.push({ x:s.x, y:s.y, got:false, bob:rng()*6.28 });
+}
+document.getElementById('soulTotal').textContent = souls.length;
+
+// wandering slugs: start off water and clear of solids
+const slugs = [];
+for(let i=0;i<8;i++){
+  const s = findSpot((x,y) => !onWater(x,y,30) && !nearSolid(x,y,30))
+            || { x:PLAZA.x, y:PLAZA.y };
+  slugs.push({ x:s.x, y:s.y, dir:rng()*6.28, t:rng()*100 });
+}
+
+/* ---------- player ---------- */
+const player = { x: WORLD.w/2, y: WORLD.h/2, speed: 200, face:1, walk:0, moving:false };
+
+/* ---------- input ---------- */
+const down = {};
+addEventListener('keydown', e => { down[e.key.toLowerCase()] = true;
+  if(['arrowup','arrowdown','arrowleft','arrowright',' '].includes(e.key.toLowerCase())) e.preventDefault();
+});
+addEventListener('keyup',   e => { down[e.key.toLowerCase()] = false; });
+
+/* ---------- resize ---------- */
+let VW, VH, SCALE;
+function resize(){
+  VW = canvas.width  = innerWidth;
+  VH = canvas.height = innerHeight;
+  SCALE = Math.max(1, Math.min(2.2, innerWidth/900));
+  ctx.imageSmoothingEnabled = false;
+}
+addEventListener('resize', resize); resize();
+
+/* ---------- helpers ---------- */
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0;
+  let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t;
+  return ((t^t>>>14)>>>0)/4294967296; }; }
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg;
+  t.classList.add('show'); clearTimeout(t._tm); t._tm=setTimeout(()=>t.classList.remove('show'),1100); }
+
+/* ---------- main loop ---------- */
+let last = performance.now();
+let collected = 0;
+function loop(now){
+  const dt = Math.min(.05, (now-last)/1000); last = now;
+  update(dt, now/1000);
+  render(now/1000);
+  requestAnimationFrame(loop);
+}
+
+function update(dt, time){
+  for(const k in GIFS) GIFS[k].advance(dt);
+  let dx=0, dy=0;
+  if(down['w']||down['arrowup'])    dy-=1;
+  if(down['s']||down['arrowdown'])  dy+=1;
+  if(down['a']||down['arrowleft'])  dx-=1;
+  if(down['d']||down['arrowright']) dx+=1;
+  const dash = (down['shift']) ? 1.9 : 1;
+  player.moving = (dx||dy);
+  if(player.moving){
+    const len = Math.hypot(dx,dy) || 1;
+    const nx = player.x + dx/len * player.speed*dash*dt;
+    const ny = player.y + dy/len * player.speed*dash*dt;
+    if(!blocked(nx, player.y)) player.x = nx;
+    if(!blocked(player.x, ny)) player.y = ny;
+    if(dx) player.face = dx<0 ? -1 : 1;
+    player.walk += dt*10*dash;
+  }
+  player.x = Math.max(40, Math.min(WORLD.w-40, player.x));
+  player.y = Math.max(40, Math.min(WORLD.h-40, player.y));
+
+  // souls
+  souls.forEach(s=>{
+    if(s.got) return;
+    if(Math.hypot(s.x-player.x, s.y-player.y) < 46){
+      s.got = true; collected++;
+      document.getElementById('soulCount').textContent = collected;
+      if(collected===souls.length) toast('✦ all souls gathered ✦');
+    }
+  });
+
+  // slugs wander
+  slugs.forEach(sl=>{
+    sl.t += dt;
+    if(sl.t>1){ sl.t=0; sl.dir += (Math.random()-.5)*1.4; }
+    sl.x += Math.cos(sl.dir)*14*dt;
+    sl.y += Math.sin(sl.dir)*14*dt;
+    if(sl.x<120||sl.x>WORLD.w-120) sl.dir = Math.PI-sl.dir;
+    if(sl.y<120||sl.y>WORLD.h-120) sl.dir = -sl.dir;
+  });
+}
+
+// Per-image alpha masks so buildings collide on their actual pixels, not the bbox.
+const masks = {}; // imgKey -> {w, h, bits:Uint8Array}
+function buildMask(key){
+  if(masks[key]) return masks[key];
+  const im = IMG[key];
+  if(!im || !im.complete || !im.naturalWidth) return null;
+  const w = im.naturalWidth, h = im.naturalHeight;
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const cx = c.getContext('2d'); cx.drawImage(im, 0, 0);
+  const data = cx.getImageData(0, 0, w, h).data;
+  const bits = new Uint8Array(w*h);
+  for(let i=0;i<w*h;i++) bits[i] = data[i*4+3] > 32 ? 1 : 0;
+  return (masks[key] = {w, h, bits});
+}
+// true=opaque hit, false=transparent (clear), null=mask not ready yet
+function maskHit(d, x, y){
+  const m = buildMask(d.img);
+  if(!m) return null;
+  const w = d.scale*m.w, h = d.scale*m.h;
+  const u = Math.floor((x - (d.x - w/2)) / d.scale);
+  const v = Math.floor((y - (d.y - h))   / d.scale);
+  if(u<0 || v<0 || u>=m.w || v>=m.h) return false;
+  return m.bits[v*m.w + u] === 1;
+}
+function blocked(x,y){
+  if(onWater(x, y, -6)) return true; // can't wade in; -6 lets you reach the shore
+  for(const d of decor){
+    if(!d.r) continue;
+    if(d.useMask){
+      const hit = maskHit(d, x, y);
+      if(hit === true) return true;
+      if(hit === null && Math.hypot(d.x-x, d.y-y) < d.r) return true; // mask loading
+    } else if(Math.hypot(d.x-x, d.y-y) < d.r) return true;
+  }
+  return false;
+}
+
+function render(time){
+  // camera
+  let camX = player.x - VW/(2*SCALE);
+  let camY = player.y - VH/(2*SCALE);
+  camX = Math.max(0, Math.min(WORLD.w - VW/SCALE, camX));
+  camY = Math.max(0, Math.min(WORLD.h - VH/SCALE, camY));
+
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,VW,VH);
+
+  // deep-water gradient backdrop
+  const g = ctx.createLinearGradient(0,0,0,VH);
+  g.addColorStop(0,'#0d2a30'); g.addColorStop(1,'#06141a');
+  ctx.fillStyle=g; ctx.fillRect(0,0,VW,VH);
+
+  // far parallax skyline
+  const skyFrame = GIFS.skyline && GIFS.skyline.current();
+  if(skyFrame){
+    const px = -camX*0.25 % 640;
+    const sy = 20 - camY*0.12;
+    ctx.globalAlpha = .35;
+    for(let x=px-640; x<VW; x+=636){
+      ctx.drawImage(skyFrame, x, sy, 640, 640);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  ctx.setTransform(SCALE,0,0,SCALE,-camX*SCALE,-camY*SCALE);
+
+  // ground tiling (only visible range)
+  const x0 = Math.floor(camX/TILE)*TILE, y0 = Math.floor(camY/TILE)*TILE;
+  const x1 = camX + VW/SCALE, y1 = camY + VH/SCALE;
+  if(IMG.ground.complete){
+    for(let y=y0; y<y1; y+=TILE) for(let x=x0; x<x1; x+=TILE)
+      ctx.drawImage(IMG.ground, x, y, TILE, TILE);
+  }
+  // cobble paths (plaza + spokes to each building)
+  drawPath(x0, y0, x1, y1);
+
+  // water ponds (animated gif frames)
+  const waterFrame = GIFS.water && GIFS.water.current();
+  if(waterFrame){
+    ponds.forEach(p=>{
+      for(let j=0;j<p.h;j++) for(let i=0;i<p.w;i++)
+        ctx.drawImage(waterFrame, p.x+i*TILE, p.y+j*TILE, TILE, TILE);
+    });
+  }
+
+  // build a sorted draw list (y-sort for depth)
+  const drawList = [];
+  decor.forEach(d=>drawList.push({y:d.y, kind:'decor', ref:d}));
+  souls.forEach(s=>{ if(!s.got) drawList.push({y:s.y, kind:'soul', ref:s}); });
+  slugs.forEach(s=>drawList.push({y:s.y, kind:'slug', ref:s}));
+  drawList.push({y:player.y, kind:'player'});
+  drawList.sort((a,b)=>a.y-b.y);
+
+  for(const item of drawList){
+    if(item.kind==='decor'){
+      const d=item.ref, im=IMG[d.img];
+      if(!im.complete||!im.naturalWidth) continue;
+      const w=im.naturalWidth*d.scale, h=im.naturalHeight*d.scale;
+      ctx.drawImage(im, d.x-w/2, d.y-h, w, h);
+    }
+    else if(item.kind==='soul'){
+      const s=item.ref, frame=GIFS.soul && GIFS.soul.current();
+      const bob = Math.sin(time*2+s.bob)*6;
+      const sz = 46;
+      ctx.globalAlpha=.9;
+      if(frame)
+        ctx.drawImage(frame, s.x-sz/2, s.y-sz - bob, sz, sz);
+      ctx.globalAlpha=1;
+    }
+    else if(item.kind==='slug'){
+      const s=item.ref, im=IMG.slug;
+      if(!im.complete||!im.naturalWidth) continue;
+      const sz=40; const flip = Math.cos(s.dir)<0?-1:1;
+      ctx.save();
+      ctx.translate(s.x, s.y);
+      ctx.scale(flip,1);
+      ctx.drawImage(im, -sz/2, -sz, sz, sz);
+      ctx.restore();
+    }
+    else if(item.kind==='player'){
+      drawPlayer(time);
+    }
+  }
+
+  ctx.setTransform(1,0,0,1,0,0);
+}
+
+// Draw cobble snapped to the ground grid so tiles line up seamlessly.
+// Any grid cell whose center lies on the path gets a cobble tile.
+function drawPath(x0,y0,x1,y1){
+  if(!IMG.cobble.complete) return;
+  const T=TILE;
+  for(let y=y0; y<y1; y+=T) for(let x=x0; x<x1; x+=T){
+    if(onPath(x+T/2, y+T/2)) ctx.drawImage(IMG.cobble, x, y, T, T);
+  }
+}
+
+function drawPlayer(time){
+  const im = IMG.diver;
+  if(!im.complete||!im.naturalWidth) return;
+  const scale = 0.85;
+  const w = im.naturalWidth*scale, h = im.naturalHeight*scale;
+  const bob = player.moving ? Math.abs(Math.sin(player.walk))*4 : Math.sin(time*1.5)*1.5;
+  const tilt = player.moving ? Math.sin(player.walk)*0.06 : 0;
+
+  // shadow
+  ctx.save();
+  ctx.translate(player.x, player.y);
+  ctx.scale(1,0.4);
+  ctx.beginPath(); ctx.arc(0,0,w*0.42,0,6.28);
+  ctx.fillStyle='rgba(0,0,0,0.35)'; ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(player.x, player.y - bob);
+  ctx.rotate(tilt);
+  ctx.scale(player.face, 1);
+  ctx.drawImage(im, -w/2, -h, w, h);
+  ctx.restore();
+}
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

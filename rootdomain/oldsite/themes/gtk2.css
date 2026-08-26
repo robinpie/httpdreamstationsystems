@@ -1,0 +1,330 @@
+/* gtk2 — make the page look like a GTK2 application (Clearlooks + Tango).
+ *
+ * Visual vocabulary:
+ *   - warm grey window chrome (#dcdad5), white "document" content area
+ *   - beveled toolbar/menubar header with raised buttons on hover
+ *   - a real-looking combobox for the theme switcher
+ *   - Tango sky-blue links, plum visited
+ *   - sunken white boxes for code (GtkTextView/GtkEntry)
+ *   - GtkTreeView-style tables with gradient column headers
+ */
+
+:root {
+  --gtk-bg:          #dcdad5;  /* window / widget grey            */
+  --gtk-bg-light:    #f6f5f2;  /* top of a raised gradient        */
+  --gtk-bg-dark:     #c9c6bf;  /* bottom of a raised gradient     */
+  --gtk-base:        #ffffff;  /* entry / textview background     */
+  --gtk-text:        #2e3436;  /* Tango aluminium, near-black ink */
+  --gtk-dim:         #5c5b57;  /* secondary text                  */
+  --gtk-line:        #9c998f;  /* hard separators / borders       */
+  --gtk-line-soft:   #c5c2bb;  /* soft inner borders              */
+  --gtk-hi:          #ffffff;  /* bevel highlight                 */
+  --gtk-lo:          #6f6c65;  /* bevel shadow                    */
+  --gtk-link:        #3465a4;  /* Tango sky blue 3                */
+  --gtk-visited:     #75507b;  /* Tango plum 1                    */
+  --gtk-select:      #4a90d9;  /* GTK selection blue              */
+
+  --gtk-font: "DejaVu Sans", "Bitstream Vera Sans", "Cantarell", "Verdana", "Helvetica", sans-serif;
+  --gtk-mono: "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "Liberation Mono", "Consolas", monospace;
+
+  /* Combobox dropdown arrow, drawn once and reused. */
+  --gtk-arrow: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20width='8'%20height='5'%3E%3Cpath%20d='M0,0%20H8%20L4,5%20Z'%20fill='%232e3436'/%3E%3C/svg%3E");
+}
+
+html {
+  background: var(--gtk-bg);
+}
+
+body {
+  margin: 0;
+  padding: 0 0 3rem;
+  background: var(--gtk-bg);
+  color: var(--gtk-text);
+  font-family: var(--gtk-font);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ---- header: a GTK2 toolbar / menubar -------------------------------- */
+
+.site-header {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 3px 6px;
+  background: linear-gradient(to bottom, var(--gtk-bg-light) 0%, #e6e4de 55%, var(--gtk-bg) 100%);
+  border-bottom: 1px solid var(--gtk-line);
+  box-shadow: inset 0 1px 0 #ffffff;
+}
+
+.site-nav {
+  display: flex;
+  gap: 4px;
+}
+
+/* nav items: raised GTK2 push-buttons (siblings of the combobox switcher) */
+.site-nav a {
+  display: inline-block;
+  padding: 3px 12px;
+  color: var(--gtk-text);
+  text-decoration: none;
+  border: 1px solid;
+  border-color: var(--gtk-hi) var(--gtk-lo) var(--gtk-lo) var(--gtk-hi);
+  border-radius: 3px;
+  background: linear-gradient(to bottom, var(--gtk-bg-light), var(--gtk-bg-dark));
+}
+
+.site-nav a:visited {
+  color: var(--gtk-text);
+}
+
+/* prelight — brighter button face on hover */
+.site-nav a:hover {
+  text-decoration: none;
+  background: linear-gradient(to bottom, #ffffff, #e0ddd6);
+}
+
+/* pressed — bevel inverts, face darkens, label sinks 1px */
+.site-nav a:active {
+  border-color: var(--gtk-lo) var(--gtk-hi) var(--gtk-hi) var(--gtk-lo);
+  background: var(--gtk-bg-dark);
+  box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.16);
+  padding: 4px 11px 2px 13px;
+}
+
+/* ---- theme switcher: a GTK2 combobox --------------------------------- */
+
+#theme-switcher {
+  top: 4px;
+  right: 6px;
+}
+
+#theme-switcher select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  margin: 0;
+  font-family: var(--gtk-font);
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--gtk-text);
+  padding: 3px 22px 3px 9px;
+  border: 1px solid;
+  border-color: var(--gtk-hi) var(--gtk-lo) var(--gtk-lo) var(--gtk-hi);
+  border-radius: 3px;
+  background-color: #e9e7e2;
+  background-image: var(--gtk-arrow), linear-gradient(to bottom, var(--gtk-bg-light), var(--gtk-bg-dark));
+  background-repeat: no-repeat, no-repeat;
+  background-position: right 7px center, center;
+  background-size: 8px 5px, auto;
+  cursor: pointer;
+}
+
+#theme-switcher select:hover {
+  background-image: var(--gtk-arrow), linear-gradient(to bottom, #ffffff, #e0ddd6);
+}
+
+#theme-switcher select:active {
+  border-color: var(--gtk-lo) var(--gtk-hi) var(--gtk-hi) var(--gtk-lo);
+}
+
+#theme-switcher select:focus {
+  outline: 1px dotted var(--gtk-text);
+  outline-offset: 1px;
+}
+
+/* ---- main: a white document inside the window ------------------------ */
+
+main {
+  box-sizing: border-box;
+  /* fill most of the window (like a maximized app), but cap line length
+     so prose stays readable on very wide screens. Bump the 66rem to taste. */
+  width: min(66rem, 100% - 2rem);
+  margin: 1.25rem auto;
+  padding: 1.1rem 1.75rem 1.6rem;
+  background: var(--gtk-base);
+  border: 1px solid #b6b3ab;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
+
+/* ---- typography ------------------------------------------------------ */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--gtk-font);
+  font-weight: bold;
+  color: var(--gtk-text);
+  line-height: 1.25;
+}
+
+h1 {
+  font-size: 1.7em;
+  margin: 0.1em 0 0.5em;
+  padding-bottom: 0.2em;
+  border-bottom: 1px solid var(--gtk-line-soft);
+}
+
+h2 {
+  font-size: 1.32em;
+  margin: 1.4em 0 0.5em;
+  padding-bottom: 0.15em;
+  border-bottom: 1px solid #ddd9d1;
+}
+
+h3 { font-size: 1.13em; margin: 1.3em 0 0.4em; }
+h4 { font-size: 1em;    margin: 1.2em 0 0.3em; }
+
+p { margin: 0.7em 0; }
+
+a {
+  color: var(--gtk-link);
+  text-decoration: none;
+}
+a:hover { text-decoration: underline; }
+a:visited { color: var(--gtk-visited); }
+
+/* ---- home/blog lists ------------------------------------------------- */
+
+.projects, .contact, .posts {
+  list-style: none;
+  padding-left: 0;
+  margin: 0.6em 0;
+}
+
+.projects li, .posts li {
+  padding: 3px 0;
+}
+
+.sep {
+  color: var(--gtk-line);
+  margin: 0 0.5em;
+}
+
+.posts time { color: var(--gtk-dim); }
+
+.contact .label {
+  display: inline-block;
+  min-width: 4.5em;
+  color: var(--gtk-dim);
+}
+
+/* ---- code: sunken GtkEntry / GtkTextView ----------------------------- */
+
+code, pre, .samples {
+  font-family: var(--gtk-mono);
+}
+
+code {
+  font-size: 0.9em;
+  background: #f4f3f0;
+  border: 1px solid var(--gtk-line-soft);
+  border-radius: 2px;
+  padding: 0 3px;
+}
+
+pre {
+  font-size: 0.88em;
+  background: var(--gtk-base);
+  border: 1px solid;
+  border-color: var(--gtk-lo) #d7d4cd #d7d4cd var(--gtk-lo);
+  padding: 9px 11px;
+  margin: 1em 0;
+  overflow-x: auto;
+  box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.09);
+}
+
+pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 1em;
+}
+
+/* ---- blockquote: an etched GtkFrame ---------------------------------- */
+
+blockquote {
+  margin: 1em 0;
+  padding: 0.55em 0.95em;
+  background: #f3f1ed;
+  border: 1px solid;
+  border-color: var(--gtk-line-soft) var(--gtk-hi) var(--gtk-hi) var(--gtk-line-soft);
+}
+
+blockquote blockquote {
+  background: var(--gtk-base);
+  margin: 0.5em 0;
+}
+
+blockquote p { margin: 0.4em 0; }
+
+.quote-title {
+  font-weight: bold;
+  margin: 0.2em 0 0.4em;
+}
+
+/* gzip output sample lines */
+.samples {
+  margin: 0.4em 0 0.1em;
+  padding: 7px 9px;
+  font-size: 0.85em;
+  color: var(--gtk-dim);
+  background: var(--gtk-base);
+  border: 1px solid var(--gtk-line-soft);
+  overflow-x: auto;
+}
+
+/* ---- tables: GtkTreeView --------------------------------------------- */
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1em 0;
+  background: var(--gtk-base);
+  border: 1px solid var(--gtk-line);
+}
+
+th {
+  text-align: left;
+  padding: 4px 11px;
+  font-weight: bold;
+  background: linear-gradient(to bottom, var(--gtk-bg-light), var(--gtk-bg-dark));
+  border: 1px solid var(--gtk-line);
+  border-bottom-color: var(--gtk-line);
+}
+
+td {
+  padding: 4px 11px;
+  border: 1px solid #e0ddd6;
+}
+
+tbody tr:nth-child(even) {
+  background: #f3f2ee;
+}
+
+/* ---- separators & media ---------------------------------------------- */
+
+hr {
+  border: 0;
+  height: 2px;
+  margin: 1.6em 0;
+  background: linear-gradient(to bottom, var(--gtk-line) 0, var(--gtk-line) 1px, #ffffff 1px, #ffffff 2px);
+}
+
+figure {
+  margin: 1.2em 0;
+  text-align: center;
+}
+
+figure img {
+  border: 1px solid var(--gtk-line);
+  background: var(--gtk-base);
+  padding: 3px;
+}
+
+ul:not(.projects):not(.contact):not(.posts):not(.samples) {
+  padding-left: 1.4em;
+}
+
+::selection {
+  background: var(--gtk-select);
+  color: #ffffff;
+}

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Google Authenticator migrator</title>
+</head>
+<body>
+
+<h1>Google Authenticator &rarr; andOTP Converter</h1>
+<p>You can use this to move your Google Authenticator accounts to other tools that support andOTP format, such as Keysmith.</p>
+<p>Paste your <tt>otpauth-migration://</tt> URI below and click Convert.</p>
+<p>To get your <tt>otpauth-migration://</tt> URI, open Google Authenticator &rarr; hamburger menu &rarr; Transfer codes &rarr; Export codes &rarr; select the codes you want to export &rarr; run the QR code through a standard scanning tool.</p>
+
+<hr>
+
+<form onsubmit="convert(); return false;">
+  <p>
+    <label for="uri-input"><b>Migration URI:</b></label><br>
+    <textarea id="uri-input" rows="5" cols="80" placeholder="otpauth-migration://offline?data=..."></textarea>
+  </p>
+  <p>
+    <input type="submit" value="Convert">
+    &nbsp;
+    <input type="button" value="Clear" onclick="clearAll()">
+  </p>
+</form>
+
+<div id="error-box"></div>
+<div id="output-section"></div>
+
+<script>
+//  . ݁₊ ⊹ . ݁˖ . ݁  Protobuf minimal decoder
+function decodeVarint(buf, pos) {
+  let result = 0, shift = 0;
+  while (true) {
+    const b = buf[pos++];
+    result |= (b & 0x7F) * Math.pow(2, shift);
+    if (!(b & 0x80)) return [result, pos];
+    shift += 7;
+    if (shift > 35) throw new Error("Varint too long");
+  }
+}
+
+function parseProto(buf) {
+  const fields = {};
+  let pos = 0;
+  while (pos < buf.length) {
+    let tag, val;
+    [tag, pos] = decodeVarint(buf, pos);
+    const field = tag >>> 3;
+    const wire  = tag & 0x07;
+    if (wire === 0) {
+      [val, pos] = decodeVarint(buf, pos);
+    } else if (wire === 2) {
+      let len; [len, pos] = decodeVarint(buf, pos);
+      val = buf.slice(pos, pos + len); pos += len;
+    } else if (wire === 5) {
+      val = new DataView(buf.buffer, buf.byteOffset + pos, 4).getUint32(0, true); pos += 4;
+    } else if (wire === 1) {
+      val = new DataView(buf.buffer, buf.byteOffset + pos, 8).getBigUint64(0, true); pos += 8;
+    } else break;
+    (fields[field] = fields[field] || []).push(val);
+  }
+  return fields;
+}
+
+//  . ݁₊ ⊹ . ݁˖ . ݁  Base32 encoder
+const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+function base32Encode(bytes) {
+  let bits = 0, val = 0, out = '';
+  for (const b of bytes) {
+    val = val * 256 + b; bits += 8;
+    while (bits >= 5) { bits -= 5; out += B32[(val >>> bits) & 31]; }
+    val &= (1 << bits) - 1;
+  }
+  while (out.length % 8) out += '=';
+  return out;
+}
+
+const OTP_TYPE   = { 1: 'TOTP', 2: 'HOTP' };
+const ALGO_MAP   = { 0: 'SHA1', 1: 'SHA1', 2: 'SHA256', 3: 'SHA512' };
+const DIGITS_MAP = { 0: 6, 1: 6, 2: 8 };
+
+function decodeMigrationURI(uri) {
+  const url   = new URL(uri);
+  const b64   = decodeURIComponent(url.searchParams.get('data'));
+  const raw   = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  const outer = parseProto(raw);
+  const dec   = new TextDecoder();
+
+  return (outer[1] || []).map(otpBytes => {
+    const f    = parseProto(otpBytes);
+    const strF = n => { const v = f[n]?.[0]; return v instanceof Uint8Array ? dec.decode(v) : ''; };
+    const intF = n => { const v = f[n]?.[0]; return typeof v === 'number' ? v : 0; };
+
+    const secret    = base32Encode(f[1]?.[0] ?? new Uint8Array());
+    const otpType   = OTP_TYPE[intF(5)]   ?? 'TOTP';
+    const algorithm = ALGO_MAP[intF(4)]   ?? 'SHA1';
+    const digits    = DIGITS_MAP[intF(6)] ?? 6;
+    const label     = strF(2);
+    const issuer    = strF(3) || label.split(':')[0];
+    const counter   = intF(7);
+
+    const entry = {
+      secret, issuer, label, digits, type: otpType, algorithm,
+      thumbnail: 'Default', last_used: 1559775982, used_frequency: 0, tags: []
+    };
+    if (otpType === 'HOTP') entry.counter = counter;
+    return entry;
+  });
+}
+
+let currentEntries = [];
+
+function convert() {
+  const raw = document.getElementById('uri-input').value.trim();
+  document.getElementById('error-box').innerHTML = '';
+  document.getElementById('output-section').innerHTML = '';
+
+  if (!raw) {
+    document.getElementById('error-box').innerHTML = '<p><font color="red"><b>Error:</b> Please paste a migration URI first.</font></p>';
+    return;
+  }
+
+  try {
+    currentEntries = decodeMigrationURI(raw);
+  } catch(e) {
+    document.getElementById('error-box').innerHTML = '<p><font color="red"><b>Error:</b> ' + e.message + '</font></p>';
+    return;
+  }
+
+  let html = '<hr>';
+  html += '<h2>Results: ' + currentEntries.length + ' account(s) found</h2>';
+
+  currentEntries.forEach((e, i) => {
+    html += '<p>';
+    html += '<b>' + (i+1) + '. ' + esc(e.issuer || '(no issuer)') + '</b><br>';
+    html += 'Label: ' + esc(e.label) + '<br>';
+    html += 'Type: ' + e.type + ' &nbsp; Algorithm: ' + e.algorithm + ' &nbsp; Digits: ' + e.digits;
+    if (e.type === 'HOTP') html += ' &nbsp; Counter: ' + e.counter;
+    html += '<br>';
+    html += 'Secret: <tt>' + esc(e.secret) + '</tt>';
+    html += '</p>';
+  });
+
+  html += '<hr>';
+  html += '<h2>andOTP JSON Output</h2>';
+  html += '<p>';
+  html += '<input type="button" value="Copy JSON" onclick="copyJSON()"> &nbsp;';
+  html += '<input type="button" value="Download otp_backup.json" onclick="downloadJSON()">';
+  html += '</p>';
+  html += '<textarea rows="20" cols="80" id="json-out" readonly>' + esc(JSON.stringify(currentEntries, null, 2)) + '</textarea>';
+
+  document.getElementById('output-section').innerHTML = html;
+}
+
+function clearAll() {
+  document.getElementById('uri-input').value = '';
+  document.getElementById('error-box').innerHTML = '';
+  document.getElementById('output-section').innerHTML = '';
+  currentEntries = [];
+}
+
+function copyJSON() {
+  const ta = document.getElementById('json-out');
+  ta.select();
+  document.execCommand('copy');
+  alert('Copied to clipboard.');
+}
+
+function downloadJSON() {
+  const blob = new Blob([JSON.stringify(currentEntries, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'otp_backup.json';
+  a.click();
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+
+<hr>
+<p><small>Runs entirely in your browser; no data is transmitted over the internet. But don't take my word for it, check the code yourself.</small></p>
+<hr>
+<p><small><small>This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; version 2
+of the License only.</small></small></p>
+<p><small><small>This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.</small></small></p>
+<p><small><small>The full license text is available <a href="https://www.gnu.org/licenses/old-licenses/gpl-2.0.html">here</a>.</small></small></p>
+
+</body>
+</html>

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Robin Reel | Interactive Cover Letter for STARZ</title>
+    <meta
+      name="description"
+      content="An interactive cover-letter web application tailored to the STARZ Software Development Intern role."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;800&family=Instrument+Serif:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="grain"></div>
+    <div class="page-shell">
+      <header class="topbar">
+        <a class="brand" href="#top">Robin Reel / STARZ</a>
+        <nav class="topnav" aria-label="Primary">
+          <a href="#why-starz">Why STARZ</a>
+          <a href="#production">Production Flow</a>
+          <a href="#evidence">Evidence</a>
+          <a href="#program">Program Fit</a>
+        </nav>
+      </header>
+
+      <main id="top">
+        <section class="hero">
+          <div class="hero-copy">
+            <p class="eyebrow">Interactive Cover Letter • Software Development Intern • Summer 2026</p>
+            <h1>
+              I want to build software for a platform where
+              <span>real users, real scale, and real product craft</span>
+              all matter at once.
+            </h1>
+            <p class="lede">
+              STARZ is compelling because this internship is not framed as observation. It is
+              framed as participation across requirements, architecture, implementation, testing,
+              deployment, and monitoring. That end-to-end view is where I learn fastest and
+              contribute best.
+            </p>
+            <div class="hero-actions">
+              <a class="button button-primary" href="#production">See My Development Fit</a>
+              <a class="button button-secondary" href="mailto:robin413@protonmail.com">Contact Me</a>
+            </div>
+            <ul class="hero-strip" aria-label="Highlights">
+              <li>
+                <strong>Backend + frontend range</strong>
+                <span>JavaScript, TypeScript, React, Python, Java, C, C++</span>
+              </li>
+              <li>
+                <strong>Systems and infrastructure instincts</strong>
+                <span>Linux, Bash, CompTIA A+, Network+, practical debugging mindset</span>
+              </li>
+              <li>
+                <strong>Rising senior by Summer 2026</strong>
+                <span>B.S. Information Technology, Missouri State University, expected May 2027</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="hero-panel">
+            <div class="panel-header">
+              <p class="eyebrow">Control Room</p>
+              <h2>Why this role fits my trajectory</h2>
+            </div>
+            <div class="signal-grid">
+              <article class="signal-card">
+                <span class="signal-label">Team shape</span>
+                <strong>Architects + Engineers + DevOps</strong>
+                <p>Exactly the kind of mixed environment that accelerates engineering judgment.</p>
+              </article>
+              <article class="signal-card">
+                <span class="signal-label">Workflow</span>
+                <strong>End-to-end delivery</strong>
+                <p>Requirements, design, implementation, test automation, deployment, and monitoring.</p>
+              </article>
+              <article class="signal-card">
+                <span class="signal-label">Core stack fit</span>
+                <strong>APIs, TypeScript, React, SQL</strong>
+                <p>Strong adjacency to the tools and concepts listed in the internship description.</p>
+              </article>
+              <article class="signal-card">
+                <span class="signal-label">Learning goal</span>
+                <strong>C#, CI/CD, observability</strong>
+                <p>I want deeper hands-on exposure to the engineering practices that turn code into production systems.</p>
+              </article>
+            </div>
+            <div class="hero-console">
+              <div class="console-head">
+                <span class="console-dot"></span>
+                <span>studio-feed.log</span>
+              </div>
+              <div class="console-body" id="consoleBody" aria-live="polite"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="why-starz" id="why-starz">
+          <div class="section-heading">
+            <p class="eyebrow">Why STARZ</p>
+            <h2>Premium entertainment still depends on disciplined engineering underneath</h2>
+          </div>
+          <div class="why-grid">
+            <article class="why-card">
+              <h3>Consumer software with visible stakes</h3>
+              <p>
+                Streaming products live or die on responsiveness, reliability, and clarity. That
+                means even small engineering decisions influence whether the experience feels polished.
+              </p>
+            </article>
+            <article class="why-card">
+              <h3>Technology plus data infrastructure</h3>
+              <p>
+                The STARZ description emphasizes advanced technology, analytics, and digital
+                infrastructure. I am drawn to teams where product code and systems thinking meet.
+              </p>
+            </article>
+            <article class="why-card">
+              <h3>Good internship design</h3>
+              <p>
+                The role explicitly includes architecture discussions, test automation, deployment,
+                and observability. That is a serious engineering internship, not a shallow one.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="production" id="production">
+          <div class="section-heading">
+            <p class="eyebrow">Production Flow</p>
+            <h2>How my experience maps to the internship lifecycle</h2>
+          </div>
+
+          <div class="production-layout">
+            <div class="production-tabs" role="tablist" aria-label="Development lifecycle">
+              <button class="production-tab is-active" data-stage="design" role="tab" aria-selected="true">
+                Design
+              </button>
+              <button class="production-tab" data-stage="build" role="tab" aria-selected="false">
+                Build
+              </button>
+              <button class="production-tab" data-stage="test" role="tab" aria-selected="false">
+                Test
+              </button>
+              <button class="production-tab" data-stage="ship" role="tab" aria-selected="false">
+                Ship
+              </button>
+            </div>
+
+            <article class="stage-panel">
+              <p class="stage-kicker" id="stageKicker">Architecture and problem framing</p>
+              <h3 id="stageTitle">I am comfortable reasoning about systems before I start coding.</h3>
+              <p id="stageText">
+                Projects like building a programming language or an ASCII X server only work if I
+                first break the problem into layers, interfaces, and constraints.
+              </p>
+              <ul id="stagePoints"></ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="skills-board">
+          <div class="section-heading">
+            <p class="eyebrow">Skills Board</p>
+            <h2>The areas I can bring in now, and the areas I want to deepen fast</h2>
+          </div>
+          <div class="skills-grid">
+            <article class="skills-card">
+              <span class="skills-label">Already strong</span>
+              <ul>
+                <li>JavaScript, TypeScript, React, Python, Bash, C, C++, Java</li>
+                <li>Linux workflow, Git, scripting, debugging, software packaging</li>
+                <li>Reading unfamiliar systems and building nontrivial personal projects</li>
+              </ul>
+            </article>
+            <article class="skills-card">
+              <span class="skills-label">Directly relevant fundamentals</span>
+              <ul>
+                <li>SQL listed in my technical skills, plus data-modeling basics from IT coursework</li>
+                <li>Understanding of APIs, service boundaries, and server-side thinking through language and systems work</li>
+                <li>Comfort with frontend frameworks through React experience</li>
+              </ul>
+            </article>
+            <article class="skills-card">
+              <span class="skills-label">What I want from STARZ</span>
+              <ul>
+                <li>Production C# experience in a real team environment</li>
+                <li>Exposure to CI/CD, observability, deployment pipelines, and monitoring</li>
+                <li>More structured practice with automated testing and regression prevention</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="evidence" id="evidence">
+          <div class="section-heading">
+            <p class="eyebrow">Evidence Reel</p>
+            <h2>Resume material translated into STARZ-relevant engineering signals</h2>
+          </div>
+
+          <div class="evidence-layout">
+            <div class="evidence-cards">
+              <button class="evidence-card is-active" data-project="ath">
+                <span class="card-label">Backend Logic</span>
+                <strong>!~ATH Programming Language</strong>
+                <p>Lexer, parser, interpreters, and runtime behavior.</p>
+              </button>
+              <button class="evidence-card" data-project="xcaca">
+                <span class="card-label">Complex Systems</span>
+                <strong>Xcaca</strong>
+                <p>ASCII-art X server exploring low-level graphics and protocol ideas.</p>
+              </button>
+              <button class="evidence-card" data-project="terminal">
+                <span class="card-label">Tooling + OS</span>
+                <strong>Receipt Printer Terminal</strong>
+                <p>Bash-heavy hardware/software integration on Linux.</p>
+              </button>
+              <button class="evidence-card" data-project="oss">
+                <span class="card-label">Shared Codebases</span>
+                <strong>Open Source Contributions</strong>
+                <p>Package maintenance and pull requests into projects I did not start.</p>
+              </button>
+            </div>
+
+            <article class="evidence-panel">
+              <div class="panel-header">
+                <p class="eyebrow">Selected project</p>
+                <h3 id="projectTitle">!~ATH Programming Language</h3>
+              </div>
+              <p id="projectSummary">
+                This project is strong evidence that I can work on backend-style logic and reason
+                about interfaces, execution flow, and edge cases.
+              </p>
+              <div class="tag-row" id="projectTags"></div>
+              <div class="evidence-columns">
+                <div>
+                  <h4>What it proves</h4>
+                  <ul id="projectSignals"></ul>
+                </div>
+                <div>
+                  <h4>Why it matters for STARZ</h4>
+                  <ul id="projectRelevance"></ul>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="program" id="program">
+          <div class="section-heading">
+            <p class="eyebrow">Program Fit</p>
+            <h2>I read the practical details too</h2>
+          </div>
+          <div class="program-grid">
+            <article class="program-card">
+              <span class="program-stat">$27/hr</span>
+              <p>Paid internship with a clearly defined Summer 2026 program window.</p>
+            </article>
+            <article class="program-card">
+              <span class="program-stat">Jun 15 → Aug 21</span>
+              <p>Structured program dates with orientation on Monday, June 15, 2026.</p>
+            </article>
+            <article class="program-card">
+              <span class="program-stat">36 hrs max</span>
+              <p>Regular business-hour cadence that still leaves room for focused, consistent work.</p>
+            </article>
+            <article class="program-card">
+              <span class="program-stat">Rising senior</span>
+              <p>My expected May 2027 graduation places me in the right student window for Summer 2026.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="closing">
+          <div class="closing-copy">
+            <p class="eyebrow">Closing Credits</p>
+            <h2>I would like this internship because it treats engineering like a full pipeline.</h2>
+            <p>
+              I bring broad technical curiosity, unusual project experience, and the willingness to
+              learn quickly inside a real team. STARZ offers the kind of environment where I could
+              sharpen that range into stronger production engineering.
+            </p>
+          </div>
+          <div class="closing-actions">
+            <a class="button button-primary" href="mailto:robin413@protonmail.com">robin413@protonmail.com</a>
+            <a class="button button-secondary" href="https://github.com/robinpie" target="_blank" rel="noreferrer">
+              github.com/robinpie
+            </a>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./script.js"></script>
+  </body>
+</html>

@@ -1,0 +1,6 @@
+/* plain — the deliberately unstyled theme.
+
+   This is intentionally (almost) empty: it shows the pages with the
+   browser's default styling so you can see what the markup looks like
+   bare. Structural concerns (like where the theme switcher sits) live
+   in base.css, which is always loaded, so there is nothing to do here. */
