@@ -31,14 +31,35 @@
 
 use strict;
 use warnings;
-use IO::Socket::INET;
-use Time::HiRes qw(time);
 
-# IO::Socket::SSL is NOT loaded here on purpose. It costs 328ms just to
-# compile — measured — which on a cache hit was more than the entire rest of
-# the request. It is require'd lazily inside probe_tls(), so it is paid for
-# only on the roughly one-request-in-N that actually performs a sweep.
-# POSIX was likewise dropped: another 95ms for functions this never used.
+# NOTHING BUT strict AND warnings IS LOADED HERE, on purpose. Every module this
+# script uses is require'd at the point of use, because each is expensive to
+# compile and none is needed on the paths it takes most often:
+#
+#   IO::Socket::SSL   328ms — probe_tls() only, i.e. only on a sweep
+#   IO::Socket::INET  ~180ms — probe_tcp() only, likewise
+#   Time::HiRes        ~70ms — sub-second timing, sweep path only (see hnow)
+#
+# Together that is well over half a second of compile time on a request that
+# may do no probing whatsoever: a cache hit on the full page, or the box
+# fragment, which only ever reads two small files. POSIX went the same way —
+# another 95ms for functions this never used.
+#
+# If you add a `use` at the top of this file, measure it first.
+
+# Sub-second timing, loaded on demand. Only three things need it — the two
+# probe latencies and the sweep's own duration — and all three are on the
+# sweep path, so the box fragment and cache hits never pay for it.
+#
+# Everything OUTSIDE the sweep (the generated stamp, cache freshness, the
+# "measured N ago" line) deliberately keeps using CORE::time. Those are whole
+# seconds and never were anything else, which is why the import was dropped
+# rather than made conditional: nothing silently changes meaning.
+my $HIRES;
+sub hnow {
+	$HIRES ||= do { require Time::HiRes; 1 };
+	return Time::HiRes::time();
+}
 
 # ---------------------------------------------------------------- constants
 
@@ -94,7 +115,12 @@ my @SERVICES = (
 # Returns (state, detail). state is one of up / down / unknown.
 sub probe_tcp {
 	my ($port, $kind) = @_;
-	my $t0 = time;
+	my $t0 = hnow();
+
+	# Lazy — see the note at the top of the file. Unlike the SSL case this one
+	# is not optional: without sockets there are no probes at all, so a failure
+	# here is fatal to the sweep rather than to one row.
+	require IO::Socket::INET;
 
 	my $sock = IO::Socket::INET->new(
 		PeerAddr => HOST, PeerPort => $port,
@@ -141,14 +167,14 @@ sub probe_tcp {
 	alarm 0;
 	close $sock;
 
-	my $ms = sprintf '%.0fms', (time - $t0) * 1000;
+	my $ms = sprintf '%.0fms', (hnow() - $t0) * 1000;
 	return ('down', 'no response') if $@;
 	return $ok ? ('up', $ms) : ('down', 'unexpected response');
 }
 
 sub probe_tls {
 	my ($port) = @_;
-	my $t0 = time;
+	my $t0 = hnow();
 
 	# Lazy load — see the note at the top of the file. If the module is
 	# missing entirely, say so rather than dying and losing the whole page.
@@ -167,7 +193,7 @@ sub probe_tls {
 	);
 	return ('down', $! ? 'handshake failed' : 'no response') unless $sock;
 
-	my $ms = sprintf '%.0fms', (time - $t0) * 1000;
+	my $ms = sprintf '%.0fms', (hnow() - $t0) * 1000;
 	close $sock;
 	return ('up', $ms);
 }
@@ -223,15 +249,34 @@ sub read_mem {
 	close $fh;
 	return undef unless $m{MemTotal};
 
-	# htop's decomposition, not free(1)'s. Excluding reclaimable cache is both
-	# more accurate and more flattering here: it reports ~676MB genuinely used
-	# where free(1) claims ~783MB.
+	# htop's decomposition, not free(1)'s — for SWAP AS WELL AS MEMORY. Both
+	# halves of this function follow the same convention; they did not always,
+	# which is how the page came to disagree with htop about swap.
+	#
+	# Memory: excluding reclaimable cache is both more accurate and more
+	# flattering here — it reports ~676MB genuinely used where free(1) claims
+	# ~783MB.
 	my $cache = ($m{Buffers} // 0) + ($m{Cached} // 0) + ($m{SReclaimable} // 0) - ($m{Shmem} // 0);
 	my $used  = $m{MemTotal} - $m{MemFree} - $cache;
+
+	# Swap: SwapCached is pages that exist in BOTH places — swapped out once,
+	# read back into RAM, with the on-disk copy retained so that evicting them
+	# again costs no write. free(1) counts those slots as used, because they
+	# are genuinely allocated on disk; htop does not, because the pages are
+	# resident. Neither is wrong. Following htop, they become the faded segment
+	# of the bar rather than part of the solid one.
+	#
+	# The clamp is defensive: the two counters are sampled by the kernel a few
+	# instructions apart, so a transient negative is conceivable.
+	my $swap_cache = $m{SwapCached} // 0;
+	my $swap_used  = ($m{SwapTotal} // 0) - ($m{SwapFree} // 0) - $swap_cache;
+	$swap_used = 0 if $swap_used < 0;
+
 	return {
 		total => $m{MemTotal}, used => $used, cache => $cache, free => $m{MemFree},
 		swap_total => $m{SwapTotal} // 0,
-		swap_used  => ($m{SwapTotal} // 0) - ($m{SwapFree} // 0),
+		swap_used  => $swap_used,
+		swap_cache => $swap_cache,
 	};
 }
 
@@ -330,7 +375,9 @@ sub read_seen {
 # -------------------------------------------------------------------- sweep
 
 sub sweep {
-	my $started = time;
+	# $started is hi-res because it measures a duration; `generated` is a plain
+	# integer stamp compared against CORE::time by cache_read/render.
+	my $started = hnow();
 	my %d = (generated => time, deadline_hit => 0);
 
 	my $units = unit_states(map { $_->[4] } @SERVICES);
@@ -338,7 +385,7 @@ sub sweep {
 	for my $s (@SERVICES) {
 		my ($id, $label, $port, $kind, $unit) = @$s;
 
-		if (time - $started > SWEEP_DEADLINE) {
+		if (hnow() - $started > SWEEP_DEADLINE) {
 			# Budget spent. Remaining services are reported honestly as
 			# unknown rather than being left to look fine or hanging the
 			# request past nginx's fastcgi_read_timeout.
@@ -357,7 +404,7 @@ sub sweep {
 	$d{chrony} = read_chrony();
 	$d{qps}    = read_qps();
 	$d{seen}   = read_seen();
-	$d{took}   = time - $started;
+	$d{took}   = hnow() - $started;
 	return \%d;
 }
 
@@ -377,7 +424,11 @@ sub cache_write {
 		printf $fh "svc %s %s %s|%s\n", $id, $s->{state}, ($s->{unit} // 'unknown'), ($s->{detail} // '');
 	}
 	printf $fh "cpu %s %s\n", $d->{cpu}{pct}, $d->{cpu}{span} if $d->{cpu};
-	printf $fh "mem %s %s %s %s %s %s\n", @{ $d->{mem} }{qw(total used cache free swap_total swap_used)} if $d->{mem};
+	# Positional, and so the same trap as the chrony whitelist below: a field
+	# added to read_mem() but not to BOTH this line and its regex in
+	# cache_read() renders once from the sweep and then vanishes on every
+	# cached request.
+	printf $fh "mem %s %s %s %s %s %s %s\n", @{ $d->{mem} }{qw(total used cache free swap_total swap_used swap_cache)} if $d->{mem};
 	printf $fh "uptime %s\n", $d->{uptime} if defined $d->{uptime};
 	printf $fh "seen %s\n",   $d->{seen}   if defined $d->{seen};
 	printf $fh "qps %s %s %s\n", ($d->{qps}{now} // ''), ($d->{qps}{avg} // ''), ($d->{qps}{avg_span} // '') if $d->{qps};
@@ -401,8 +452,11 @@ sub cache_read {
 			$d{svc}{$1} = { state => $2, unit => $3, detail => $4 };
 		} elsif ($l =~ /^cpu (\S+) (\S+)/) {
 			$d{cpu} = { pct => $1, span => $2 };
-		} elsif ($l =~ /^mem (\S+) (\S+) (\S+) (\S+) (\S+) (\S+)/) {
-			@{ $d{mem} }{qw(total used cache free swap_total swap_used)} = ($1, $2, $3, $4, $5, $6);
+		# swap_cache is optional so that a cache file written by the previous
+		# version of this script still parses, rather than dropping the whole
+		# memory block until it expires.
+		} elsif ($l =~ /^mem (\S+) (\S+) (\S+) (\S+) (\S+) (\S+)(?: (\S+))?/) {
+			@{ $d{mem} }{qw(total used cache free swap_total swap_used swap_cache)} = ($1, $2, $3, $4, $5, $6, $7);
 		} elsif ($l =~ /^qps (\S*) (\S*) (\S*)/) {
 			$d{qps} = { now => $1, avg => $2, avg_span => $3 };
 		} elsif ($l =~ /^chrony (\S+) (\S+)/) {
@@ -488,7 +542,7 @@ CSS
 
 	$out .= qq{<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n};
 	$out .= qq{<meta name="viewport" content="width=device-width, initial-scale=1">\n};
-	$out .= qq{<title>Service status — dreamstation.systems</title>\n};
+	$out .= qq{<title>Service status ⁂ Robin Reel</title>\n};
 	$out .= qq{<meta name="description" content="Live status of the public services running on dreamstation.systems.">\n};
 	$out .= qq{<link rel="canonical" href="https://dreamstation.systems/professional/status">\n};
 	$out .= qq{<style>$css</style>\n</head>\n<body>\n};
@@ -530,15 +584,19 @@ CSS
 	}
 	if ($d->{mem}) {
 		my $m = $d->{mem};
-		# Two segments: solid = in use, faded = reclaimable cache. The prose
-		# decomposition that used to spell this out has been cut, so the faded
-		# segment is now unlabelled — see read_mem() for what each figure means.
+		# Both bars are two-segment: solid = genuinely occupied, faded = the
+		# part that is cheap to reclaim (reclaimable cache for memory, pages
+		# still resident in RAM for swap). The prose decomposition that used to
+		# spell this out has been cut, so the faded segments are unlabelled —
+		# see read_mem() for what each figure means. The number beside each bar
+		# is the SOLID segment only, matching htop.
 		$out .= qq{<div class="metric"><span>Memory</span>}
 		      . bar(100 * $m->{used} / $m->{total}, 100 * $m->{cache} / $m->{total})
 		      . sprintf(qq{<span class="mval">%s / %s MB</span></div>\n}, mb($m->{used}), mb($m->{total}));
 		if ($m->{swap_total}) {
 			$out .= qq{<div class="metric"><span>Swap</span>}
-			      . bar(100 * $m->{swap_used} / $m->{swap_total})
+			      . bar(100 * $m->{swap_used} / $m->{swap_total},
+			            100 * ($m->{swap_cache} // 0) / $m->{swap_total})
 			      . sprintf(qq{<span class="mval">%s / %s MB</span></div>\n},
 			                mb($m->{swap_used}), mb($m->{swap_total}));
 		}
@@ -624,7 +682,61 @@ CSS
 	return $out;
 }
 
+# ---------------------------------------------------------------- box render
+
+# A compact fragment for the top of /professional/, pulled in server-side by
+# nginx SSI (see snippets/status-cgi.conf).
+#
+# It deliberately does NOT probe and does NOT touch the cache. /professional/
+# is a static page that serves in 3.5ms and it is the first thing a reader
+# lands on; making it wait on a 1.4s sweep to decorate a corner would be a bad
+# trade. read_cpu() and read_mem() are two small file reads, so the whole
+# fragment costs about as much as perl takes to start.
+#
+# That is also why there is NO service count here: a count needs a sweep, and
+# a count that is only occasionally correct is worse than the link beside it.
+#
+# The <aside> element itself comes from HERE rather than being wrapped around
+# the include in index.html, so that when this fails nginx's ssi_silent_errors
+# leaves nothing at all behind. An empty bordered box on the resume page would
+# look worse than no box.
+sub render_box {
+	my $cpu = read_cpu();
+	my $mem = read_mem();
+	return '' unless $cpu || $mem;
+
+	my $out = qq{<aside class="statbox" aria-label="Server vitals">\n};
+	if ($cpu) {
+		$out .= qq{<div class="sbrow"><span>CPU</span>} . bar($cpu->{pct})
+		      . sprintf(qq{<span class="sbval">%.0f%%</span></div>\n}, $cpu->{pct});
+	}
+	if ($mem) {
+		# Same decomposition as the full page: solid = in use, faded =
+		# reclaimable cache. Percentages only — an absolute MB figure does not
+		# earn its width at this size.
+		my $pct = 100 * $mem->{used} / $mem->{total};
+		$out .= qq{<div class="sbrow"><span>RAM</span>}
+		      . bar($pct, 100 * $mem->{cache} / $mem->{total})
+		      . sprintf(qq{<span class="sbval">%.0f%%</span></div>\n}, $pct);
+	}
+	$out .= qq{<p class="sbmore"><a href="/professional/status">&#8594; full stats page</a></p>\n};
+	$out .= qq{</aside>\n};
+	return $out;
+}
+
 # --------------------------------------------------------------------- main
+
+# Box mode, set by nginx as a fastcgi_param. Handled before anything else so
+# it can never fall through into the sweep-or-cache path below.
+if (($ENV{STATUS_MODE} // '') eq 'box') {
+	my $frag = eval { render_box() } // '';
+	print "Content-Type: text/html; charset=utf-8\r\n";
+	print "Cache-Control: no-store\r\n";
+	print "Content-Length: " . length($frag) . "\r\n";
+	print "\r\n";
+	print $frag;
+	exit 0;
+}
 
 my $body;
 eval {

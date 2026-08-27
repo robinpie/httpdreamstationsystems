@@ -11,7 +11,7 @@
   <meta name="description" content="Robin Reel ⁂ systems, infrastructure and security ⁂ Springfield MO.">
   <link rel="canonical" href="https://dreamstation.systems/professional/">
 
-  <style>html{color-scheme:light dark}body{padding:1rem;font:100%/1.5 system-ui,sans-serif}.skip:not(:focus){position:absolute;left:-100vw}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(20rem,100%),1fr));gap:1rem}section{margin-block:2rem}article,th,td{border:1px solid#888}article{border-radius:.5rem;padding:1rem}article>:first-child{margin-top:0}article>:last-child{margin-bottom:0}table{border-collapse:collapse;width:100%}caption,th,td{padding:.5em}caption{text-align:left}header ul{display:flex;flex-wrap:wrap;gap:.25rem 1rem;list-style:none;padding:0}header li+li:before{content:"⁂"/"";margin-inline-end:1rem}header a{display:inline-block;padding:.25rem 0}ul{padding-left:1.2em}a{overflow-wrap:anywhere}pre,.scroll{overflow-x:auto}:focus-visible{outline:2px solid;outline-offset:2px}</style>
+  <style>html{color-scheme:light dark}body{padding:1rem;font:100%/1.5 system-ui,sans-serif}.skip:not(:focus){position:absolute;left:-100vw}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(20rem,100%),1fr));gap:1rem}section{margin-block:2rem}article,th,td,.statbox{border:1px solid#888}article{border-radius:.5rem;padding:1rem}article>:first-child{margin-top:0}article>:last-child{margin-bottom:0}table{border-collapse:collapse;width:100%}caption,th,td{padding:.5em}caption{text-align:left}header{display:flow-root}header ul{display:flex;flex-wrap:wrap;gap:.25rem 1rem;list-style:none;padding:0}header li+li:before{content:"⁂"/"";margin-inline-end:1rem}header a{display:inline-block;padding:.25rem 0}ul{padding-left:1.2em}a{overflow-wrap:anywhere}pre,.scroll{overflow-x:auto}.statbox{float:right;width:min(15rem,100%);border-radius:.5rem;padding:.5rem .75rem;margin:0 0 1rem 1.5rem;font-size:.85rem}.sbrow{display:grid;grid-template-columns:2.2rem 1fr 2.4rem;gap:.5rem;align-items:center;margin-block:.35rem}.bar{display:flex;height:.7rem;border:1px solid;border-radius:.25rem;overflow:hidden}.bar>*{height:100%;background:currentColor}.bar u{opacity:.3}.sbval{font-variant:tabular-nums;text-align:right}.sbmore{margin:.5rem 0 0;text-align:center}@media(max-width:40rem){.statbox{float:none;width:auto;margin-left:0}}:focus-visible{outline:2px solid;outline-offset:2px}</style>
 </head>
 
 <body>
@@ -19,6 +19,13 @@
 <a class="skip" href="#main">Skip to main content</a>
 
 <header>
+
+  <!-- Server vitals box, injected by nginx SSI from status.cgi in box mode.
+       See ~/configNotes/status.txt. The <aside> element itself comes from the
+       CGI, so if the include fails this expands to nothing and the page is
+       unchanged rather than left with an empty bordered box. -->
+  <!--#include virtual="/professional/status-box" -->
+
   <h1>Robin Reel</h1>
   <p>Security-minded systems and infrastructure generalist.</p>
 
@@ -30,7 +37,6 @@
       <li><a href="https://github.com/robinpie" rel="me">GitHub</a></li>
       <li><a href="https://www.linkedin.com/in/robin-reel/" rel="me">LinkedIn</a></li>
       <li><a href="https://dreamstation.systems/resume.pdf">Resume</a></li>
-      <li><a href="/professional/status">Live service status</a></li>
     </ul>
   </address>
 
@@ -65,8 +71,8 @@
   <div class="cards">
 
   <article>
-    <h3>IT Specialist</strong>, <time datetime="2026-08">August 2026</time> – present ✦ <strong>IT Intern</strong>, <time datetime="2026-04">April 2026</time> – <time datetime="2026-08">August 2026</time></p></h3>
-    <p><strong>Health Hub Clinic &amp; Health Guardian Imaging</p></strong>
+    <h3>IT Specialist, <time datetime="2026-08">August 2026</time> – present ✦ IT Intern, <time datetime="2026-04">April 2026</time> – <time datetime="2026-08">August 2026</time></h3>
+    <p><strong>Health Hub Clinic &amp; Health Guardian Imaging</strong></p>
     <p>IT for a clinic and an affiliated imaging practice, in an environment subject to HIPAA.</p>
 
     <h4>Infrastructure</h4>
@@ -123,7 +129,7 @@
     <h3>Public NTP and NTS server</h3>
     <p>A stratum 2 time server in <a href="https://www.ntppool.org/scores/67.215.249.229">pool.ntp.org</a>, serving plain NTP on UDP/123 and NTS on TCP/4460, running chrony on Debian. It currently holds the maximum pool monitoring score of 20.</p>
     <ul>
-      <li>Auto-regenerating stats page at <a href="https://dreamstation.systems/ntpstats.txt">ntpstats.txt</a></li>
+      <li>Simple stats at <a href="/professional/status">the service status page</a>, detailed stats at <a href="https://dreamstation.systems/ntpstats.txt">ntpstats.txt</a></li>
       <li>Around 109 million unique client IP addresses seen, or about one in every 33 routable IPv4 addresses.</li>
       <li>Abusive clients shed with an nftables rate limiter.</li>
     </ul>
@@ -136,7 +142,7 @@
       <li>A DMZ bridged to a VPS over WireGuard, allowing me to run public-facing servers on a home network physically behind NAT.</li>
       <li>An obfs4 Tor bridge carrying roughly 500 GB of traffic a month.</li>
       <li>Gopher, Gemini, Spartan, finger and several other small protocols.</li>
-      <li>Every service above is probed live, protocol by protocol, on the <a href="/professional/status">service status page</a>.</li>
+      <li>A <a href="/professional/status">service status page</a>.</li>
     </ul>
   </article>
 
@@ -341,7 +347,7 @@ LC57XQEAkZy6qVhlCi9+GRT6LJTI1zmF5jagsBadK+uzmboW3eABAOJoTPS3VLD2
 =mE7G
 -----END PGP PUBLIC KEY BLOCK-----</pre>
 
-  <p>Built without a framework, just 805 bytes of CSS ✨</p>
+  <p>Built without a framework, just 1,381 bytes of CSS ✨</p>
 
 <a href="https://www.w3.org/WAI/WCAG2AA-Conformance"
    title="Explanation of WCAG 2 Level AA conformance">
