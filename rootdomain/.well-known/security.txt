@@ -1,0 +1,10 @@
+# security.txt for dreamstation.systems — RFC 9116
+#
+# If you have found a security issue in anything I run, please tell me.
+# I do this kind of work myself and I will not be difficult about it.
+
+Contact: mailto:robin@dreamstation.systems
+Expires: 2027-08-26T23:59:59.000Z
+Encryption: https://dreamstation.systems/pgp.asc
+Preferred-Languages: en, tok, eo
+Canonical: https://dreamstation.systems/.well-known/security.txt
