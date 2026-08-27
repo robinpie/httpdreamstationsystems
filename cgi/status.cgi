@@ -1,0 +1,673 @@
+#!/usr/bin/perl
+#
+# status.cgi — live service status for dreamstation.systems
+#
+# Deployed to /srv/cgi/status.cgi by deploy-site.sh; served at /professional/status via fcgiwrap. Runs as www-data.
+#
+# Warning for very claudish comments lol.
+#
+# See ~/configNotes/status.txt for the whole design. The three things most
+# likely to trip up an editor:
+#
+#   1. EVERY PROBE IS A REAL PROTOCOL EXCHANGE, not a systemd state check.
+#      `systemctl is-active` is actively wrong for two services here: Gopher
+#      is socket-activated (the service unit is per-connection and normally
+#      absent, so you must check gophernicus.socket) and Gemini is templated
+#      (molly-brown@dreamstation.service). Unit state is reported alongside
+#      the probe, never instead of it.
+#
+#   2. TWO PROBES HAVE NON-OBVIOUS REQUIREMENTS, both found by measurement:
+#      - HTTP must send a Host header. Without one, nginx's 000-default
+#        catchall matches and returns 444 (drops the connection), so our own
+#        web server reads as DOWN on its own status page.
+#      - TLS ports (1965, 4460) must complete a handshake. A read-a-byte
+#        probe blocks until timeout because the server is waiting for a
+#        ClientHello — :4460 cost 2000ms and still reported DOWN.
+#
+#   3. THE CACHE IS THE COST BOUND. A full sweep is ~640ms of a single vCPU,
+#      and chronyd needs that core. The cache means at most one sweep per
+#      CACHE_TTL regardless of request rate, so a link aggregator cannot turn
+#      this page into an outage of the NTP service it exists to advertise.
+
+use strict;
+use warnings;
+use IO::Socket::INET;
+use Time::HiRes qw(time);
+
+# IO::Socket::SSL is NOT loaded here on purpose. It costs 328ms just to
+# compile — measured — which on a cache hit was more than the entire rest of
+# the request. It is require'd lazily inside probe_tls(), so it is paid for
+# only on the roughly one-request-in-N that actually performs a sweep.
+# POSIX was likewise dropped: another 95ms for functions this never used.
+
+# ---------------------------------------------------------------- constants
+
+use constant {
+	CACHE       => '/run/status/cache.txt',
+	CPU_HIST    => '/run/status/cpu.hist',
+	CHRONY_SNAP => '/run/status/chrony.txt',
+	QPS_SNAP    => '/run/status/qps.txt',
+	SEEN_SET    => '/var/lib/dashboard/ntp_clients_seen.bin',
+
+	CACHE_TTL      => 20,    # seconds a rendered sweep stays authoritative
+	SWEEP_DEADLINE => 8,     # give up starting new probes after this
+	TCP_TIMEOUT    => 1.5,   # per plain probe (measured max on loopback: 281ms)
+	TLS_TIMEOUT    => 2.5,   # per TLS handshake (measured: ~90ms)
+	STALE_WARN     => 120,   # cache older than this gets a visible banner
+
+	POOL_URL => 'https://www.ntppool.org/scores/67.215.249.229',
+};
+
+# Probes run against loopback deliberately. Probing our own public IP would
+# inject self-traffic into the nginx access log and the journal that
+# `dashboard` parses, polluting its Visitors tab. This proves the daemon is
+# alive and speaking its protocol; external reachability is evidenced by the
+# NTP Pool monitoring score, which is third-party and cannot be faked.
+use constant HOST => '127.0.0.1';
+
+# id, label, port, probe type, systemd unit to report alongside, note
+#
+# The port here is WHAT WE PROBE, not "where the service is". It is never shown
+# to the reader — see the note in render() — because for several rows the probed
+# port is only one of the ways in. Pick whichever port gives the cheapest honest
+# answer for the service as a whole.
+my @SERVICES = (
+	[ 'time',    'Time (NTP / NTS)', 4460, 'tls',   'chrony.service',                 'NTP on 123/udp, NTS-KE on 4460/tcp' ],
+	[ 'web',     'Web',              80,   'http',  'nginx.service',                  'HTTP and HTTPS'                     ],
+	[ 'gopher',  'Gopher',           70,   'line',  'gophernicus.socket',             'socket-activated'                   ],
+	[ 'gemini',  'Gemini',           1965, 'tls',   'molly-brown@dreamstation.service', ''                                 ],
+	[ 'spartan', 'Spartan',          300,  'req',   'spartan.service',                ''                                   ],
+	[ 'finger',  'Finger',           79,   'line',  'finger.service',                 ''                                   ],
+	[ 'dict',    'Dictionary (DICT)',2628, 'banner','dictd.service',                  ''                                   ],
+	[ 'ftp',     'FTP archive',      21,   'banner','vsftpd.service',                 ''                                   ],
+	[ 'mail',    'Mail',             25,   'banner','postfix.service',                'SMTP, submission, IMAP'             ],
+	[ 'openget', 'OpenGET',          4151, 'http',  'openget.service',                'grandexchange.dreamstation.systems' ],
+	[ 'qotd',    'Quote of the Day', 17,   'banner','qotd.service',                   'RFC 865'                            ],
+	[ 'daytime', 'Daytime',          13,   'banner','daytime.service',                'RFC 867'                            ],
+	[ 'echo',    'Echo',             7,    'echo',  'echo.service',                   'RFC 862'                            ],
+	[ 'discard', 'Discard',          9,    'sink',  'discard.service',                'RFC 863'                            ],
+	[ 'chargen', 'Character Generator', 19,'banner','chargen.service',                'RFC 864'                            ],
+);
+
+# ------------------------------------------------------------------- probes
+
+# Returns (state, detail). state is one of up / down / unknown.
+sub probe_tcp {
+	my ($port, $kind) = @_;
+	my $t0 = time;
+
+	my $sock = IO::Socket::INET->new(
+		PeerAddr => HOST, PeerPort => $port,
+		Proto    => 'tcp', Timeout  => TCP_TIMEOUT,
+	);
+	return ('down', 'connection refused') unless $sock;
+
+	$sock->autoflush(1);
+	my $ok = 0;
+	eval {
+		local $SIG{ALRM} = sub { die "timeout\n" };
+		# Sub-second alarm via setitimer would be neater, but ALRM's 1s
+		# granularity is fine against a 1.5s budget and avoids the syscall
+		# filter surprises that bit the sampler unit.
+		alarm 2;
+
+		if ($kind eq 'sink') {
+			# Discard never replies. A completed connect plus an accepted
+			# write is the whole protocol.
+			print $sock 'x';
+			$ok = 1;
+		} elsif ($kind eq 'echo') {
+			print $sock "status-probe\n";
+			my $buf = '';
+			sysread($sock, $buf, 32);
+			$ok = ($buf =~ /status-probe/) ? 1 : 0;
+		} elsif ($kind eq 'http') {
+			# The Host header is mandatory — see header comment (2).
+			print $sock "HEAD / HTTP/1.0\r\nHost: dreamstation.systems\r\n\r\n";
+			my $buf = '';
+			sysread($sock, $buf, 64);
+			$ok = ($buf =~ m{^HTTP/}) ? 1 : 0;
+		} else {
+			# banner: server speaks first.
+			# line:   nudge with CRLF, then read.
+			# req:    protocol needs a real request line.
+			print $sock "\r\n"                             if $kind eq 'line';
+			print $sock "dreamstation.systems / 0\r\n"     if $kind eq 'req';
+			my $buf = '';
+			$ok = (defined sysread($sock, $buf, 1) && length $buf) ? 1 : 0;
+		}
+		alarm 0;
+	};
+	alarm 0;
+	close $sock;
+
+	my $ms = sprintf '%.0fms', (time - $t0) * 1000;
+	return ('down', 'no response') if $@;
+	return $ok ? ('up', $ms) : ('down', 'unexpected response');
+}
+
+sub probe_tls {
+	my ($port) = @_;
+	my $t0 = time;
+
+	# Lazy load — see the note at the top of the file. If the module is
+	# missing entirely, say so rather than dying and losing the whole page.
+	unless (eval { require IO::Socket::SSL; 1 }) {
+		return ('unknown', 'IO::Socket::SSL unavailable');
+	}
+
+	# A completed handshake is the assertion. Certificate validation is
+	# deliberately off: Gemini uses TOFU rather than a CA chain, and we are
+	# testing "is the daemon answering", not "is this cert trusted".
+	my $sock = IO::Socket::SSL->new(
+		PeerAddr        => HOST, PeerPort => $port,
+		Proto           => 'tcp', Timeout => TLS_TIMEOUT,
+		SSL_verify_mode => IO::Socket::SSL::SSL_VERIFY_NONE(),
+		SSL_hostname    => 'dreamstation.systems',
+	);
+	return ('down', $! ? 'handshake failed' : 'no response') unless $sock;
+
+	my $ms = sprintf '%.0fms', (time - $t0) * 1000;
+	close $sock;
+	return ('up', $ms);
+}
+
+sub unit_states {
+	# ONE fork for every unit, not one per unit. systemctl accepts a list and
+	# prints one word per unit in the order given, emitting "inactive" for
+	# units it does not know rather than skipping them — so the lines line up
+	# with the input positionally.
+	#
+	# This matters more than it looks: at ~55ms per systemctl invocation,
+	# doing this per-service cost 830ms of a single vCPU per sweep, more than
+	# the entire probe pass. Measured, not guessed.
+	my @units = @_;
+	my %state;
+	@state{@units} = ('unknown') x @units;
+
+	my $safe = join ' ', map { my $u = $_; $u =~ s/'/'\\''/g; "'$u'" } @units;
+	my @out = split /\n/, qx{systemctl is-active $safe 2>/dev/null};
+	return \%state if @out != @units;    # unexpected shape: report nothing
+
+	$state{ $units[$_] } = $out[$_] for 0 .. $#units;
+	return \%state;
+}
+
+# ------------------------------------------------------------------ metrics
+
+sub read_cpu {
+	# Rolling utilisation across whatever span the sampler's history covers.
+	# The span is reported honestly rather than always claiming 5 minutes:
+	# after a reboot, or if the timer has been stopped, the window is short
+	# and the label says so.
+	open my $fh, '<', CPU_HIST or return undef;
+	my @l = <$fh>;
+	close $fh;
+	return undef if @l < 2;
+
+	my ($t0, $tot0, $idle0) = split ' ', $l[0];
+	my ($t1, $tot1, $idle1) = split ' ', $l[-1];
+	my $dt = $tot1 - $tot0;
+	return undef if !$dt || $dt <= 0;
+
+	my $busy = 100 * (1 - ($idle1 - $idle0) / $dt);
+	$busy = 0   if $busy < 0;
+	$busy = 100 if $busy > 100;
+	return { pct => $busy, span => $t1 - $t0 };
+}
+
+sub read_mem {
+	open my $fh, '<', '/proc/meminfo' or return undef;
+	my %m;
+	while (<$fh>) { $m{$1} = $2 if /^(\w+):\s+(\d+)/ }
+	close $fh;
+	return undef unless $m{MemTotal};
+
+	# htop's decomposition, not free(1)'s. Excluding reclaimable cache is both
+	# more accurate and more flattering here: it reports ~676MB genuinely used
+	# where free(1) claims ~783MB.
+	my $cache = ($m{Buffers} // 0) + ($m{Cached} // 0) + ($m{SReclaimable} // 0) - ($m{Shmem} // 0);
+	my $used  = $m{MemTotal} - $m{MemFree} - $cache;
+	return {
+		total => $m{MemTotal}, used => $used, cache => $cache, free => $m{MemFree},
+		swap_total => $m{SwapTotal} // 0,
+		swap_used  => ($m{SwapTotal} // 0) - ($m{SwapFree} // 0),
+	};
+}
+
+sub read_uptime {
+	open my $fh, '<', '/proc/uptime' or return undef;
+	my $l = <$fh>; close $fh;
+	my ($secs) = split ' ', $l;
+	return $secs;
+}
+
+# How long chronyd itself has been running. This is the denominator the NTS-KE
+# counter needs: chrony reports those "since chronyd started" and does NOT
+# persist them across restarts, so a bare total with no window attached is
+# close to meaningless.
+#
+# Read from /proc rather than asked of systemd, because `systemctl show` is
+# another 55ms fork on the sweep path and the cgroup hands us the PIDs for
+# free. Field 22 of /proc/PID/stat is starttime in clock ticks since boot;
+# comm (field 2) is parenthesised and may itself contain spaces or ')', so
+# split after the LAST ')' rather than on whitespace from the start.
+sub chronyd_uptime {
+	open my $fh, '<', '/sys/fs/cgroup/system.slice/chrony.service/cgroup.procs'
+		or return undef;
+	my @pids = map { /^(\d+)$/ ? $1 : () } <$fh>;
+	close $fh;
+
+	my $ticks;
+	for my $pid (@pids) {
+		open my $sh, '<', "/proc/$pid/stat" or next;
+		my $line = <$sh>;
+		close $sh;
+		next unless defined $line && $line =~ /\)\s+(.*)$/s;
+		# Post-')' the fields resume at 3, so starttime (22) is index 19.
+		my $st = (split ' ', $1)[19];
+		next unless defined $st && $st =~ /^\d+$/;
+		# chronyd forks helpers, so the cgroup holds several PIDs. The
+		# earliest-started one is the daemon; the rest came from it.
+		$ticks = $st if !defined $ticks || $st < $ticks;
+	}
+	return undef unless defined $ticks;
+
+	my $up = read_uptime() or return undef;
+	# USER_HZ, fixed at 100 for /proc regardless of the kernel's real HZ.
+	# Hardcoded rather than asked of POSIX::sysconf, which costs 95ms to load.
+	my $age = $up - $ticks / 100;
+	return $age > 0 ? $age : undef;
+}
+
+sub read_chrony {
+	my %out;
+
+	# tracking needs no privilege. CSV field order (chrony 4.x):
+	#   3 stratum, 6 last offset, 7 RMS offset, 14 leap status
+	my $csv = qx{chronyc -c tracking 2>/dev/null};
+	chomp $csv;
+	if ($csv) {
+		my @f = split /,/, $csv;
+		if (@f >= 14 && $f[2] =~ /^\d+$/) {
+			$out{stratum} = $f[2];
+			$out{offset}  = $f[5];
+			$out{leap}    = $f[13];
+		}
+	}
+
+	# NTS-KE comes from the root-only `chronyc serverstats`, captured for us
+	# by status-sample.service. Reading a file here keeps www-data out of
+	# sudoers entirely.
+	if (open my $fh, '<', CHRONY_SNAP) {
+		while (<$fh>) { $out{$1} = $2 if /^(\w+)\s+(\S+)/ }
+		close $fh;
+	}
+
+	$out{uptime} = chronyd_uptime();
+	return \%out;
+}
+
+sub read_qps {
+	# Three numbers, already condensed by status-sample.service. The scan that
+	# produces them walks ~95k lines and costs ~263ms, which is why it does
+	# not happen here — see the reset-handling note in status-sample.sh.
+	open my $fh, '<', QPS_SNAP or return undef;
+	my %o;
+	while (<$fh>) { $o{$1} = $2 if /^(\w+)\s+(\S+)/ }
+	close $fh;
+	return (defined $o{now} || defined $o{avg}) ? \%o : undef;
+}
+
+sub read_seen {
+	# Packed sorted array of 4-byte big-endian IPv4 addresses, no header, so
+	# the count is implicit in the file size. stat() only — this file is
+	# ~440MB and must never be read.
+	my $size = -s SEEN_SET;
+	return $size ? int($size / 4) : undef;
+}
+
+# -------------------------------------------------------------------- sweep
+
+sub sweep {
+	my $started = time;
+	my %d = (generated => time, deadline_hit => 0);
+
+	my $units = unit_states(map { $_->[4] } @SERVICES);
+
+	for my $s (@SERVICES) {
+		my ($id, $label, $port, $kind, $unit) = @$s;
+
+		if (time - $started > SWEEP_DEADLINE) {
+			# Budget spent. Remaining services are reported honestly as
+			# unknown rather than being left to look fine or hanging the
+			# request past nginx's fastcgi_read_timeout.
+			$d{svc}{$id} = { state => 'unknown', detail => 'not probed (time budget)' };
+			$d{deadline_hit} = 1;
+			next;
+		}
+
+		my ($state, $detail) = $kind eq 'tls' ? probe_tls($port) : probe_tcp($port, $kind);
+		$d{svc}{$id} = { state => $state, detail => $detail, unit => $units->{$unit} };
+	}
+
+	$d{cpu}    = read_cpu();
+	$d{mem}    = read_mem();
+	$d{uptime} = read_uptime();
+	$d{chrony} = read_chrony();
+	$d{qps}    = read_qps();
+	$d{seen}   = read_seen();
+	$d{took}   = time - $started;
+	return \%d;
+}
+
+# ---------------------------------------------------------- cache (flat kv)
+
+sub cache_write {
+	my ($d) = @_;
+	# tmp + rename so a concurrent reader never sees a half-written cache.
+	my $tmp = CACHE . ".$$";
+	open my $fh, '>', $tmp or return;
+
+	print $fh "generated $d->{generated}\n";
+	print $fh "took $d->{took}\n";
+	print $fh "deadline_hit $d->{deadline_hit}\n";
+	for my $id (keys %{ $d->{svc} }) {
+		my $s = $d->{svc}{$id};
+		printf $fh "svc %s %s %s|%s\n", $id, $s->{state}, ($s->{unit} // 'unknown'), ($s->{detail} // '');
+	}
+	printf $fh "cpu %s %s\n", $d->{cpu}{pct}, $d->{cpu}{span} if $d->{cpu};
+	printf $fh "mem %s %s %s %s %s %s\n", @{ $d->{mem} }{qw(total used cache free swap_total swap_used)} if $d->{mem};
+	printf $fh "uptime %s\n", $d->{uptime} if defined $d->{uptime};
+	printf $fh "seen %s\n",   $d->{seen}   if defined $d->{seen};
+	printf $fh "qps %s %s %s\n", ($d->{qps}{now} // ''), ($d->{qps}{avg} // ''), ($d->{qps}{avg_span} // '') if $d->{qps};
+	# THIS LIST IS A WHITELIST. A key added to read_chrony() but not added here
+	# is written by the sweep, renders correctly once, and then silently
+	# disappears for the next CACHE_TTL seconds — i.e. on almost every real
+	# request. That is a genuinely confusing bug to chase; it has happened once.
+	for my $k (qw(stratum offset leap nts_ke_accepted nts_ke_dropped uptime)) {
+		printf $fh "chrony %s %s\n", $k, $d->{chrony}{$k} if defined $d->{chrony}{$k};
+	}
+	close $fh;
+	rename $tmp, CACHE or unlink $tmp;
+}
+
+sub cache_read {
+	open my $fh, '<', CACHE or return undef;
+	my %d;
+	while (my $l = <$fh>) {
+		chomp $l;
+		if ($l =~ /^svc (\S+) (\S+) (\S+)\|(.*)$/) {
+			$d{svc}{$1} = { state => $2, unit => $3, detail => $4 };
+		} elsif ($l =~ /^cpu (\S+) (\S+)/) {
+			$d{cpu} = { pct => $1, span => $2 };
+		} elsif ($l =~ /^mem (\S+) (\S+) (\S+) (\S+) (\S+) (\S+)/) {
+			@{ $d{mem} }{qw(total used cache free swap_total swap_used)} = ($1, $2, $3, $4, $5, $6);
+		} elsif ($l =~ /^qps (\S*) (\S*) (\S*)/) {
+			$d{qps} = { now => $1, avg => $2, avg_span => $3 };
+		} elsif ($l =~ /^chrony (\S+) (\S+)/) {
+			$d{chrony}{$1} = $2;
+		} elsif ($l =~ /^(\w+) (\S+)/) {
+			$d{$1} = $2;
+		}
+	}
+	close $fh;
+	return $d{generated} ? \%d : undef;
+}
+
+# ------------------------------------------------------------------- render
+
+sub esc {
+	my $s = shift // '';
+	$s =~ s/&/&amp;/g; $s =~ s/</&lt;/g; $s =~ s/>/&gt;/g; $s =~ s/"/&quot;/g;
+	return $s;
+}
+
+sub commify { my $n = reverse shift; $n =~ s/(\d{3})(?=\d)/$1,/g; return scalar reverse $n }
+
+sub dur {
+	my $s = shift // 0;
+	return sprintf '%ds', $s if $s < 60;
+	return sprintf '%dm', $s / 60 if $s < 3600;
+	return sprintf '%dh %dm', $s / 3600, ($s % 3600) / 60 if $s < 86400;
+	return sprintf '%dd %dh', $s / 86400, ($s % 86400) / 3600;
+}
+
+sub mb { sprintf '%.0f', $_[0] / 1024 }
+
+# Status is conveyed by symbol AND word AND colour — never colour alone. The
+# page this hangs off claims WCAG 2.2 AA conformance with a W3C badge, and a
+# bare coloured dot would break that claim.
+my %MARK = (up => '●', down => '✕', unknown => '○');
+
+sub bar {
+	my ($pct, $extra_pct, $label) = @_;
+	$pct = 0 if !defined $pct || $pct < 0;
+	my $w  = sprintf '%.1f', $pct > 100 ? 100 : $pct;
+	my $w2 = defined $extra_pct ? sprintf('%.1f', $extra_pct > 100 ? 100 : $extra_pct) : 0;
+	# aria-hidden: the bar is decoration. The number beside it is the content.
+	return qq{<span class="bar" aria-hidden="true"><i style="width:$w%"></i>}
+	     . ($w2 ? qq{<u style="width:$w2%"></u>} : '')
+	     . qq{</span>};
+}
+
+sub render {
+	my ($d, $stale, $err) = @_;
+	my $age = int(time - ($d->{generated} // time));
+	my $out = '';
+
+	my $css = <<'CSS';
+html{color-scheme:light dark}
+body{padding:1rem;font:100%/1.5 system-ui,sans-serif;max-width:60rem;margin-inline:auto}
+.skip:not(:focus){position:absolute;left:-100vw}
+h1{margin-bottom:.25rem}
+.stamp{color:GrayText;margin-top:0}
+.warn{border:2px solid;border-radius:.5rem;padding:.75rem 1rem;margin-block:1rem;font-weight:600}
+section{margin-block:2rem}
+.metric{display:grid;grid-template-columns:7rem 1fr auto;gap:.5rem 1rem;align-items:center;margin-block:.5rem}
+.bar{display:block;height:1rem;border:1px solid;border-radius:.25rem;overflow:hidden;display:flex}
+.bar i,.bar u{display:block;height:100%;text-decoration:none}
+.bar i{background:currentColor}
+.bar u{background:currentColor;opacity:.3}
+.mval{font-variant-numeric:tabular-nums;white-space:nowrap}
+.koo{color:#A80030}
+table{border-collapse:collapse;width:100%}
+caption{text-align:left;padding:.5em 0}
+th,td{padding:.4em .5em;border:1px solid #888;text-align:left}
+td.st{white-space:nowrap;font-weight:600}
+.up{color:#0a7a28}.down{color:#c00}.unknown{color:GrayText}
+@media(prefers-color-scheme:dark){.up{color:#4ade80}.down{color:#f87171}}
+dl{display:grid;grid-template-columns:auto 1fr;gap:.4rem 1rem;margin:0}
+dt{font-weight:600}dd{margin:0;font-variant-numeric:tabular-nums}
+.scroll{overflow-x:auto}
+footer{margin-top:3rem;color:GrayText;font-size:.9rem}
+a{overflow-wrap:anywhere}
+:focus-visible{outline:2px solid;outline-offset:2px}
+CSS
+	$css =~ s/\s*\n\s*/ /g;
+
+	$out .= qq{<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n};
+	$out .= qq{<meta name="viewport" content="width=device-width, initial-scale=1">\n};
+	$out .= qq{<title>Service status — dreamstation.systems</title>\n};
+	$out .= qq{<meta name="description" content="Live status of the public services running on dreamstation.systems.">\n};
+	$out .= qq{<link rel="canonical" href="https://dreamstation.systems/professional/status">\n};
+	$out .= qq{<style>$css</style>\n</head>\n<body>\n};
+	$out .= qq{<a class="skip" href="#main">Skip to main content</a>\n};
+
+	# The measured-at stamp lives in the footer, not here. The stale/failed
+	# banners below still lead with the age, because in those cases the age IS
+	# the headline and burying it would be dishonest.
+	$out .= qq{<header>\n<h1>Service status</h1>\n};
+	$out .= qq{<p><a href="/professional/">← Robin Reel</a></p>\n</header>\n};
+
+	if ($err) {
+		$out .= qq{<p class="warn down">⚠ Could not refresh: } . esc($err)
+		      . qq{. Showing the last successful measurement, } . esc(dur($age)) . qq{ old.</p>\n};
+	} elsif ($stale) {
+		$out .= qq{<p class="warn down">⚠ This data is } . esc(dur($age))
+		      . qq{ old and may no longer be accurate.</p>\n};
+	}
+	if ($d->{deadline_hit}) {
+		$out .= qq{<p class="warn unknown">Some services were not probed: the sweep hit its time budget. }
+		      . qq{They are shown as unknown rather than assumed healthy.</p>\n};
+	}
+
+	$out .= qq{<main id="main">\n};
+
+	# ----- host
+	$out .= qq{<section aria-labelledby="host"><h2 id="host">Host</h2>\n};
+	# Static, and deliberately so: this is what the box IS, not what it is doing.
+	# The measured figures live in the bars below and in the Time service section.
+	# The ꩜ is decoration and is aria-hidden, so a screen reader reads the two
+	# halves as one phrase rather than announcing "khmer sign koomuut".
+	$out .= qq{<p>Debian 13 <span class="koo" aria-hidden="true">꩜</span> }
+	      . qq{RackNerd 1 vCPU, 1&nbsp;GB RAM</p>\n};
+
+	if ($d->{cpu}) {
+		$out .= qq{<div class="metric"><span>CPU</span>} . bar($d->{cpu}{pct})
+		      . sprintf(qq{<span class="mval">%.0f%% · %s avg</span></div>\n},
+		                $d->{cpu}{pct}, dur($d->{cpu}{span}));
+	}
+	if ($d->{mem}) {
+		my $m = $d->{mem};
+		# Two segments: solid = in use, faded = reclaimable cache. The prose
+		# decomposition that used to spell this out has been cut, so the faded
+		# segment is now unlabelled — see read_mem() for what each figure means.
+		$out .= qq{<div class="metric"><span>Memory</span>}
+		      . bar(100 * $m->{used} / $m->{total}, 100 * $m->{cache} / $m->{total})
+		      . sprintf(qq{<span class="mval">%s / %s MB</span></div>\n}, mb($m->{used}), mb($m->{total}));
+		if ($m->{swap_total}) {
+			$out .= qq{<div class="metric"><span>Swap</span>}
+			      . bar(100 * $m->{swap_used} / $m->{swap_total})
+			      . sprintf(qq{<span class="mval">%s / %s MB</span></div>\n},
+			                mb($m->{swap_used}), mb($m->{swap_total}));
+		}
+	}
+	$out .= qq{<p>Uptime } . esc(dur($d->{uptime})) . qq{.</p>\n} if $d->{uptime};
+	$out .= qq{</section>\n};
+
+	# ----- services
+	my ($n_up, $n_tot) = (0, scalar @SERVICES);
+	$n_up += ($d->{svc}{ $_->[0] }{state} // '') eq 'up' ? 1 : 0 for @SERVICES;
+
+	$out .= qq{<section aria-labelledby="svc"><h2 id="svc">Services</h2>\n};
+	$out .= qq{<p>$n_up of $n_tot responding.</p>\n};
+	# aria-labelledby replaces the <caption> that used to name this table, so
+	# cutting the visible line did not leave the table anonymous to a screen
+	# reader — it now takes its name from the "Services" heading above.
+	$out .= qq{<div class="scroll"><table aria-labelledby="svc">\n};
+	$out .= qq{<thead><tr><th scope="col">Service</th><th scope="col">Status</th>};
+	$out .= qq{<th scope="col">Notes</th></tr></thead>\n<tbody>\n};
+
+	# The probed port is deliberately NOT a column. For half these rows the one
+	# port we probe is not the whole story — Web is 80 AND 443, Mail is 25/587/143,
+	# Time is 123/udp with NTS-KE merely riding along on 4460, OpenGET answers on
+	# 4151 but is only reachable through nginx. A port column would read as "this
+	# is where the service lives", which for those rows is simply false. Where the
+	# ports matter they are stated in the note, in prose that can be accurate.
+	for my $s (@SERVICES) {
+		my ($id, $label, $note) = @{$s}[0, 1, 5];
+		my $r     = $d->{svc}{$id} || { state => 'unknown', detail => 'no data' };
+		my $state = $r->{state} // 'unknown';
+		my $word  = $state eq 'up' ? 'up' : $state eq 'down' ? 'DOWN' : 'unknown';
+
+		my @notes = grep { length } ($note, $r->{detail});
+		push @notes, "unit $r->{unit}" if ($r->{unit} // '') ne 'active' && ($r->{unit} // '') ne 'unknown';
+
+		$out .= qq{<tr><th scope="row">} . esc($label) . qq{</th>};
+		$out .= qq{<td class="st $state">$MARK{$state} } . esc($word) . qq{</td>};
+		$out .= qq{<td>} . esc(join ' · ', @notes) . qq{</td></tr>\n};
+	}
+	$out .= qq{</tbody></table></div>\n</section>\n};
+
+	# ----- time service detail
+	my $c = $d->{chrony} || {};
+	$out .= qq{<section aria-labelledby="ntp"><h2 id="ntp">Time service</h2>\n<dl>\n};
+	if (defined $c->{stratum}) {
+		$out .= qq{<dt>Stratum</dt><dd>} . esc($c->{stratum}) . qq{</dd>\n};
+		$out .= qq{<dt>Leap status</dt><dd>} . esc($c->{leap} // '—') . qq{</dd>\n} if $c->{leap};
+		$out .= sprintf qq{<dt>Offset from reference</dt><dd>%+.0f µs</dd>\n}, $c->{offset} * 1_000_000
+			if defined $c->{offset};
+	}
+	if ($d->{qps}) {
+		$out .= qq{<dt>Queries per second</dt><dd>} . commify(sprintf '%.0f', $d->{qps}{now}) . qq{ now}
+			if $d->{qps}{now};
+		$out .= sprintf qq{, %s average over %s}, commify(sprintf '%.0f', $d->{qps}{avg}), dur($d->{qps}{avg_span})
+			if $d->{qps}{avg};
+		$out .= qq{</dd>\n} if $d->{qps}{now};
+	}
+	if ($d->{seen}) {
+		my $share = $d->{seen} ? sprintf('%.1f', 3_700_000_000 / $d->{seen}) : '';
+		$out .= qq{<dt>Distinct clients seen</dt><dd>} . commify($d->{seen})
+		      . qq{ — about one in every $share routable IPv4 addresses</dd>\n};
+	}
+	if (defined $c->{nts_ke_accepted}) {
+		# The window matters as much as the count — see chronyd_uptime(). If we
+		# could not determine it, say the vaguer thing rather than a number that
+		# looks lifetime and is not.
+		$out .= qq{<dt>NTS key exchanges</dt><dd>} . commify($c->{nts_ke_accepted})
+		      . ($c->{uptime}
+		         ? qq{ accepted in } . esc(dur($c->{uptime})) . qq{ (since chronyd started)}
+		         : qq{ accepted since chronyd started})
+		      . qq{</dd>\n};
+	}
+	$out .= qq{<dt>External pool monitoring</dt><dd><a href="} . POOL_URL . qq{">ntppool.org</a></dd>\n};
+	$out .= qq{</dl>\n</section>\n};
+
+	$out .= qq{</main>\n<footer>\n};
+	$out .= qq{<p>Probes run from the server against loopback.</p>\n};
+	$out .= qq{<p>Generated by <code>status.cgi</code>, at most once every } . CACHE_TTL . qq{ seconds.</p>\n};
+	$out .= qq{<p class="stamp">Measured <strong>} . esc(dur($age)) . qq{</strong> ago};
+	$out .= sprintf ' · sweep took %.0fms', ($d->{took} // 0) * 1000 if $d->{took};
+	$out .= qq{</p>\n};
+	$out .= qq{</footer>\n</body>\n</html>\n};
+	return $out;
+}
+
+# --------------------------------------------------------------------- main
+
+my $body;
+eval {
+	my $cached = cache_read();
+	my $fresh  = $cached && (time - $cached->{generated}) < CACHE_TTL;
+
+	if ($fresh) {
+		$body = render($cached, 0, undef);
+	} else {
+		my $d = eval { sweep() };
+		if ($d) {
+			cache_write($d);
+			$body = render($d, 0, undef);
+		} elsif ($cached) {
+			# Sweep blew up but we have history: show it, loudly labelled.
+			# Never render stale data as if it were current.
+			my $why = $@ || 'sweep failed';
+			$why =~ s/\s+$//;
+			$body = render($cached, 1, $why);
+		} else {
+			die $@ || "no data and sweep failed\n";
+		}
+	}
+	1;
+} or do {
+	# Last resort: a valid, honest page rather than a die() that fcgiwrap
+	# turns into a 502. The static /professional/status-down.html backstop
+	# exists for the case where this script cannot run at all.
+	my $e = $@ || 'unknown error';
+	$e =~ s/\s+$//;
+	$body = qq{<!DOCTYPE html>\n<html lang="en"><head><meta charset="utf-8">}
+	      . qq{<meta name="viewport" content="width=device-width, initial-scale=1">}
+	      . qq{<title>Service status — unavailable</title></head><body>}
+	      . qq{<h1>Service status is unavailable</h1>}
+	      . qq{<p>The status page could not collect data: } . esc($e) . qq{</p>}
+	      . qq{<p>This does not necessarily mean the services themselves are down — }
+	      . qq{it means this page failed. <a href="/professional/">Back to Robin Reel</a>.</p>}
+	      . qq{</body></html>\n};
+};
+
+# no-store: a browser-cached status page is a wrong status page.
+print "Content-Type: text/html; charset=utf-8\r\n";
+print "Cache-Control: no-store\r\n";
+print "Content-Length: " . length($body) . "\r\n";
+print "\r\n";
+print $body;
