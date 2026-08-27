@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>wiktionary racing</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="wiktionary-racing-game">
+    <!-- Home Screen -->
+    <div id="homeScreen" class="screen active">
+        <div class="container">
+            <h1 class="title">wiktionary racing</h1>
+            <p class="subtitle">race from word to word by clicking links!</p>
+            <p class="version-info">v2.0.2 · 2025-12-26</p>
+
+            <div class="button-group">
+                <button id="dailyChallengeBtn" class="btn btn-primary">play today's challenge (not being updated rn sorry)</button>
+                <button id="practiceModeBtn" class="btn btn-secondary">practice mode</button>
+                <button id="multiplayerBtn" class="btn btn-secondary">multiplayer</button>
+                <button id="viewHistoryBtn" class="btn btn-tertiary">view history</button>
+            </div>
+        </div>
+        <label class="checkbox-label debug-checkbox">
+            <input type="checkbox" id="debugModeCheckbox">
+            <span class="checkbox-text">debug mode</span>
+        </label>
+    </div>
+
+    <!-- Practice Mode Setup -->
+    <div id="practiceSetupScreen" class="screen">
+        <div class="container">
+            <h2>practice mode</h2>
+            
+            <div class="input-group">
+                <label for="startWord">start word:</label>
+                <input type="text" id="startWord" placeholder="enter start word">
+            </div>
+            
+            <div class="input-group">
+                <label for="targetWord">target word:</label>
+                <input type="text" id="targetWord" placeholder="enter target word">
+            </div>
+
+            <div class="button-group">
+                <div class="random-challenge-group">
+                    <button id="randomChallengeBtn" class="btn btn-secondary">random challenge (don't expect fun results)</button>
+                    <label class="checkbox-label checkbox-inline">
+                        <input type="checkbox" id="englishOnlyCheckbox" checked>
+                        <span class="checkbox-text">english words only</span>
+                    </label>
+                </div>
+                <button id="startPracticeBtn" class="btn btn-primary">start</button>
+                <button id="backFromPracticeBtn" class="btn btn-tertiary">back</button>
+            </div>
+            
+            <div id="practiceError" class="error-message"></div>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="gameScreen" class="screen">
+        <div class="game-header">
+            <div class="mode-indicator" id="modeIndicator"></div>
+            <div class="game-info">
+                <div class="current-target">
+                    <span class="label">current:</span>
+                    <span id="currentWord" class="word-display">-</span>
+                    <span class="arrow">→</span>
+                    <span class="label">target:</span>
+                    <span id="targetWordDisplay" class="word-display">-</span>
+                </div>
+                <div class="stats">
+                    <span class="stat">
+                        <span class="stat-label">clicks:</span>
+                        <span id="clickCount">0</span>
+                    </span>
+                    <span class="stat">
+                        <span class="stat-label">time:</span>
+                        <span id="timer">00:00</span>
+                    </span>
+                </div>
+            </div>
+            <button id="homeBtn" class="btn-icon">🏠</button>
+        </div>
+        
+        <div class="breadcrumb-trail" id="breadcrumbTrail"></div>
+
+        <div id="debugNavigation" class="debug-navigation" style="display: none;">
+            <input type="text" id="debugWordInput" placeholder="go to page...">
+            <button id="debugGoBtn" class="btn btn-tertiary">go</button>
+        </div>
+        
+        <div class="game-content">
+            <div id="loadingIndicator" class="loading">
+                <div class="spinner"></div>
+                <p>loading wiktionary page...</p>
+            </div>
+            <div id="wiktionaryContent" class="wiktionary-content"></div>
+            <div id="gameError" class="error-message"></div>
+        </div>
+    </div>
+
+    <!-- Victory Modal -->
+    <div id="victoryModal" class="modal">
+        <div class="modal-content">
+            <div class="victory-header">
+                <h2>🎉 victory! 🎉</h2>
+            </div>
+            <div class="victory-stats">
+                <div class="victory-stat">
+                    <span class="victory-label">clicks:</span>
+                    <span id="victoryClicks">0</span>
+                </div>
+                <div class="victory-stat">
+                    <span class="victory-label">time:</span>
+                    <span id="victoryTime">00:00</span>
+                </div>
+            </div>
+            <div class="shareable-results">
+                <h3>your results:</h3>
+                <textarea id="shareableText" readonly></textarea>
+                <button id="copyResultsBtn" class="btn btn-secondary">copy results</button>
+            </div>
+            <div class="button-group">
+                <button id="reviewPathBtn" class="btn btn-primary">review path</button>
+                <button id="playAgainBtn" class="btn btn-secondary">play practice mode</button>
+                <button id="closeVictoryBtn" class="btn btn-tertiary">close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Screen -->
+    <div id="historyScreen" class="screen">
+        <div class="container">
+            <h2>history</h2>
+            <div id="historyContent" class="history-content"></div>
+            <button id="backFromHistoryBtn" class="btn btn-tertiary">back</button>
+        </div>
+    </div>
+
+    <!-- Multiplayer Setup Screen -->
+    <div id="multiplayerSetupScreen" class="screen">
+        <div class="container">
+            <h2>multiplayer</h2>
+
+            <div class="input-group">
+                <label for="playerName">your name:</label>
+                <input type="text" id="playerName" placeholder="enter your name" maxlength="20">
+            </div>
+
+            <div class="button-group">
+                <button id="createRoomBtn" class="btn btn-primary">create room</button>
+                <button id="joinRoomBtn" class="btn btn-secondary">join room</button>
+                <button id="backFromMultiplayerBtn" class="btn btn-tertiary">back</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Multiplayer Join Screen -->
+    <div id="multiplayerJoinScreen" class="screen">
+        <div class="container">
+            <h2>join room</h2>
+
+            <div class="join-steps">
+                <div class="join-step" id="joinStep1">
+                    <h3>step 1: paste room code</h3>
+                    <div class="input-group">
+                        <textarea id="hostRoomCode" placeholder="paste the room code from the host here..." rows="3"></textarea>
+                    </div>
+                    <button id="generateJoinCodeBtn" class="btn btn-primary">generate join code</button>
+                </div>
+
+                <div class="join-step hidden" id="joinStep2">
+                    <h3>step 2: share your join code</h3>
+                    <p class="step-desc">copy this code and send it to the host:</p>
+                    <div class="code-display">
+                        <textarea id="myJoinCode" readonly rows="3"></textarea>
+                        <button id="copyJoinCodeBtn" class="btn btn-secondary">copy</button>
+                    </div>
+                </div>
+
+                <div class="join-step hidden" id="joinStep3">
+                    <h3>step 3: paste accept code</h3>
+                    <p class="step-desc">paste the accept code from the host:</p>
+                    <div class="input-group">
+                        <textarea id="acceptCode" placeholder="paste accept code here..." rows="3"></textarea>
+                    </div>
+                    <button id="completeJoinBtn" class="btn btn-primary">join lobby</button>
+                </div>
+            </div>
+
+            <div id="joinError" class="error-message"></div>
+            <button id="backFromJoinBtn" class="btn btn-tertiary">back</button>
+        </div>
+    </div>
+
+    <!-- Multiplayer Lobby Screen -->
+    <div id="multiplayerLobbyScreen" class="screen">
+        <div class="container">
+            <h2>multiplayer lobby</h2>
+
+            <!-- Host controls for adding players -->
+            <div id="hostAddPlayer" class="host-controls hidden">
+                <div class="add-player-section">
+                    <h3>invite players</h3>
+                    <div class="code-display">
+                        <p class="step-desc">share this room code:</p>
+                        <textarea id="roomCode" readonly rows="2"></textarea>
+                        <button id="copyRoomCodeBtn" class="btn btn-secondary">copy</button>
+                    </div>
+
+                    <div class="accept-player-section hidden" id="acceptPlayerSection">
+                        <h4>accept a player</h4>
+                        <div class="input-group">
+                            <textarea id="playerJoinCode" placeholder="paste player's join code here..." rows="3"></textarea>
+                        </div>
+                        <button id="acceptPlayerBtn" class="btn btn-primary">accept player</button>
+                        <div class="code-display hidden" id="acceptCodeDisplay">
+                            <p class="step-desc">send this code back to the player:</p>
+                            <textarea id="generatedAcceptCode" readonly rows="3"></textarea>
+                            <button id="copyAcceptCodeBtn" class="btn btn-secondary">copy</button>
+                        </div>
+                    </div>
+
+                    <button id="toggleAcceptSectionBtn" class="btn btn-tertiary">add a player</button>
+                </div>
+            </div>
+
+            <!-- Player list -->
+            <div class="player-list-section">
+                <h3>players</h3>
+                <div id="playerList" class="player-list"></div>
+            </div>
+
+            <!-- Debug: Add fake players (only visible in debug mode) -->
+            <div id="debugFakePlayers" class="debug-fake-players hidden">
+                <h3>debug: fake players</h3>
+                <button id="addFakePlayerBtn" class="btn btn-tertiary">add fake player</button>
+            </div>
+
+            <!-- Challenge setup (host only) -->
+            <div id="challengeSetup" class="challenge-setup hidden">
+                <h3>challenge</h3>
+                <div class="input-group">
+                    <label for="mpStartWord">start word:</label>
+                    <input type="text" id="mpStartWord" placeholder="enter start word">
+                </div>
+                <div class="input-group">
+                    <label for="mpTargetWord">target word:</label>
+                    <input type="text" id="mpTargetWord" placeholder="enter target word">
+                </div>
+                <div class="random-challenge-group">
+                    <button id="mpRandomChallengeBtn" class="btn btn-secondary">random challenge</button>
+                    <label class="checkbox-label checkbox-inline">
+                        <input type="checkbox" id="mpEnglishOnlyCheckbox" checked>
+                        <span class="checkbox-text">english words only</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Guest ready button -->
+            <div id="guestReadySection" class="hidden">
+                <button id="readyBtn" class="btn btn-primary">ready</button>
+            </div>
+
+            <!-- Start game button (host only) -->
+            <div id="startGameSection" class="hidden">
+                <p id="startGameStatus" class="status-text">waiting for all players to be ready...</p>
+                <button id="mpStartGameBtn" class="btn btn-primary" disabled>start game</button>
+            </div>
+
+            <div id="lobbyError" class="error-message"></div>
+            <button id="leaveLobbyBtn" class="btn btn-tertiary">leave</button>
+        </div>
+    </div>
+
+    <!-- Multiplayer Countdown Overlay -->
+    <div id="countdownOverlay" class="countdown-overlay hidden">
+        <div class="countdown-content">
+            <h2>get ready!</h2>
+            <div id="countdownNumber" class="countdown-number">3</div>
+        </div>
+    </div>
+
+    <!-- Multiplayer Game - Opponents Panel (added to game screen) -->
+    <div id="opponentsPanel" class="opponents-panel hidden">
+        <h4>opponents</h4>
+        <div id="opponentsList" class="opponents-list"></div>
+    </div>
+
+    <!-- Multiplayer Victory Modal -->
+    <div id="mpVictoryModal" class="modal">
+        <div class="modal-content">
+            <div class="victory-header">
+                <h2>race complete!</h2>
+            </div>
+            <div id="mpLeaderboard" class="mp-leaderboard"></div>
+            <div class="button-group">
+                <button id="mpPlayAgainBtn" class="btn btn-primary">play again</button>
+                <button id="mpLeaveLobbyBtn" class="btn btn-tertiary">leave</button>
+            </div>
+        </div>
+    </div>
+
+    </div>
+    <script src="challenges.js"></script>
+    <script src="multiplayer.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
+

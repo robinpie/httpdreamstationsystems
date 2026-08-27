@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Robin's cover letter for ezCater</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  /* ── Reset & base ─────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ez-orange: #ff6a00;
+    --ez-dark:   #1a1a2e;
+    --ez-light:  #f9f5f0;
+    --ez-green:  #2ecc71;
+    --radius:    10px;
+  }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--ez-light);
+    color: var(--ez-dark);
+    min-height: 100vh;
+  }
+
+  /* ── Layout ───────────────────────────────────────────── */
+  .app        { max-width: 960px; margin: 0 auto; padding: 24px 16px 64px; }
+  .header     { text-align: center; margin-bottom: 32px; }
+  .header h1  { font-size: 2rem; color: var(--ez-orange); }
+  .header p   { color: #555; margin-top: 4px; }
+  .columns    { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 700px) { .columns { grid-template-columns: 1fr; } }
+
+  /* ── Menu card ────────────────────────────────────────── */
+  .menu           { background: #fff; border-radius: var(--radius); padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+  .menu h2        { font-size: 1.25rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .category       { margin-bottom: 16px; }
+  .category h3    { font-size: .85rem; text-transform: uppercase; letter-spacing: .08em; color: var(--ez-orange); margin-bottom: 6px; border-bottom: 2px solid var(--ez-orange); padding-bottom: 2px; display: inline-block; }
+  .menu-item       { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; gap: 10px; }
+  .menu-item span  { font-size: .95rem; flex: 1; min-width: 0; }
+  .menu-item button {
+    background: var(--ez-orange); color: #fff; border: none; border-radius: 6px;
+    padding: 4px 12px; cursor: pointer; font-size: .85rem; transition: transform .1s, background .15s;
+    flex-shrink: 0; white-space: nowrap;
+  }
+  .menu-item button:hover { transform: scale(1.05); }
+  .menu-item button:active { transform: scale(.97); }
+  .menu-item button.added { background: var(--ez-green); }
+
+  /* ── Order / receipt ──────────────────────────────────── */
+  .order          { background: #fff; border-radius: var(--radius); padding: 20px; box-shadow: 0 2px 12px rgba(0,0,0,.08); position: sticky; top: 24px; }
+  .order h2       { font-size: 1.25rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .receipt        {
+    font-family: 'Courier New', monospace; font-size: .82rem; background: #fffdf7;
+    border: 1px dashed #ccc; border-radius: 6px; padding: 16px; min-height: 120px;
+    white-space: pre-wrap; line-height: 1.55;
+  }
+  .empty-order    { color: #aaa; font-style: italic; }
+  .order-actions  { margin-top: 12px; display: flex; gap: 8px; }
+  .order-actions button {
+    flex: 1; padding: 10px; border: none; border-radius: 6px; font-size: .95rem;
+    cursor: pointer; font-weight: 600; transition: transform .1s, background .15s;
+  }
+  .order-actions button:active { transform: scale(.97); }
+  .btn-submit  { background: var(--ez-green); color: #fff; }
+  .btn-clear   { background: #e74c3c; color: #fff; }
+  .btn-submit:hover { background: #27ae60; }
+  .btn-clear:hover  { background: #c0392b; }
+
+  /* ── Submitted state ──────────────────────────────────── */
+  .submitted      {
+    text-align: center; padding: 32px 20px; background: #fff;
+    border-radius: var(--radius); box-shadow: 0 2px 12px rgba(0,0,0,.08);
+    animation: fadeUp .4s ease;
+  }
+  .submitted h2   { color: var(--ez-green); font-size: 1.6rem; margin-bottom: 12px; }
+  .submitted p    { margin-bottom: 8px; line-height: 1.6; max-width: 640px; margin-left: auto; margin-right: auto; }
+  .submitted button {
+    margin-top: 16px; padding: 10px 28px; background: var(--ez-orange); color: #fff;
+    border: none; border-radius: 6px; font-size: 1rem; cursor: pointer;
+  }
+  .confetti-wrap { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; z-index: 10; }
+  .confetti {
+    position: absolute; width: 10px; height: 10px; border-radius: 2px;
+    animation: fall linear forwards;
+  }
+  @keyframes fall {
+    0%   { transform: translateY(-20px) rotate(0deg);   opacity: 1; }
+    100% { transform: translateY(105vh)  rotate(720deg); opacity: 0; }
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Intro / note ─────────────────────────────────────── */
+  .intro {
+    background: #fff; border-radius: var(--radius); padding: 20px; margin-bottom: 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.08); line-height: 1.65;
+  }
+  .intro summary { cursor: pointer; font-weight: 600; color: var(--ez-orange); }
+  .intro p { margin-top: 8px; }
+</style>
+</head>
+
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-type="module">
+/* ================================================================
+   Robin Reel's Interactive Cover Letter for ezCater
+   Front End Engineering Intern — Summer 2026
+   ================================================================
+   A single-file React + TypeScript-style app that doubles as a
+   cover letter. The "menu" is my skill set; the "order" is what
+   I'd bring to your team. Bon appetit!
+   ================================================================ */
+
+// ── Types ──────────────────────────────────────────────────────
+// (Babel strips these, but they show TypeScript familiarity.)
+
+/** @typedef {"Frameworks" | "Languages" | "Tools" | "Soft Skills"} Category */
+
+/**
+ * @typedef {Object} MenuItem
+ * @property {string}   id
+ * @property {string}   name
+ * @property {string}   description
+ * @property {Category} category
+ */
+
+// ── Data ───────────────────────────────────────────────────────
+
+const MENU_ITEMS = [
+  // Frameworks
+  { id: "react",      name: "React",          description: "Components, hooks, state",           category: "Frameworks" },
+  { id: "nextjs",     name: "Next.js",        description: "SSR, routing, and the full-stack garnish",             category: "Frameworks" },
+  { id: "jest",       name: "Jest / Testing",  description: "Well-tested code with confidence",            category: "Frameworks" },
+
+  // Languages
+  { id: "ts",         name: "TypeScript",      description: "Strongly-typed and reliable",                        category: "Languages" },
+  { id: "js",         name: "JavaScript",      description: "The classic, fluent and battle-tested",              category: "Languages" },
+  { id: "html-css",   name: "HTML & CSS",      description: "Semantic markup with a side of Sass",                 category: "Languages" },
+  { id: "python",     name: "Python",          description: "Versatile scripting, from CLI tools to interpreters", category: "Languages" },
+
+  // Tools
+  { id: "git",        name: "Git & GitHub",    description: "PRs, code review, open-source collaboration",        category: "Tools" },
+  { id: "linux",      name: "Linux",           description: "Daily driver",                           category: "Tools" },
+  { id: "packaging",  name: "AUR packaging",   description: "Maintaining packages for the community",             category: "Tools" },
+
+  // Soft skills
+  { id: "curiosity",  name: "Curiosity",       description: "Built an esoteric language just to see how they work",  category: "Soft Skills" },
+  { id: "teamwork",   name: "Teamwork",        description: "From fast-paced work environments to open-source PRs",           category: "Soft Skills" },
+  { id: "grit",       name: "Grit",            description: "Hard work is no problem",   category: "Soft Skills" },
+];
+
+const CATEGORIES = ["Frameworks", "Languages", "Tools", "Soft Skills"];
+
+// ── Confetti helper ────────────────────────────────────────────
+
+function Confetti() {
+  const pieces = React.useMemo(() => {
+    const colors = ["#ff6a00", "#2ecc71", "#3498db", "#e74c3c", "#f1c40f", "#9b59b6"];
+    return Array.from({ length: 60 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      delay: Math.random() * 1.2,
+      duration: 1.5 + Math.random() * 2,
+      color: colors[i % colors.length],
+      size: 6 + Math.random() * 8,
+    }));
+  }, []);
+
+  return (
+    <div className="confetti-wrap">
+      {pieces.map((p) => (
+        <div
+          className="confetti"
+          key={p.id}
+          style={{
+            left: `${p.left}%`,
+            animationDelay: `${p.delay}s`,
+            animationDuration: `${p.duration}s`,
+            background: p.color,
+            width: p.size,
+            height: p.size,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ── Components ─────────────────────────────────────────────────
+
+function MenuItemRow({ item, onAdd, inOrder }) {
+  return (
+    <div className="menu-item">
+      <span title={item.description}>
+        {item.name} <span style={{ color: "#999", fontSize: ".8rem" }}>— {item.description}</span>
+      </span>
+      <button
+        className={inOrder ? "added" : ""}
+        onClick={() => onAdd(item)}
+      >
+        {inOrder ? "Added" : "+ Add"}
+      </button>
+    </div>
+  );
+}
+
+function Receipt({ order }) {
+  if (order.length === 0) {
+    return <div className="receipt empty-order">Your order is empty — add some skills from the menu!</div>;
+  }
+
+  const line = (l, r) => {
+    const dots = ".".repeat(Math.max(2, 38 - l.length - r.length));
+    return `${l}${dots}${r}`;
+  };
+
+  const lines = [
+    "========================================",
+    "        ROBIN REEL'S SKILL ORDER        ",
+    "     ezCater FE Intern — Summer '26     ",
+    "========================================",
+    "",
+    ...order.map((item) => line(` ${item.name}`, item.category)),
+    "",
+    "----------------------------------------",
+    line(" ITEMS", String(order.length)),
+    line(" ENTHUSIASM", "Unlimited"),
+    line(" AVAILABILITY", "All summer"),
+    "========================================",
+    "       Thank you — come again!          ",
+    "========================================",
+  ];
+
+  return <div className="receipt">{lines.join("\n")}</div>;
+}
+
+function App() {
+  const [order, setOrder] = React.useState([]);
+  const [submitted, setSubmitted] = React.useState(false);
+
+  const toggle = (item) => {
+    setOrder((prev) =>
+      prev.find((o) => o.id === item.id)
+        ? prev.filter((o) => o.id !== item.id)
+        : [...prev, item]
+    );
+  };
+
+  const clearOrder = () => setOrder([]);
+
+  const addAll = () => setOrder([...MENU_ITEMS]);
+
+  if (submitted) {
+    return (
+      <div className="app">
+        <Confetti />
+        <div className="submitted">
+          <h2>Order placed!</h2>
+          <p>
+            Thanks for checking out my interactive cover letter! I'm Robin,
+            and I would love to join ezCater's Front-End core team this summer.
+          </p>
+          <p>
+            I built this because ezCater said to have fun with it, and because
+            the best way to show I can build React components is to build one.
+            This page is a single HTML file: React 18, JSX compiled client-side,
+            zero build tools required.
+          </p>
+          <p>
+            What excites me most about this role is the chance to work on the
+            foundational component library that every other team builds on.
+            I'm the kind of person who writes programming languages for fun
+            (<a href="https://github.com/robinpie/ath" target="_blank">!~ATH</a>),
+            packages software for the Arch Linux community, and messes around with low-level Linux. I genuinely love understanding how
+            things work under the hood, and I think that curiosity translates
+            directly into building better, more thoughtful components.
+          </p>
+          <p>
+            I'm eager to learn from your team and contribute real work.
+          </p>
+          <p style={{ marginTop: "12px", fontWeight: 600 }}>
+            Robin Reel&ensp;|&ensp;robin413@protonmail.com&ensp;|&ensp;github.com/robinpie
+          </p>
+          <button onClick={() => setSubmitted(false)}>Back to menu</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="app">
+      <div className="header">
+        <h1>Robin's Skill Kitchen</h1>
+        <p>An interactive cover letter for ezCater's Front End Engineering Internship</p>
+      </div>
+
+      <details className="intro" open>
+        <summary>Wait, is this a cover letter or a React app?</summary>
+        <p>
+          Both! The job listing said to have fun with the cover letter, so I
+          built a little single-file React app to prove that
+          I can work with the tools your team uses every day. Browse the menu,
+          build an order, and hit <strong>Submit</strong> to read the actual letter.
+        </p>
+      </details>
+
+      <div className="columns">
+        <div className="menu">
+          <h2>Menu</h2>
+          {CATEGORIES.map((cat) => (
+            <div className="category" key={cat}>
+              <h3>{cat}</h3>
+              {MENU_ITEMS.filter((i) => i.category === cat).map((item) => (
+                <MenuItemRow
+                  key={item.id}
+                  item={item}
+                  onAdd={toggle}
+                  inOrder={!!order.find((o) => o.id === item.id)}
+                />
+              ))}
+            </div>
+          ))}
+          <div style={{ marginTop: "8px", textAlign: "right" }}>
+            <button
+              onClick={addAll}
+              style={{
+                background: "none", border: "1px solid var(--ez-orange)",
+                color: "var(--ez-orange)", borderRadius: "6px", padding: "4px 14px",
+                cursor: "pointer", fontSize: ".85rem",
+              }}
+            >
+              Add everything
+            </button>
+          </div>
+        </div>
+
+        <div className="order">
+          <h2>Your Order</h2>
+          <Receipt order={order} />
+          <div className="order-actions">
+            <button className="btn-clear" onClick={clearOrder} disabled={order.length === 0}>
+              Clear
+            </button>
+            <button className="btn-submit" onClick={() => setSubmitted(true)} disabled={order.length === 0}>
+              Submit order
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Mount ──────────────────────────────────────────────────────
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+</script>
+</body>
+</html>

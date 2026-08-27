@@ -5,3 +5,6 @@
 
 # Local documentation
 README.local.md
+
+# Editor artifacts
+*.kate-swp

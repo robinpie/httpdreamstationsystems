@@ -1,0 +1,19 @@
+/* base.css — shared structure loaded under every theme.
+   Keep this minimal: only things that are true regardless of theme.
+   Anything visual/aesthetic belongs in a theme file under themes/. */
+
+/* The theme switcher is always pinned to the top-right corner, so every
+   theme (including the unstyled "plain" one) gets it in the right place
+   for free. A theme may override this if it wants to. */
+#theme-switcher {
+  position: fixed;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1000;
+}
+
+/* Stop oversized media from blowing out the layout. */
+img {
+  max-width: 100%;
+  height: auto;
+}
