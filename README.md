@@ -11,3 +11,5 @@ Does not include mta-sts.dreamstation.systems or pool.ntp.org (the latter just r
 | `cgi/`        | https://dreamstation.systems/professional/status |  mixed / messy |
 
 All content also available over HTTP.
+
+Some scripting is AI-assisted.

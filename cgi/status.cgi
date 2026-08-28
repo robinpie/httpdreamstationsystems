@@ -719,7 +719,7 @@ sub render_box {
 		      . bar($pct, 100 * $mem->{cache} / $mem->{total})
 		      . sprintf(qq{<span class="sbval">%.0f%%</span></div>\n}, $pct);
 	}
-	$out .= qq{<p class="sbmore"><a href="/professional/status">&#8594; full stats page</a></p>\n};
+	$out .= qq{<p class="sbmore"><a href="/professional/status">&#8594; full status page</a></p>\n};
 	$out .= qq{</aside>\n};
 	return $out;
 }

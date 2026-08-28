@@ -34,12 +34,11 @@
   <meta property="og:image" content="https://dreamstation.systems/professional/ogimage.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Terminal card reading: Robin Reel, security-minded systems and infrastructure generalist. pool.ntp.org member, score 20/20. CVE pending, bug bounty awarded. Open source contributor and developer.">
+  <meta property="og:image:alt" content="Terminal card. A shell prompt reads: robin@dreamstation:~$ finger robin@localhost. Below it: Robin Reel, security-minded systems and infrastructure generalist. pool.ntp.org member, score 20/20. CVE pending, bug bounty awarded. Open source contributor and developer. Footer: dreamstation.systems/professional.">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:image:alt" content="Terminal card reading: Robin Reel, security-minded systems and infrastructure generalist. pool.ntp.org member, score 20/20. CVE pending, bug bounty awarded. Open source contributor and developer.">
+  <meta name="twitter:image:alt" content="Terminal card. A shell prompt reads: robin@dreamstation:~$ finger robin@localhost. Below it: Robin Reel, security-minded systems and infrastructure generalist. pool.ntp.org member, score 20/20. CVE pending, bug bounty awarded. Open source contributor and developer. Footer: dreamstation.systems/professional.">
 
-  <!-- JSON-LD. Every claim here mirrors something stated in the body below;
-       if you edit a project, edit its node too. -->
+  <!-- JSON-LD. Every claim here mirrors something stated in the body below. -->
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -55,9 +54,24 @@
       {
         "@type": "WebSite",
         "@id": "https://dreamstation.systems/#website",
+        "dateModified": "2026-08-28",
         "url": "https://dreamstation.systems/",
         "name": "dreamstation.systems",
-        "author": { "@id": "https://dreamstation.systems/professional/#robin" }
+        "description": "The personal domain of Robin Reel: a professional profile, an informal personal site and blog, and a public status page for the services running on the host.",
+        "inLanguage": "en",
+        "author": { "@id": "https://dreamstation.systems/professional/#robin" },
+        "publisher": { "@id": "https://dreamstation.systems/professional/#robin" },
+        "copyrightHolder": { "@id": "https://dreamstation.systems/professional/#robin" },
+        "about": { "@id": "https://dreamstation.systems/professional/#robin" },
+        "accessMode": ["textual", "visual"],
+        "accessibilityFeature": [
+          "alternativeText",
+          "structuralNavigation",
+          "displayTransformability",
+          "readingOrder"
+        ],
+        "accessibilityHazard": "none",
+        "accessibilitySummary": "Semantic HTML with a skip link, a heading outline, alt text on images and no reliance on JavaScript. Claims WCAG 2.2 Level AA conformance."
       },
       {
         "@type": "Person",
@@ -145,7 +159,7 @@
         "name": "!~ATH",
         "url": "https://github.com/robinpie/ath",
         "codeRepository": "https://github.com/robinpie/ath",
-        "description": "A concurrent esoteric programming language in which all control flow is predicated on waiting for something to die, after the fictional ~ATH language from Homestuck. Self-hosting: the transpiler is written in !~ATH and emits C89 through a continuation-passing style transform. Ships !^CAKE, a companion schema definition language, and a browser playground at https://robinpie.neocities.org/ath/.",
+        "description": "A concurrent esoteric programming language in which all control flow is predicated on waiting for something to die, after the fictional ~ATH language from Homestuck. Self-hosting: the transpiler is written in !~ATH and emits C89 through a continuation-passing style transform, in around 19,000 lines of !~ATH with 497 test cases. Ships !^CAKE, a companion schema definition language, and a browser playground at https://robinpie.neocities.org/ath/.",
         "programmingLanguage": ["!~ATH", "C"],
         "runtimePlatform": ["Linux", "Windows", "WebAssembly"],
         "author": { "@id": "https://dreamstation.systems/professional/#robin" }
@@ -177,7 +191,7 @@
         "name": "viewpoint",
         "url": "https://github.com/robinpie/viewpoint",
         "codeRepository": "https://github.com/robinpie/viewpoint",
-        "description": "A terminal multiplexer built around a desktop window manager metaphor: floating windows with title bars, draggable borders, edge snapping and a taskbar, each running its own program in a dedicated PTY. Roughly 11,000 lines of C, built on notcurses, libvterm, libsixel and GPM.",
+        "description": "A terminal multiplexer built around a desktop window manager metaphor: floating windows with title bars, draggable borders, minimize and maximize buttons, edge snapping and a taskbar, each running its own program in a dedicated PTY. Fully rebindable keymap with an in-application settings panel covering keybindings, theming, scrollback and user-defined desktop icons, backed by an XDG-style config file. Roughly 11,000 lines of C, built on notcurses, libvterm, libsixel and GPM.",
         "programmingLanguage": "C",
         "runtimePlatform": "Linux",
         "creativeWorkStatus": "In progress",
@@ -210,6 +224,7 @@
         "@id": "https://dreamstation.systems/personal/blog.html#blog",
         "url": "https://dreamstation.systems/personal/blog.html",
         "name": "robin's blog",
+        "isPartOf": { "@id": "https://dreamstation.systems/#website" },
         "author": { "@id": "https://dreamstation.systems/professional/#robin" }
       }
     ]
@@ -349,6 +364,15 @@
       <li>An obfs4 Tor bridge carrying roughly 500 GB of traffic a month.</li>
       <li>Gopher, Gemini, Spartan, finger and several other small protocols.</li>
       <li>A <a href="/professional/status">service status page</a>.</li>
+    </ul>
+  </article>
+
+  <article>
+    <h3>This website</h3>
+    <ul>
+      <li>Status page with most services and machine resources monitored.</li>
+      <li>Comprehensive JSON-LD Profile graph in place, making my profile information machine-readable.</li>
+      <li>Web Key Directory, <code>/.well-known/security.txt</code>, <code>robots.txt</code>, <code>llms.txt</code>, and <code>humans.txt</code> in place.</li>
     </ul>
   </article>
 
