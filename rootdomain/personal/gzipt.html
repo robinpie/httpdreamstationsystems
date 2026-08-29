@@ -7,6 +7,19 @@
   <link rel="stylesheet" href="base.css">
   <link id="theme-css" rel="stylesheet" href="themes/gtk2.css">
   <script src="theme.js"></script>
+  <style>
+    .gzipt-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .gzipt-title a {
+      flex: none;
+      line-height: 0;
+    }
+  </style>
 </head>
 <body>
   <header class="site-header">
@@ -18,7 +31,7 @@
   </header>
 
   <main>
-    <h1>Playing with the language modeling abilities of gzip</h1>
+    <h1 class="gzipt-title"><span>Playing with the language modeling abilities of gzip</span><a href="https://www.pangram.com/history/b023922b-64cb-44d1-9133-b6a1645df135?ucc=tp64Jv2K7C4"><img src="my%20shitty%20Pangram%20100%25%20Human%20badge.png" alt="Pangram 100% Human badge" width="88" height="31"></a></h1>
 
     <p>With thanks to Nathan Barry's <a href="https://nathan.rs/posts/gzip-lm/">Can gzip be a language model?</a></p>
 
