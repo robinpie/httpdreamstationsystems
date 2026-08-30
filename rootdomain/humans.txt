@@ -30,3 +30,9 @@
  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 {   robin@dreamstation.systems        ✨✨🏰🏰         }
  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 
+also see:
+ 
+/.well-known/security.txt
+/robots.txt
+/llms.txt

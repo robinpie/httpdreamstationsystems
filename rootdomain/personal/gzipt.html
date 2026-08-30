@@ -132,7 +132,7 @@ sys     0m2.413s</code></pre>
 
     <h3>Saving bz2</h3>
 
-    <p>An idea I had to make the other algorithms produce coherent text is what I'm going to call "span mode" — instead of generating one byte at a time, we make each candidate an 8-byte span that actually follows the current context somewhere in the corpus (by a quick n-gram lookup). This makes the cost difference between a good and bad span quite a few bytes. This worked beautifully (this is bz2):</p>
+    <p>An idea I had to make the other algorithms produce coherent text is what I'm going to call "span mode" — instead of generating one byte at a time, we make each candidate an 8-byte span that actually follows the current context somewhere in the corpus (by a quick n-gram lookup). This makes the cost difference between a good and bad span quite a few bytes. This worked beautifully (this is bz2):</p>
 
     <blockquote>
       <p>I tell you, friends, most charitable care<br>
@@ -154,7 +154,7 @@ sys     0m2.413s</code></pre>
 
     <p>Out of the box, scoring solely against the question's own context, we score 26.4%, barely but clearly above chance. Nice. Giving the compressor a block of random other HellaSwag examples first takes us up to 27%. Giving the compressor other examples from the same activity category (excluding same <code>source_id</code> siblings) takes us to 28.7%. Very cool.</p>
 
-    <p>Since other algorithms are viable again here, I plugged in zstd and lzma with the same tricks. They got us <strong>32.5%</strong> and <strong>33.0%</strong> respectively — beating out GPT-2-124M!!!!!! This was the coolest, most thrilling finding. Compression algorithms are black fucking magic and encode a shitload of surprising information</p>
+    <p>Since other algorithms are viable again here, I plugged in zstd and lzma with the same tricks. They got us <strong>32.5%</strong> and <strong>33.0%</strong> respectively — beating out GPT-2-124M!!!!!! This was the coolest, most thrilling finding. Compression algorithms are black fucking magic and encode a shitload of surprising information</p>
 
     <h3>Coding</h3>
 

@@ -1,1 +1,3 @@
-Do whatever you want. I don't discriminate against bots.
+There are no technical restrictions here. I don't discriminate against bots.
+
+For cyber engagements, see @.well-known/security.txt
