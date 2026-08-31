@@ -24,6 +24,16 @@
       flex: none;
       line-height: 0;
     }
+
+    ol table {
+      table-layout: fixed;
+      width: 100%;
+      max-width: 28rem;
+    }
+
+    ol table th {
+      width: 50%;
+    }
   </style>
 </head>
 <body>
@@ -61,11 +71,11 @@
       </figcaption>
     </figure>
 
-    <p>In this comic, the concept of an ordinary person having a FTP server is quickly dismissed. And yes, it’s not common. To the average computer user, the idea that someone could just… <em>connect</em> to your computer feels exotic, or even dangerous — see the very common ironic fear of your IP address being known to other people on the internet.</p>
+    <p>In this comic, the concept of an ordinary person having an FTP server is quickly dismissed. And yes, it’s not common. To the average computer user, the idea that someone could just… <em>connect</em> to your computer feels exotic, or even dangerous — see the very common ironic fear of your IP address being known to other people on the internet.</p>
 
     <p>If you take someone who’s “good with computers” but not a networking person, their mental model of The Internet probably involves a definition of “servers” or “the cloud” that distinguishes them from personal computers in some meaningful way. True peer‐to‐peer, if they ever think about it, is an endeavor: WebRTC, STUN, TURN, ICE, what have you. Given that we live in a world of NAT, CGNAT, and restrictive ISPs, this isn’t entirely wrong, but it breaks the elegant design of the original Internet.</p>
 
-    <h2>Why you don’t have a FTP server</h2>
+    <h2>Why you don’t have an FTP server</h2>
 
     <p>Network address translation (NAT) was first formally proposed in <a href="https://datatracker.ietf.org/doc/html/rfc1631">RFC 1631</a> in 1994. In its abstract, it says:</p>
 
