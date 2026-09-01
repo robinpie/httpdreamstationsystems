@@ -92,6 +92,27 @@ use constant {
 	G_B => 24,   # bottom strip for the two date labels
 };
 
+# Hover titles for the bar segments: the exact quantity each is computed from.
+#
+# DEFINED ONCE BECAUSE TWO RENDER PATHS USE THEM — the full page and the corner
+# box fragment. CPU and the two memory strings appear in both, and this file
+# already has three separate warnings about a value that has to be listed in
+# two places and silently diverges when it is not (see cache_write). The swap
+# and disk strings are used once each and live here anyway, so that this block
+# is the whole set and matches the table in status.txt.
+#
+# These are title attributes on elements inside aria-hidden="true", so they are
+# a MOUSE AFFORDANCE, NOT A TEXT ALTERNATIVE — see bar().
+use constant {
+	T_CPU        => '1 − Δ(idle + iowait) / Δtotal over the sampled window',
+	T_MEM_USED   => 'MemTotal − MemFree − cache',
+	T_MEM_CACHE  => 'cache',
+	T_SWAP_USED  => 'SwapTotal − SwapFree − SwapCached',
+	T_SWAP_CACHE => 'SwapCached',
+	T_DISK_USED  => 'df Used',
+	T_DISK_RSVD  => 'Unused root reserve',
+};
+
 # Probes run against loopback deliberately. Probing our own public IP would
 # inject self-traffic into the nginx access log and the journal that
 # `dashboard` parses, polluting its Visitors tab. This proves the daemon is
@@ -799,7 +820,7 @@ CSS
 		# says "sampled window" rather than repeating a number.
 		$out .= qq{<div class="metric"><span>CPU</span>}
 		      . bar($d->{cpu}{pct}, undef, 0,
-		            [ '1 − Δ(idle + iowait) / Δtotal over the sampled window', undef ])
+		            [ T_CPU, undef ])
 		      . sprintf(qq{<span class="mval">%.0f%% · %s avg</span></div>\n},
 		                $d->{cpu}{pct}, dur($d->{cpu}{span}));
 	}
@@ -817,13 +838,13 @@ CSS
 		# answer to "why does this disagree with free(1)" — see read_mem().
 		$out .= qq{<div class="metric"><span>Memory</span>}
 		      . bar(100 * $m->{used} / $m->{total}, 100 * $m->{cache} / $m->{total}, 0,
-		            [ 'MemTotal − MemFree − cache', 'cache' ])
+		            [ T_MEM_USED, T_MEM_CACHE ])
 		      . sprintf(qq{<span class="mval">%s / %s MB</span></div>\n}, mb($m->{used}), mb($m->{total}));
 		if ($m->{swap_total}) {
 			$out .= qq{<div class="metric"><span>Swap</span>}
 			      . bar(100 * $m->{swap_used} / $m->{swap_total},
 			            100 * ($m->{swap_cache} // 0) / $m->{swap_total}, 0,
-			            [ 'SwapTotal − SwapFree − SwapCached', 'SwapCached' ])
+			            [ T_SWAP_USED, T_SWAP_CACHE ])
 			      . sprintf(qq{<span class="mval">%s / %s MB</span></div>\n},
 			                mb($m->{swap_used}), mb($m->{swap_total}));
 		}
@@ -853,7 +874,7 @@ CSS
 		$reserve_free = 0 if $reserve_free < 0;
 		$out .= qq{<div class="metric"><span>Disk</span>}
 		      . bar(100 * $k->{used} / $k->{total}, 100 * $reserve_free / $k->{total}, 1,
-		            [ 'df Used', 'Unused root reserve' ])
+		            [ T_DISK_USED, T_DISK_RSVD ])
 		      . sprintf(qq{<span class="mval">%s / %s GB</span></div>\n},
 		                gb($k->{used}), gb($k->{total}));
 	}
@@ -978,16 +999,23 @@ sub render_box {
 
 	my $out = qq{<aside class="statbox" aria-label="Server vitals">\n};
 	if ($cpu) {
-		$out .= qq{<div class="sbrow"><span>CPU</span>} . bar($cpu->{pct})
+		$out .= qq{<div class="sbrow"><span>CPU</span>}
+		      . bar($cpu->{pct}, undef, 0, [ T_CPU, undef ])
 		      . sprintf(qq{<span class="sbval">%.0f%%</span></div>\n}, $cpu->{pct});
 	}
 	if ($mem) {
 		# Same decomposition as the full page: solid = in use, faded =
 		# reclaimable cache. Percentages only — an absolute MB figure does not
 		# earn its width at this size.
+		#
+		# The hover titles ARE the same strings as the full page, deliberately.
+		# The box shows no absolute figures, so the tooltip is the only thing
+		# here that says what the faded segment is; giving it different wording
+		# from the page it links to would be worse than giving it none.
 		my $pct = 100 * $mem->{used} / $mem->{total};
 		$out .= qq{<div class="sbrow"><span>RAM</span>}
-		      . bar($pct, 100 * $mem->{cache} / $mem->{total})
+		      . bar($pct, 100 * $mem->{cache} / $mem->{total}, 0,
+		            [ T_MEM_USED, T_MEM_CACHE ])
 		      . sprintf(qq{<span class="sbval">%.0f%%</span></div>\n}, $pct);
 	}
 	$out .= qq{<p class="sbmore"><a href="/professional/status">&#8594; full status page</a></p>\n};
