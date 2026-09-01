@@ -152,7 +152,7 @@
 
     <h4>STUN</h4>
 
-    <p>Session Traversal Utilities for NAT (STUN), instead of trying to get cooperation from the firewall, simply asks a server on the public internet “what does my packet look like by the time it gets to you?” The STUN server hands back the public IP and port your NAT assigned, say, 146.7.15.85:60612. Under a “cone NAT”, where the router uses an identical external port mapping for all outbound connections, this works great. You can tell this mapping to a peer, and then they can send packets directly to you. This technique is known as <i>hole punching</i>. However, under a “symmetric NAT” — common on CGNAT and institutional networks — you get a different public port for <em>every distinct destination</em>. In this case, the STUN mapping is useless for connecting to a peer, since they'll see you differently than the STUN server..</p>
+    <p>Session Traversal Utilities for NAT (STUN), instead of trying to get cooperation from the firewall, simply asks a server on the public internet “what does my packet look like by the time it gets to you?” The STUN server hands back the public IP and port your NAT assigned, say, 146.7.15.85:60612. Under a “cone NAT”, where the router uses an identical external port mapping for all outbound connections, this works great. You can tell this mapping to a peer, and then they can send packets directly to you. This technique is known as <i>hole punching</i>. However, under a “symmetric NAT” — common on CGNAT and institutional networks — you get a different public port for <em>every distinct destination</em>. In this case, the STUN mapping is useless for connecting to a peer, since they’ll see you differently than the STUN server.</p>
 
     <h4>TURN: giving up</h4>
 
@@ -164,7 +164,7 @@
 
     <h2>The long‐term solution that wasn’t</h2>
 
-    <p>The principal “long-term solution” in the works that RFC 1631 was referring to was IPv6, and it was supposed to fix this; give everyone a real globally unique address and obviate NAT. However, <a href=https://www.google.com/intl/en/ipv6/statistics.html>the sigmoid function of IPv6 adoption seems to be stalling out too early</a>, and even where it is implemented, many ISPs and institutional networks keep doing NATy stuff out of inertia and even more misguided security thinking: firewalls that refuse inbound because that’s we’re used to NAT doing that, or completely unnecessarily <em>applying actual NAT to IPv6</em> — often deploying Unique Local Addresses (fc00::/7) the way they use private RFC1918 space on IPv4 — which is baffling to me.</p>
+    <p>The principal “long‐term solution” in the works that RFC 1631 was referring to was IPv6, and it was supposed to fix this; give everyone a real globally unique address and obviate NAT. However, <a href=https://www.google.com/intl/en/ipv6/statistics.html>the sigmoid function of IPv6 adoption seems to be stalling out too early</a>, and even where it is implemented, many ISPs and institutional networks keep doing NATy stuff out of inertia and even more misguided security thinking: firewalls that refuse inbound because that’s we’re used to NAT doing that, or completely unnecessarily <em>applying actual NAT to IPv6</em> — often deploying Unique Local Addresses (fc00::/7) the way they use private RFC1918 space on IPv4 — which is baffling to me.</p>
 
     <h2>The consequences for the Internet</h2>
 
