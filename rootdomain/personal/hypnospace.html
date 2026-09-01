@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Porting Hypnospace Outlaw's webpages to the real Web</title>
-  <meta property="og:title" content="Porting Hypnospace Outlaw's webpages to the real Web">
+  <title>Porting Hypnospace Outlaw’s webpages to the real Web</title>
+  <meta property="og:title" content="Porting Hypnospace Outlaw’s webpages to the real Web">
   <meta property="og:description" content="Decompiling Hypnospace Outlaw and porting its webpages from the game's .hsp format to the real Web.">
   <meta property="og:type" content="article">
   <meta property="og:url" content="https://dreamstation.systems/hypnospace.html">
-  <meta property="og:site_name" content="robin's page">
+  <meta property="og:site_name" content="robin’s page">
   <link rel="stylesheet" href="base.css">
   <link id="theme-css" rel="stylesheet" href="themes/gtk2.css">
   <script src="theme.js"></script>
@@ -42,11 +42,11 @@
 
     <hr>
 
-    <p><em><a href="https://www.hypnospace.net/">Hypnospace Outlaw</a></em> is a video game that takes place mainly in "hypnospace", a fictional version of the late-’90s Web that you access while sleeping. Hypnospace Outlaw was built in <a href="https://www.construct.net/en">Construct 2</a>, a game engine that exports to HTML5 + JavaScript. I love the aesthetic of the game’s webpages (which are built in a custom <code>.hsp</code> format, which the game also ships a page builder for). Given that the game already builds to web technologies, I decided to port the format to the real Web.</p>
+    <p><em><a href="https://www.hypnospace.net/">Hypnospace Outlaw</a></em> is a video game that takes place mainly in “hypnospace”, a fictional version of the late‐’90s Web that you access while sleeping. Hypnospace Outlaw was built in <a href="https://www.construct.net/en">Construct 2</a>, a game engine that exports to HTML5 + JavaScript. I love the aesthetic of the game’s webpages (which are built in a custom <code>.hsp</code> format, which the game also ships a page builder for). Given that the game already builds to web technologies, I decided to port the format to the real Web.</p>
 
     <h2>Decompiling</h2>
 
-    <p><code>data/read this.txt</code> says that "we decided not to hide anything from players via encryption or whatever". They weren’t kidding; <code>package.nw</code> is a plain zip containing a Construct 2 HTML5 export, unobfuscated save for Construct 2’s built-in minification.</p>
+    <p><code>data/read this.txt</code> says that “we decided not to hide anything from players via encryption or whatever”. They weren’t kidding; <code>package.nw</code> is a plain zip containing a Construct 2 HTML5 export, unobfuscated save for Construct 2’s built-in minification.</p>
 
     <p><code>package.nw</code> contains the following, among several more files:</p>
 
@@ -109,15 +109,15 @@ VAR OldUserData = "" (type 1, static=False)</pre>
 
     <h2>Converting</h2>
 
-    <p>Finally, I built the converter. <code>tools/hspconv.py</code> the game's <code>.hsp</code> files and <code>data/</code> directory and generates a static site:</p>
+    <p>Finally, I built the converter. <code>tools/hspconv.py</code> the game’s <code>.hsp</code> files and <code>data/</code> directory and generates a static site:</p>
 
     <pre><code class="language-bash">$ python3 tools/hspconv.py --data "Hypnospace Outlaw/data" --out site</code></pre>
 
-    <p><code>hsp.js</code> reproduces HypnOS's rendering behavior using browser-friendly techniques: the Construct 2 Spritefont rendering is replaced with my own implementation, and text is rendered to canvas. GIF playback uses a looping image player, and it implements sway/spin/marquee/typewriter/color-cycle effects. As a result, the pages behave like they do in the game. Modern browsers won't autoplay audio without user interaction, so on initial load the user needs to click or interact with the page for audio playback to become available.</p>
+    <p><code>hsp.js</code> reproduces HypnOS’s rendering behavior using browser-friendly techniques: the Construct 2 Spritefont rendering is replaced with my own implementation, and text is rendered to canvas. GIF playback uses a looping image player, and it implements sway/spin/marquee/typewriter/color-cycle effects. As a result, the pages behave like they do in the game. Modern browsers won’t autoplay audio without user interaction, so on initial load the user needs to click or interact with the page for audio playback to become available.</p>
 
-    <p><code>.hsp</code> files  are serialized Construct 2 object data: a 300px-wide page, metadata, and a collection of Gif and Text elements. Every element can have up to 20 events/actions (the game's scripting language triggers them). Consequently, two visually identical elements can behave differently and produce different game outcomes. For every element, the converter implements a version of the <code>ElementEventWeb</code> logic. It looks for the image or text of the element in the same asset locations used by <code>LoadGifs</code> when the game starts (<code>gifs/</code>, <code>static/</code>, <code>shapes/</code>, <code>wordart/</code>). It resolves navigation in the same way as <code>URLtoCurrent</code> (which resolves URLs relative to the page being opened) and converts them into links to the generated local page. It writes one HTML file per page. Every element is a <code class="language-html"><div></code>. Their positioning and z-ordering (back-to-front stacking) match the game.</p>
+    <p><code>.hsp</code> files  are serialized Construct 2 object data: a 300px-wide page, metadata, and a collection of Gif and Text elements. Every element can have up to 20 events/actions (the game’s scripting language triggers them). Consequently, two visually identical elements can behave differently and produce different game outcomes. For every element, the converter implements a version of the <code>ElementEventWeb</code> logic. It looks for the image or text of the element in the same asset locations used by <code>LoadGifs</code> when the game starts (<code>gifs/</code>, <code>static/</code>, <code>shapes/</code>, <code>wordart/</code>). It resolves navigation in the same way as <code>URLtoCurrent</code> (which resolves URLs relative to the page being opened) and converts them into links to the generated local page. It writes one HTML file per page. Every element is a <code class="language-html">&lt;div&gt;</code>. Their positioning and z-ordering (back-to-front stacking) match the game.</p>
 
-    <p>By default, <code>site/assets</code> is a symlink pointing to the game’s <code>data/</code> directory. This keeps the generated site very small, but doesn't provide what you need to host it without Hypnospace Outlaw installed (please don't install random video games on servers). Use <code class="language-bash">--copy-assets</code> if you need an actual copy of the required assets.</p>
+    <p>By default, <code>site/assets</code> is a symlink pointing to the game’s <code>data/</code> directory. This keeps the generated site very small, but doesn’t provide what you need to host it without Hypnospace Outlaw installed (please don’t install random video games on servers). Use <code class="language-bash">--copy-assets</code> if you need an actual copy of the required assets.</p>
 
     <p><code>tools/hspaudit.py</code> re-scans the generated site and reports anything that could not be resolved. For example, I ran it against the entire game:</p>
 
@@ -128,7 +128,7 @@ unresolved images: 0 distinct, 0 references
 unresolved fonts:  0 distinct, 0 references
 links that resolve to no exported page: 13 distinct, 48 references</pre>
 
-    <p>The 48 dead links are dead in-game too, I think they're pages that were cut from the shipped data but are still linked from somewhere (a <code>the comic shop</code> zone that doesn't exist, a couple of <code>template2.hsp</code> placeholders, one <code>~truetranquilityno.hsp</code>).</p>
+    <p>The 48 dead links are dead in-game too, I think they’re pages that were cut from the shipped data but are still linked from somewhere (a <code>the comic shop</code> zone that doesn’t exist, a couple of <code>template2.hsp</code> placeholders, one <code>~truetranquilityno.hsp</code>).</p>
 
     <h3>Music</h3>
 

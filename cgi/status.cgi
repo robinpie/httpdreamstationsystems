@@ -657,7 +657,7 @@ CSS
 	if ($d->{seen}) {
 		my $share = $d->{seen} ? sprintf('%.1f', 3_700_000_000 / $d->{seen}) : '';
 		$out .= qq{<dt>Distinct clients seen</dt><dd>} . commify($d->{seen})
-		      . qq{ — about one in every $share routable IPv4 addresses</dd>\n};
+		      . qq{ — about one in every $share routable IPv4 addresses</dd>\n};
 	}
 	if (defined $c->{nts_ke_accepted}) {
 		# The window matters as much as the count — see chronyd_uptime(). If we
@@ -769,10 +769,10 @@ eval {
 	$e =~ s/\s+$//;
 	$body = qq{<!DOCTYPE html>\n<html lang="en"><head><meta charset="utf-8">}
 	      . qq{<meta name="viewport" content="width=device-width, initial-scale=1">}
-	      . qq{<title>Service status — unavailable</title></head><body>}
+	      . qq{<title>Service status — unavailable</title></head><body>}
 	      . qq{<h1>Service status is unavailable</h1>}
 	      . qq{<p>The status page could not collect data: } . esc($e) . qq{</p>}
-	      . qq{<p>This does not necessarily mean the services themselves are down — }
+	      . qq{<p>This does not necessarily mean the services themselves are down — }
 	      . qq{it means this page failed. <a href="/professional/">Back to Robin Reel</a>.</p>}
 	      . qq{</body></html>\n};
 };

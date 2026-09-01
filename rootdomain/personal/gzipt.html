@@ -8,7 +8,7 @@
   <meta property="og:description" content="Exploring whether gzip can generate text by treating compression as prediction.">
   <meta property="og:type" content="article">
   <meta property="og:url" content="https://dreamstation.systems/gzipt.html">
-  <meta property="og:site_name" content="robin's page">
+  <meta property="og:site_name" content="robin’s page">
   <link rel="stylesheet" href="base.css">
   <link id="theme-css" rel="stylesheet" href="themes/gtk2.css">
   <script src="theme.js"></script>
@@ -38,17 +38,17 @@
   <main>
     <h1 class="gzipt-title"><span>Playing with the language modeling abilities of gzip</span><a href="https://www.pangram.com/history/b023922b-64cb-44d1-9133-b6a1645df135?ucc=tp64Jv2K7C4"><img src="my%20shitty%20Pangram%20100%25%20Human%20badge.png" alt="Pangram 100% Human badge" width="88" height="31"></a></h1>
 
-    <p>With thanks to Nathan Barry's <a href="https://nathan.rs/posts/gzip-lm/">Can gzip be a language model?</a></p>
+    <p>With thanks to Nathan Barry’s <a href="https://nathan.rs/posts/gzip-lm/">Can gzip be a language model?</a></p>
 
     <hr>
 
-    <p><em>Note: I imprecisely say "gzip", "zlib", and "DEFLATE" interchangeably here. Sorry.</em></p>
+    <p><em>Note: I imprecisely say “gzip”, “zlib”, and “DEFLATE” interchangeably here. Sorry.</em></p>
 
-    <p>I'm fascinated by systems that can work in more than one way by effectively doing the same task backwards. For example, you can run a microphone backwards to create a (terrible) speaker, and you can run a speaker backwards to create a (actually pretty neat for bassy sounds) microphone; a speaker takes electricity and correspondingly pushes a coil through a magnetic field to vibrate air, and a microphone takes air pushing a coil through a magnetic field and generates electricity.</p>
+    <p>I’m fascinated by systems that can work in more than one way by effectively doing the same task backwards. For example, you can run a microphone backwards to create a (terrible) speaker, and you can run a speaker backwards to create a (actually pretty neat for bassy sounds) microphone; a speaker takes electricity and correspondingly pushes a coil through a magnetic field to vibrate air, and a microphone takes air pushing a coil through a magnetic field and generates electricity.</p>
 
-    <p>Similarly, compression and prediction are the same task. You can think of the best possible compression as "the most compact way to represent a given dataset", and the best possible predictor as "something that predicts a given dataset given the least information". These are the exact same tasks, just phrased differently. Of course, the obvious question is: how much generativity can we squeeze out of traditional compressors?</p>
+    <p>Similarly, compression and prediction are the same task. You can think of the best possible compression as “the most compact way to represent a given dataset”, and the best possible predictor as “something that predicts a given dataset given the least information”. These are the exact same tasks, just phrased differently. Of course, the obvious question is: how much generativity can we squeeze out of traditional compressors?</p>
 
-    <p><a href="https://arxiv.org/abs/2309.10668">Language Modeling Is Compression (2023)</a> touched on the generative abilities of gzip, but it's not the focus of the paper, and it's a pretty degenerate case; they only look one step ahead at a time, which is unfair to gzip.</p>
+    <p><a href="https://arxiv.org/abs/2309.10668">Language Modeling Is Compression (2023)</a> touched on the generative abilities of gzip, but it’s not the focus of the paper, and it’s a pretty degenerate case; they only look one step ahead at a time, which is unfair to gzip.</p>
 
     <blockquote>
       <p class="quote-title">Context Text (1948 Bytes)</p>
@@ -63,7 +63,7 @@
 
     <p>Not good. DEFLATE works by back-references to substrings, and a back-reference needs a minimum match of three bytes to trigger. Decoding one byte at a time, you only use the plain Huffman costs. The entire point of gzip is saving bytes by representing repeated substrings of several bytes as something simpler.</p>
 
-    <p>Nathan Barry's <a href="https://github.com/nathan-barry/gzipt">gzipt</a> (blog post linked above) expands on this excellently. gzipt harnesses gzip's brains in a much better way: it runs a <em>beam search</em> over bytes. gzipt keeps a beam of several candidate continuations alive at once and looks a sizable horizon ahead (24 bytes here, beam width 32) before committing, allowing long substrings to demonstrate good compressibility on a long enough timespan for gzip to really work its magic. If you set gzipt to beam width 1 and horizon 1, you get the degenerate case in <em>Language Modeling Is Compression</em>. With larger horizons and beam widths, you get visible structure:</p>
+    <p>Nathan Barry’s <a href="https://github.com/nathan-barry/gzipt">gzipt</a> (blog post linked above) expands on this excellently. gzipt harnesses gzip’s brains in a much better way: it runs a <em>beam search</em> over bytes. gzipt keeps a beam of several candidate continuations alive at once and looks a sizable horizon ahead (24 bytes here, beam width 32) before committing, allowing long substrings to demonstrate good compressibility on a long enough timespan for gzip to really work its magic. If you set gzipt to beam width 1 and horizon 1, you get the degenerate case in <em>Language Modeling Is Compression</em>. With larger horizons and beam widths, you get visible structure:</p>
 
     <blockquote>
       <p>MENENIUS:<br>
@@ -81,7 +81,7 @@
       fame and</p>
     </blockquote>
 
-    <p>There's also a neat trick in zlib that makes this affordable: you can clone a compressor's state:</p>
+    <p>There’s also a neat trick in zlib that makes this affordable: you can clone a compressor’s state:</p>
 
     <pre><code class="language-python">base = zlib.compressobj(level)
 base.compress(context) # do the expensive work once
@@ -101,7 +101,7 @@ sys     0m2.413s</code></pre>
 
     <p>For text generation, yes.</p>
 
-    <p>Of course, my first thought was "we have better than DEFLATE nowadays, can we swap out the brain"? I added an <code>--algo</code> flag and tried five:</p>
+    <p>Of course, my first thought was “we have better than DEFLATE nowadays, can we swap out the brain”? I added an <code>--algo</code> flag and tried five:</p>
 
     <table>
       <thead>
@@ -116,7 +116,7 @@ sys     0m2.413s</code></pre>
       </tbody>
     </table>
 
-    <p>Everything except zlib quickly collapses into repeating a couple cheap bytes. Why? Here's how the compressed length changes when you add a byte:</p>
+    <p>Everything except zlib quickly collapses into repeating a couple cheap bytes. Why? Here’s how the compressed length changes when you add a byte:</p>
 
     <table>
       <thead>
@@ -129,15 +129,15 @@ sys     0m2.413s</code></pre>
       </tbody>
     </table>
 
-    <p>This is good compression, but gzipt's implementation of the beam search can't tell apart candidates, so it breaks ties towards some globally cheap byte. Essentially, we're having quantization issues; the information difference the beam is trying to look at is smaller than a byte, the smallest unit we're measuring in.</p>
+    <p>This is good compression, but gzipt’s implementation of the beam search can’t tell apart candidates, so it breaks ties towards some globally cheap byte. Essentially, we’re having quantization issues; the information difference the beam is trying to look at is smaller than a byte, the smallest unit we’re measuring in.</p>
 
     <p>(on this toy input, zstd and brotli do move, but on a real 32KB context the one-byte difference rounds away into the whole-stream total and collapses too)</p>
 
-    <p>The only reason zlib works here also happens to be the clone trick. We measure each candidate's marginal cost directly, avoiding the whole-stream rounding. The others, lacking an API that allows us to clone the compressor state, have to recompress the entire context + candidate every single time, and that's why small differences get rounded off.</p>
+    <p>The only reason zlib works here also happens to be the clone trick. We measure each candidate’s marginal cost directly, avoiding the whole-stream rounding. The others, lacking an API that allows us to clone the compressor state, have to recompress the entire context + candidate every single time, and that’s why small differences get rounded off.</p>
 
     <h3>Saving bz2</h3>
 
-    <p>An idea I had to make the other algorithms produce coherent text is what I'm going to call "span mode" — instead of generating one byte at a time, we make each candidate an 8-byte span that actually follows the current context somewhere in the corpus (by a quick n-gram lookup). This makes the cost difference between a good and bad span quite a few bytes. This worked beautifully (this is bz2):</p>
+    <p>An idea I had to make the other algorithms produce coherent text is what I’m going to call “span mode” — instead of generating one byte at a time, we make each candidate an 8-byte span that actually follows the current context somewhere in the corpus (by a quick n-gram lookup). This makes the cost difference between a good and bad span quite a few bytes. This worked beautifully (this is bz2):</p>
 
     <blockquote>
       <p>I tell you, friends, most charitable care<br>
@@ -145,7 +145,7 @@ sys     0m2.413s</code></pre>
       Your suffering in this dearth, you</p>
     </blockquote>
 
-    <p>The obvious catch is that, in span mode, the candidates come from the corpus. We're reranking and reassembling pieces from the corpus instead of generating novel text. This is neat but significantly less "pure", so I kept it as a secondary mode.</p>
+    <p>The obvious catch is that, in span mode, the candidates come from the corpus. We’re reranking and reassembling pieces from the corpus instead of generating novel text. This is neat but significantly less “pure”, so I kept it as a secondary mode.</p>
 
     <h2>What can it do?</h2>
 
@@ -155,15 +155,15 @@ sys     0m2.413s</code></pre>
 
     <p>Yes.</p>
 
-    <p>Instead of doing generation with gzipt, I wrote a slightly different harness to allow compressors to answer multiple-choice. We don't use beam search or anything; we just compress context + ending and pick the cheapest. This is quite elegant and also revives the idea of using other algorithms.</p>
+    <p>Instead of doing generation with gzipt, I wrote a slightly different harness to allow compressors to answer multiple-choice. We don’t use beam search or anything; we just compress context + ending and pick the cheapest. This is quite elegant and also revives the idea of using other algorithms.</p>
 
-    <p>Out of the box, scoring solely against the question's own context, we score 26.4%, barely but clearly above chance. Nice. Giving the compressor a block of random other HellaSwag examples first takes us up to 27%. Giving the compressor other examples from the same activity category (excluding same <code>source_id</code> siblings) takes us to 28.7%. Very cool.</p>
+    <p>Out of the box, scoring solely against the question’s own context, we score 26.4%, barely but clearly above chance. Nice. Giving the compressor a block of random other HellaSwag examples first takes us up to 27%. Giving the compressor other examples from the same activity category (excluding same <code>source_id</code> siblings) takes us to 28.7%. Very cool.</p>
 
     <p>Since other algorithms are viable again here, I plugged in zstd and lzma with the same tricks. They got us <strong>32.5%</strong> and <strong>33.0%</strong> respectively — beating out GPT-2-124M!!!!!! This was the coolest, most thrilling finding. Compression algorithms are black fucking magic and encode a shitload of surprising information</p>
 
     <h3>Coding</h3>
 
-    <p>It's 2026, we're doing natural language processing. We obviously have to try and see whether gzip can code.</p>
+    <p>It’s 2026, we’re doing natural language processing. We obviously have to try and see whether gzip can code.</p>
 
     <p>I downloaded the PostgreSQL source code (which I picked for being a famously well-commented codebase), fed pieces into the compressor, and prompted it with the comment:</p>
 
@@ -183,7 +183,7 @@ LWLockNewTrancheId(const char *name)
 				(errcode(ERRCODE_INVALID_NAME),
 				 errmsg("tranche name cannot be NULL")));</code></pre>
 
-    <p>Damn, pretty promising. It has problems though: I tried running it longer (cut for brevity), and it keeps screwing around writing long, highly-compressible <code>ereport</code> error blocks. It never really does any actual logic (I'm guessing because it's information-dense, which means not highly compressible, which means gzip doesn't like it).</p>
+    <p>Damn, pretty promising. It has problems though: I tried running it longer (cut for brevity), and it keeps screwing around writing long, highly-compressible <code>ereport</code> error blocks. It never really does any actual logic (I’m guessing because it’s information-dense, which means not highly compressible, which means gzip doesn’t like it).</p>
 
     <h4>Is there a language/domain where it can code?</h4>
 
@@ -194,20 +194,20 @@ LWLockNewTrancheId(const char *name)
       <li>We need highly-compressible <em>logic</em>, with minimal low-entropy boilerplate that it can get addicted to writing.</li>
     </ul>
 
-    <p>How about SQL? We don't need to worry about managing memory, or handling variables, or even really control flow (a SELECT can work stranded anywhere pretty much no matter what).</p>
+    <p>How about SQL? We don’t need to worry about managing memory, or handling variables, or even really control flow (a SELECT can work stranded anywhere pretty much no matter what).</p>
 
     <p>I cobbled together a small schema, handwrote a corpus of a few hundred valid SELECTs, and prompted span mode with SELECT. Out of everything that came out: <strong>91% of the outputted statements were valid, and 55% of them were novel and valid!</strong> gzip can code!</p>
 
     <pre><code class="language-sql">SELECT name, dept_id FROM employees WHERE salary &gt; 50000 ORDER BY age ASC;
 SELECT MIN(dept_id) FROM employees WHERE age &lt; 25 ORDER BY dept_id DESC;</code></pre>
 
-    <p>Of course, most of it isn't <em>useful</em> code. One of the outputted lines was, humorously:</p>
+    <p>Of course, most of it isn’t <em>useful</em> code. One of the outputted lines was, humorously:</p>
 
     <pre><code class="language-sql">SELECT name, dept_id FROM employees WHERE age &gt;= 80000</code></pre>
 
     <h4>Useful code</h4>
 
-    <p>We need flat, statement-local, redundant code. After experimenting with a couple other things, I decided that CSS was perfect for this. A stylesheet is a pile of independent rules, each rule is a pile of independent <code>property: value;</code> declarations, the only nesting is one shallow brace level, unknown properties aren't fatal, and the open-source CSS I found repeats <code>padding: 0;</code> and <code>color: #fff;</code> a million times.</p>
+    <p>We need flat, statement-local, redundant code. After experimenting with a couple other things, I decided that CSS was perfect for this. A stylesheet is a pile of independent rules, each rule is a pile of independent <code>property: value;</code> declarations, the only nesting is one shallow brace level, unknown properties aren’t fatal, and the open-source CSS I found repeats <code>padding: 0;</code> and <code>color: #fff;</code> a million times.</p>
 
     <p>So I primed it on a few real classless stylesheets (normalize, sakura, mvp) and let it generate. I also had higher standards this time: I validated requiring real standard properties rather than the nearly-unconstrained <code>--custom</code>, as well as demanding that the rules actually be novel. It produced CSS such as:</p>
 
@@ -221,11 +221,11 @@ input[type="radio"] { box-sizing: border-box; padding: 0; }</code></pre>
       <img src="gzipt_css_demo.png" alt="A webpage styled entirely by gzipt-generated CSS">
     </figure>
 
-    <p>All the CSS on that page came out of fucking gzip. Yes, it's ugly as fuck, but it validates, it renders, and it wasn't copied whole. Charming.</p>
+    <p>All the CSS on that page came out of fucking gzip. Yes, it’s ugly as fuck, but it validates, it renders, and it wasn’t copied whole. Charming.</p>
 
     <h4>Conclusion</h4>
 
-    <p>Are traditional compressors good language models? No, but the fact that lzma from 1998 can beat GPT-2-124M at HellaSwag is really cool, and it's a neat demonstration of the compression-prediction equivalence.</p>
+    <p>Are traditional compressors good language models? No, but the fact that lzma from 1998 can beat GPT-2-124M at HellaSwag is really cool, and it’s a neat demonstration of the compression-prediction equivalence.</p>
   </main>
 </body>
 </html>
