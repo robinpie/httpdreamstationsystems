@@ -68,6 +68,7 @@ use constant {
 	CPU_HIST    => '/run/status/cpu.hist',
 	CHRONY_SNAP => '/run/status/chrony.txt',
 	QPS_SNAP    => '/run/status/qps.txt',
+	DISK_SNAP   => '/run/status/disk.txt',
 	SEEN_SET    => '/var/lib/dashboard/ntp_clients_seen.bin',
 
 	CACHE_TTL      => 20,    # seconds a rendered sweep stays authoritative
@@ -77,6 +78,18 @@ use constant {
 	STALE_WARN     => 120,   # cache older than this gets a visible banner
 
 	POOL_URL => 'https://www.ntppool.org/scores/67.215.249.229',
+};
+
+# Disk graph geometry, in user units of a fixed viewBox. The rendered SVG is
+# width:100% / height:auto, so these are proportions rather than pixels — but
+# text inside an SVG scales with it, so the numbers are chosen to keep the
+# labels legible at the ~340px this gets on a phone rather than only at 720.
+use constant {
+	G_W => 720, G_H => 180,
+	G_L => 54,   # left gutter: wide enough for "19.0 GB"
+	G_R => 10,
+	G_T => 12,
+	G_B => 24,   # bottom strip for the two date labels
 };
 
 # Probes run against loopback deliberately. Probing our own public IP would
@@ -364,6 +377,26 @@ sub read_qps {
 	return (defined $o{now} || defined $o{avg}) ? \%o : undef;
 }
 
+# Current disk figures plus the downsampled 30-day series, both already
+# condensed by status-sample.sh. The persistent history behind this
+# (/var/lib/status/disk.hist, ~4MB/year and growing forever) is NEVER opened
+# here — same rule as the qps history and for the same reason: an unbounded
+# file on the request path is a page that gets slower every day it runs.
+#
+# At most ~360 "p" lines, so this is a ~4KB read of tmpfs.
+sub read_disk {
+	open my $fh, '<', DISK_SNAP or return undef;
+	my (%o, @series);
+	while (<$fh>) {
+		if (/^p (\d+) (\d+)/) { push @series, [ $1, $2 ] }
+		elsif (/^(\w+) (\S+)/) { $o{$1} = $2 }
+	}
+	close $fh;
+	return undef unless $o{total} && $o{total} > 0;
+	$o{series} = \@series;    # sorted by timestamp on the way in
+	return \%o;
+}
+
 sub read_seen {
 	# Packed sorted array of 4-byte big-endian IPv4 addresses, no header, so
 	# the count is implicit in the file size. stat() only — this file is
@@ -488,21 +521,180 @@ sub dur {
 }
 
 sub mb { sprintf '%.0f', $_[0] / 1024 }
+sub gb { sprintf '%.1f', $_[0] / 1048576 }
+
+# Date labels for the graph's x-axis. localtime is a builtin; POSIX::strftime
+# would be correct-er about locales and costs 95ms to load for two labels a
+# month apart, so it is not used. See the header note on module cost.
+my @MON = qw(Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec);
+sub daystamp { my @t = localtime($_[0] // 0); return sprintf '%d %s', $t[3], $MON[ $t[4] ] }
 
 # Status is conveyed by symbol AND word AND colour — never colour alone. The
 # page this hangs off claims WCAG 2.2 AA conformance with a W3C badge, and a
 # bare coloured dot would break that claim.
 my %MARK = (up => '●', down => '✕', unknown => '○');
 
+# bar($pct, $extra_pct, $far)
+#
+# Two segments: <i> solid, <u> faded. $far moves the faded one to the RIGHT
+# END of the bar instead of butting it against the solid one, which changes
+# what the pair MEANS and is not a cosmetic choice:
+#
+#   default ($far false) — the two segments are adjacent, and together they
+#     are the total occupancy. Used by Memory and Swap, where faded is
+#     "occupied but cheap to reclaim": cache sitting next to genuinely used
+#     memory is a true picture of where the RAM went.
+#
+#   $far true — the faded segment is a wall at the far end, separated from the
+#     solid one by whatever is genuinely free. Used by Disk, where faded is
+#     "unoccupied but NOT YOURS" (see the caller). Butting that against Used
+#     would read as though the reserve were part of what is consumed, which is
+#     the exact opposite of what it is.
+#
+# The gap between the segments is therefore meaningful in the $far case and
+# meaningless in the default one. Do not "unify" these.
 sub bar {
-	my ($pct, $extra_pct, $label) = @_;
+	my ($pct, $extra_pct, $far) = @_;
 	$pct = 0 if !defined $pct || $pct < 0;
 	my $w  = sprintf '%.1f', $pct > 100 ? 100 : $pct;
 	my $w2 = defined $extra_pct ? sprintf('%.1f', $extra_pct > 100 ? 100 : $extra_pct) : 0;
 	# aria-hidden: the bar is decoration. The number beside it is the content.
 	return qq{<span class="bar" aria-hidden="true"><i style="width:$w%"></i>}
-	     . ($w2 ? qq{<u style="width:$w2%"></u>} : '')
+	     . ($w2 ? qq{<u} . ($far ? ' class="far"' : '') . qq{ style="width:$w2%"></u>} : '')
 	     . qq{</span>};
+}
+
+# ------------------------------------------------------------------ the graph
+#
+# HAND-ROLLED SVG, AND DELIBERATELY SO. The obvious move is a charting module —
+# SVG::Graph, SVG::TT::Graph, Chart::Clicker — and all of them are wrong here
+# for the same three reasons:
+#
+#   1. COST. The header note at the top of this file exists because
+#      IO::Socket::SSL's 328ms was judged too expensive to load unconditionally
+#      on a page that might not probe. A chart library plus its SVG.pm /
+#      Tree::DAG_Node dependency stack costs more than that, on EVERY render,
+#      to draw one polyline. A month of 2-hour buckets is 360 points; the
+#      entire drawing is the loop below.
+#
+#   2. THEME. Every colour on this page is currentColor under
+#      `color-scheme: light dark`. Chart libraries emit baked-in hex strokes,
+#      which means picking a colour that is wrong in one of the two themes.
+#      Inheriting currentColor makes the graph correct in both for free.
+#
+#   3. ACCESSIBILITY. This page hangs off one that claims WCAG 2.2 AA with a
+#      W3C badge. Generated SVG arrives as an unlabelled <svg> with no
+#      accessible name and no text alternative. The <title>/<desc> and the
+#      prose summary beside the figure are the actual content here; the
+#      drawing is an enhancement of them.
+#
+# Returns '' when there is not enough history to draw an honest line, so the
+# caller can simply omit the figure rather than showing an empty axis.
+sub disk_graph {
+	my ($d) = @_;
+	my $pts = $d->{series} || [];
+	return '' if @$pts < 2;
+
+	my $step  = $d->{step}       || 7200;
+	my $win   = $d->{window}     || 2592000;
+	my $end   = $d->{sampled_at} || time;
+	my $start = $end - $win;
+	my $total = $d->{total};
+
+	# 8% headroom above capacity so the dashed ceiling and its label are never
+	# clipped by the top edge of the viewBox.
+	my $ymax = $total * 1.08;
+
+	my $pw = G_W - G_L - G_R;
+	my $ph = G_H - G_T - G_B;
+
+	# Plotted against ABSOLUTE time, not against position in the array. If the
+	# history is younger than the window the line simply starts partway across,
+	# which is the honest picture; rescaling the axis to fit would make three
+	# days of data look like a month.
+	my $X = sub { sprintf '%.1f', G_L + ($_[0] - $start) / $win * $pw };
+	my $Y = sub { sprintf '%.1f', G_T + (1 - $_[0] / $ymax) * $ph };
+
+	# Break the line wherever the sampler missed more than one bucket, so a
+	# reboot or a stopped timer reads as a gap. Drawing straight through the
+	# hole would assert a measurement that was never taken.
+	my (@seg, @cur, $prev);
+	for my $p (@$pts) {
+		next if $p->[0] < $start;
+		if (defined $prev && $p->[0] - $prev > $step * 1.5) {
+			push @seg, [@cur] if @cur;
+			@cur = ();
+		}
+		push @cur, $p;
+		$prev = $p->[0];
+	}
+	push @seg, [@cur] if @cur;
+	return '' unless @seg;
+
+	my ($first, $last) = ($pts->[0], $pts->[-1]);
+	my ($lo, $hi) = ($first->[1], $first->[1]);
+	for my $p (@$pts) {
+		$lo = $p->[1] if $p->[1] < $lo;
+		$hi = $p->[1] if $p->[1] > $hi;
+	}
+
+	my $cap_y  = $Y->($total);
+	my $base_y = $Y->(0);
+
+	# The accessible name and description carry the same information as the
+	# picture, because for a screen reader they ARE the picture.
+	my $desc = sprintf 'Disk used on the root filesystem from %s to %s: '
+	         . '%s GB at the start, %s GB now, ranging between %s and %s GB, '
+	         . 'against a capacity of %s GB.',
+	         daystamp($first->[0]), daystamp($last->[0]),
+	         gb($first->[1]), gb($last->[1]), gb($lo), gb($hi), gb($total);
+
+	my $s = qq{<svg viewBox="0 0 } . G_W . qq{ } . G_H . qq{" role="img" }
+	      . qq{aria-labelledby="dgt dgd"><title id="dgt">Disk usage over the last }
+	      . int($win / 86400) . qq{ days</title><desc id="dgd">} . esc($desc) . qq{</desc>};
+
+	# Baseline and capacity ceiling. Both currentColor; the ceiling is dashed
+	# and faded so it never competes with the data line.
+	$s .= sprintf qq{<line x1="%s" y1="%s" x2="%s" y2="%s" stroke="currentColor" }
+	            . qq{stroke-opacity=".35"/>},
+	            G_L, $base_y, G_W - G_R, $base_y;
+	$s .= sprintf qq{<line x1="%s" y1="%s" x2="%s" y2="%s" stroke="currentColor" }
+	            . qq{stroke-opacity=".45" stroke-dasharray="4 4"/>},
+	            G_L, $cap_y, G_W - G_R, $cap_y;
+
+	# Axis labels. text-anchor rather than manual offsets so they stay put when
+	# the value width changes (9.8 GB vs 19.0 GB).
+	my $lab = qq{font-size="12" fill="currentColor" fill-opacity=".7"};
+	$s .= sprintf qq{<text x="%s" y="%s" text-anchor="end" %s>%s GB</text>},
+	              G_L - 6, $cap_y + 4, $lab, gb($total);
+	$s .= sprintf qq{<text x="%s" y="%s" text-anchor="end" %s>0</text>},
+	              G_L - 6, $base_y + 4, $lab;
+	$s .= sprintf qq{<text x="%s" y="%s" %s>%s</text>},
+	              G_L, G_H - 6, $lab, esc(daystamp($start));
+	$s .= sprintf qq{<text x="%s" y="%s" text-anchor="end" %s>now</text>},
+	              G_W - G_R, G_H - 6, $lab;
+
+	# Each segment twice: a faded fill down to the baseline, then the line
+	# itself. Same solid/faded idiom as the bars above it.
+	for my $g (@seg) {
+		if (@$g < 2) {
+			# A lone bucket between two gaps: a polyline of one point draws
+			# nothing at all, so mark it rather than silently dropping a real
+			# measurement.
+			$s .= sprintf qq{<circle cx="%s" cy="%s" r="2" fill="currentColor"/>},
+			              $X->($g->[0][0]), $Y->($g->[0][1]);
+			next;
+		}
+		my $pl = join ' ', map { $X->($_->[0]) . ',' . $Y->($_->[1]) } @$g;
+		$s .= sprintf qq{<polygon points="%s,%s %s %s,%s" fill="currentColor" }
+		            . qq{fill-opacity=".15"/>},
+		            $X->($g->[0][0]), $base_y, $pl, $X->($g->[-1][0]), $base_y;
+		$s .= qq{<polyline points="$pl" fill="none" stroke="currentColor" }
+		    . qq{stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>};
+	}
+
+	$s .= qq{</svg>};
+	return $s;
 }
 
 sub render {
@@ -523,7 +715,11 @@ section{margin-block:2rem}
 .bar i,.bar u{display:block;height:100%;text-decoration:none}
 .bar i{background:currentColor}
 .bar u{background:currentColor;opacity:.3}
+.bar u.far{margin-left:auto}
 .mval{font-variant-numeric:tabular-nums;white-space:nowrap}
+figure.graph{margin:1rem 0 0}
+figure.graph svg{display:block;width:100%;height:auto;overflow:visible}
+figcaption{color:GrayText;font-size:.9rem;margin-top:.25rem}
 .koo{color:#A80030}
 table{border-collapse:collapse;width:100%}
 caption{text-align:left;padding:.5em 0}
@@ -601,7 +797,50 @@ CSS
 			                mb($m->{swap_used}), mb($m->{swap_total}));
 		}
 	}
+	if ($d->{disk}) {
+		my $k = $d->{disk};
+		# df's Used plus Available does NOT add up to Size: the difference is
+		# f_bfree - f_bavail, the blocks ext4 holds back from unprivileged
+		# writers (the root reserve, plus a few thousand for delayed
+		# allocation). Showing that gap as free space would overstate the
+		# headroom, so it gets the faded segment.
+		#
+		# IT IS THE RESERVE STILL FREE, NOT THE RESERVE. If root ever writes
+		# into it those blocks become Used, so this segment SHRINKS towards
+		# zero as the disk fills — it is "emergency space remaining", and its
+		# disappearance is a signal rather than a rendering glitch.
+		#
+		# Hence the third argument: the faded segment sits at the FAR END of
+		# the bar, not against the solid one. In the memory and swap bars
+		# above, faded means "occupied but cheap to reclaim" and belongs
+		# beside used. Here it means the opposite — unoccupied, but not
+		# available to us — so drawing it adjacent would read as though the
+		# reserve were part of what we have consumed. At the right-hand end it
+		# reads correctly as the wall we cannot write past, with the genuinely
+		# free space visible as the gap in between.
+		my $reserve_free = $k->{total} - $k->{used} - ($k->{avail} // 0);
+		$reserve_free = 0 if $reserve_free < 0;
+		$out .= qq{<div class="metric"><span>Disk</span>}
+		      . bar(100 * $k->{used} / $k->{total}, 100 * $reserve_free / $k->{total}, 1)
+		      . sprintf(qq{<span class="mval">%s / %s GB</span></div>\n},
+		                gb($k->{used}), gb($k->{total}));
+	}
 	$out .= qq{<p>Uptime } . esc(dur($d->{uptime})) . qq{.</p>\n} if $d->{uptime};
+
+	if ($d->{disk} && (my $svg = disk_graph($d->{disk}))) {
+		my $k = $d->{disk};
+		$out .= qq{<figure class="graph">\n$svg\n<figcaption>};
+		$out .= qq{Disk used over the last } . int(($k->{window} || 2592000) / 86400)
+		      . qq{ days, sampled every five minutes};
+		# If the history is younger than the window, say so. The line starting
+		# partway across the axis already shows it, but only to someone who
+		# reads graphs carefully, and the figure that is missing here is the
+		# reader's basis for trusting the trend.
+		if ($k->{first_ts} && $k->{first_ts} > ($k->{sampled_at} // time) - ($k->{window} || 2592000)) {
+			$out .= qq{ · history began } . esc(dur(($k->{sampled_at} // time) - $k->{first_ts})) . qq{ ago};
+		}
+		$out .= qq{. Dashed line is capacity.</figcaption>\n</figure>\n};
+	}
 	$out .= qq{</section>\n};
 
 	# ----- services
@@ -743,23 +982,39 @@ eval {
 	my $cached = cache_read();
 	my $fresh  = $cached && (time - $cached->{generated}) < CACHE_TTL;
 
+	my ($data, $stale, $err);
 	if ($fresh) {
-		$body = render($cached, 0, undef);
+		$data = $cached;
 	} else {
 		my $d = eval { sweep() };
 		if ($d) {
 			cache_write($d);
-			$body = render($d, 0, undef);
+			$data = $d;
 		} elsif ($cached) {
 			# Sweep blew up but we have history: show it, loudly labelled.
 			# Never render stale data as if it were current.
 			my $why = $@ || 'sweep failed';
 			$why =~ s/\s+$//;
-			$body = render($cached, 1, $why);
+			($data, $stale, $err) = ($cached, 1, $why);
 		} else {
 			die $@ || "no data and sweep failed\n";
 		}
 	}
+
+	# DISK DELIBERATELY BYPASSES THE CACHE, on every path, fresh or stale.
+	#
+	# Everything else in $data is expensive to produce — probes, forks, a
+	# 95k-line scan — which is what cache.txt exists to amortise. Disk is the
+	# opposite: status-sample.sh has already condensed it, so this is one small
+	# read of tmpfs, cheaper than the ~360 points would be to serialise into
+	# the flat cache format and parse back out. Routing it through the cache
+	# would cost more than it saved and would add a third place where a new
+	# field has to be listed (see the whitelist warnings in cache_write).
+	#
+	# It also means the disk figures are never up to CACHE_TTL stale, which
+	# costs nothing because they only change every five minutes anyway.
+	$data->{disk} = read_disk();
+	$body = render($data, $stale, $err);
 	1;
 } or do {
 	# Last resort: a valid, honest page rather than a die() that fcgiwrap
