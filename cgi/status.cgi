@@ -554,13 +554,31 @@ my %MARK = (up => '●', down => '✕', unknown => '○');
 # The gap between the segments is therefore meaningful in the $far case and
 # meaningless in the default one. Do not "unify" these.
 sub bar {
-	my ($pct, $extra_pct, $far) = @_;
+	my ($pct, $extra_pct, $far, $titles) = @_;
 	$pct = 0 if !defined $pct || $pct < 0;
 	my $w  = sprintf '%.1f', $pct > 100 ? 100 : $pct;
 	my $w2 = defined $extra_pct ? sprintf('%.1f', $extra_pct > 100 ? 100 : $extra_pct) : 0;
+
+	# $titles is [solid, faded]: the exact quantity each segment is computed
+	# from, so a reader can hover a segment and see the arithmetic rather than
+	# having to guess what the faded part means. Either may be undef.
+	#
+	# THIS IS A title ATTRIBUTE, WHICH IS A MOUSE AFFORDANCE AND NOT A TEXT
+	# ALTERNATIVE. The bar stays aria-hidden — it is decoration, and the number
+	# beside it is the content — so assistive tech never sees these strings, and
+	# neither does a touch or keyboard user. That is a deliberate trade and not
+	# an oversight: it hands sighted mouse users a detail they can currently
+	# only get by reading read_mem(), without putting formula noise into the
+	# accessible name of every bar on the page. If this information ever needs
+	# to be genuinely available to everyone, it wants a visible legend, not a
+	# title attribute. See status.txt.
+	my ($t_solid, $t_faded) = @{ $titles || [] };
+	my $a_solid = defined $t_solid ? ' title="' . esc($t_solid) . '"' : '';
+	my $a_faded = defined $t_faded ? ' title="' . esc($t_faded) . '"' : '';
+
 	# aria-hidden: the bar is decoration. The number beside it is the content.
-	return qq{<span class="bar" aria-hidden="true"><i style="width:$w%"></i>}
-	     . ($w2 ? qq{<u} . ($far ? ' class="far"' : '') . qq{ style="width:$w2%"></u>} : '')
+	return qq{<span class="bar" aria-hidden="true"><i$a_solid style="width:$w%"></i>}
+	     . ($w2 ? qq{<u} . ($far ? ' class="far"' : '') . qq{$a_faded style="width:$w2%"></u>} : '')
 	     . qq{</span>};
 }
 
@@ -771,10 +789,17 @@ CSS
 	# The ꩜ is decoration and is aria-hidden, so a screen reader reads the two
 	# halves as one phrase rather than announcing "khmer sign koomuut".
 	$out .= qq{<p>Debian 13 <span class="koo" aria-hidden="true">꩜</span> }
-	      . qq{RackNerd 1 vCPU, 1&nbsp;GB RAM</p>\n};
+	      . qq{RackNerd 1&nbsp;vCPU, 1&nbsp;GB RAM. Mouseover bar segments for details.</p>\n};
 
 	if ($d->{cpu}) {
-		$out .= qq{<div class="metric"><span>CPU</span>} . bar($d->{cpu}{pct})
+		# Δ, not an instantaneous reading: the bar is a delta between the first
+		# and last samples in cpu.hist. iowait is named explicitly because
+		# folding it into idle is a judgement call, not a given — see the
+		# sampler. The span is already beside the bar ("4m avg"), so the title
+		# says "sampled window" rather than repeating a number.
+		$out .= qq{<div class="metric"><span>CPU</span>}
+		      . bar($d->{cpu}{pct}, undef, 0,
+		            [ '1 − Δ(idle + iowait) / Δtotal over the sampled window', undef ])
 		      . sprintf(qq{<span class="mval">%.0f%% · %s avg</span></div>\n},
 		                $d->{cpu}{pct}, dur($d->{cpu}{span}));
 	}
@@ -782,17 +807,23 @@ CSS
 		my $m = $d->{mem};
 		# Both bars are two-segment: solid = genuinely occupied, faded = the
 		# part that is cheap to reclaim (reclaimable cache for memory, pages
-		# still resident in RAM for swap). The prose decomposition that used to
-		# spell this out has been cut, so the faded segments are unlabelled —
-		# see read_mem() for what each figure means. The number beside each bar
-		# is the SOLID segment only, matching htop.
+		# still resident in RAM for swap). The number beside each bar is the
+		# SOLID segment only, matching htop.
+		#
+		# The prose decomposition that used to spell this out was cut, so the
+		# hover titles below are now the only place on the PAGE that says what
+		# each segment is. They give the arithmetic verbatim rather than a
+		# friendly paraphrase, because the exact meminfo fields are the whole
+		# answer to "why does this disagree with free(1)" — see read_mem().
 		$out .= qq{<div class="metric"><span>Memory</span>}
-		      . bar(100 * $m->{used} / $m->{total}, 100 * $m->{cache} / $m->{total})
+		      . bar(100 * $m->{used} / $m->{total}, 100 * $m->{cache} / $m->{total}, 0,
+		            [ 'MemTotal − MemFree − cache', 'cache' ])
 		      . sprintf(qq{<span class="mval">%s / %s MB</span></div>\n}, mb($m->{used}), mb($m->{total}));
 		if ($m->{swap_total}) {
 			$out .= qq{<div class="metric"><span>Swap</span>}
 			      . bar(100 * $m->{swap_used} / $m->{swap_total},
-			            100 * ($m->{swap_cache} // 0) / $m->{swap_total})
+			            100 * ($m->{swap_cache} // 0) / $m->{swap_total}, 0,
+			            [ 'SwapTotal − SwapFree − SwapCached', 'SwapCached' ])
 			      . sprintf(qq{<span class="mval">%s / %s MB</span></div>\n},
 			                mb($m->{swap_used}), mb($m->{swap_total}));
 		}
@@ -821,7 +852,8 @@ CSS
 		my $reserve_free = $k->{total} - $k->{used} - ($k->{avail} // 0);
 		$reserve_free = 0 if $reserve_free < 0;
 		$out .= qq{<div class="metric"><span>Disk</span>}
-		      . bar(100 * $k->{used} / $k->{total}, 100 * $reserve_free / $k->{total}, 1)
+		      . bar(100 * $k->{used} / $k->{total}, 100 * $reserve_free / $k->{total}, 1,
+		            [ 'df Used', 'Unused root reserve' ])
 		      . sprintf(qq{<span class="mval">%s / %s GB</span></div>\n},
 		                gb($k->{used}), gb($k->{total}));
 	}

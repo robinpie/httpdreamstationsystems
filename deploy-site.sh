@@ -44,7 +44,7 @@ sudo rsync -a --delete \
 sudo chown -R root:root /srv/http/
 sudo chmod -R u=rwX,go=rX /srv/http/
 
-echo "Deployed rootdomain/ -> /srv/http"
+echo "Deployed rootdomain/ → /srv/http"
 
 # ------------------------------------------------------------------------ cgi
 if [ -d "$ROOT/cgi" ]; then
@@ -57,5 +57,5 @@ if [ -d "$ROOT/cgi" ]; then
 	sudo chown -R root:root /srv/cgi/
 	sudo chmod -R u=rwX,go=rX /srv/cgi/
 
-	echo "Deployed cgi/ -> /srv/cgi"
+	echo "Deployed cgi/ → /srv/cgi"
 fi
