@@ -409,7 +409,12 @@ sub read_disk {
 	open my $fh, '<', DISK_SNAP or return undef;
 	my (%o, @series);
 	while (<$fh>) {
-		if (/^p (\d+) (\d+)/) { push @series, [ $1, $2 ] }
+		# "p <bucket> <ts> <used>". The two-field form is the previous
+		# sampler's output; accepted so that a disk.txt written before an
+		# upgrade still draws (bucket floor doubles as the plot time) rather
+		# than blanking the graph until the next tick.
+		if    (/^p (\d+) (\d+) (\d+)/) { push @series, [ $1, $2, $3 ] }
+		elsif (/^p (\d+) (\d+)/)        { push @series, [ $1, $1, $2 ] }
 		elsif (/^(\w+) (\S+)/) { $o{$1} = $2 }
 	}
 	close $fh;
@@ -544,11 +549,23 @@ sub dur {
 sub mb { sprintf '%.0f', $_[0] / 1024 }
 sub gb { sprintf '%.1f', $_[0] / 1048576 }
 
-# Date labels for the graph's x-axis. localtime is a builtin; POSIX::strftime
+# Date labels for the graph's x-axis. gmtime is a builtin; POSIX::strftime
 # would be correct-er about locales and costs 95ms to load for two labels a
 # month apart, so it is not used. See the header note on module cost.
+#
+# gmtime, NOT localtime. The box sits in America/Los_Angeles, which is an
+# accident of where the VPS is racked and not a fact about anyone reading the
+# page. The x-axis label is the ONLY absolute time this page prints — every
+# other figure is a relative duration and so reads the same everywhere — which
+# makes it the one place a timezone can mislead. UTC is equally wrong for
+# every reader, which is the best available answer for a public page.
+#
+# Note that TZ is unset for the CGI (fcgiwrap's unit sets no environment), so
+# localtime here would silently follow /etc/localtime — i.e. the label's
+# meaning would change under a `timedatectl set-timezone` with nothing in this
+# file to explain why.
 my @MON = qw(Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec);
-sub daystamp { my @t = localtime($_[0] // 0); return sprintf '%d %s', $t[3], $MON[ $t[4] ] }
+sub daystamp { my @t = gmtime($_[0] // 0); return sprintf '%d %s', $t[3], $MON[ $t[4] ] }
 
 # Status is conveyed by symbol AND word AND colour — never colour alone. The
 # page this hangs off claims WCAG 2.2 AA conformance with a W3C badge, and a
@@ -637,8 +654,41 @@ sub disk_graph {
 	my $step  = $d->{step}       || 7200;
 	my $win   = $d->{window}     || 2592000;
 	my $end   = $d->{sampled_at} || time;
-	my $start = $end - $win;
 	my $total = $d->{total};
+
+	# THE CURRENT READING IS APPENDED AS A FINAL POINT. Every other point is
+	# the PEAK within its 2h bucket, which for the bucket still in progress can
+	# be up to two hours behind now — a rounding error across 30 days, but most
+	# of the width while the axis is still compressed to a few hours, leaving
+	# the line stopping well short of the "now" label.
+	#
+	# It also makes the right-hand end of the line agree with the Disk bar
+	# above it, which shows this same figure. A graph whose last point silently
+	# disagreed with the number beside it would be the kind of small dishonesty
+	# this page exists to avoid.
+	#
+	# Copied rather than pushed onto $d->{series}, which is shared.
+	my @P = @$pts;
+	if (defined $d->{used} && defined $d->{sampled_at} && $P[-1][1] < $d->{sampled_at}) {
+		push @P, [ int($d->{sampled_at} / $step) * $step, $d->{sampled_at}, $d->{used} ];
+	}
+	$pts = \@P;
+
+	# THE AXIS COMPRESSES TO WHATEVER HISTORY EXISTS, up to the 30-day window.
+	# Until the box has a month of samples the graph spans only what has
+	# actually been measured, so a young history fills the width instead of
+	# huddling against the right edge of a mostly empty month.
+	#
+	# first_ts is the first line of the persistent history, i.e. the real
+	# moment collection began — not the first plotted bucket, which can be up
+	# to a bucket-width earlier than any sample in it. Clamped to the earliest
+	# point regardless, so no point can ever fall left of the axis.
+	my $begin = $d->{first_ts};
+	$begin = $pts->[0][1] if !defined $begin || $begin > $pts->[0][1];
+	my $start = $end - $win;
+	$start = $begin if $begin > $start;
+	my $span = $end - $start;
+	return '' if $span <= 0;
 
 	# 8% headroom above capacity so the dashed ceiling and its label are never
 	# clipped by the top edge of the viewBox.
@@ -651,15 +701,20 @@ sub disk_graph {
 	# history is younger than the window the line simply starts partway across,
 	# which is the honest picture; rescaling the axis to fit would make three
 	# days of data look like a month.
-	my $X = sub { sprintf '%.1f', G_L + ($_[0] - $start) / $win * $pw };
+	my $X = sub { sprintf '%.1f', G_L + ($_[0] - $start) / $span * $pw };
 	my $Y = sub { sprintf '%.1f', G_T + (1 - $_[0] / $ymax) * $ph };
 
 	# Break the line wherever the sampler missed more than one bucket, so a
 	# reboot or a stopped timer reads as a gap. Drawing straight through the
 	# hole would assert a measurement that was never taken.
+	# Gaps are detected on the BUCKET ($p->[0]), which sits on a regular grid,
+	# never on the plot time ($p->[1]), which wanders within its bucket — two
+	# adjacent buckets can have peaks nearly 2*step apart, and two buckets
+	# either side of a hole can have peaks moments apart. Only the grid gives a
+	# reliable answer.
 	my (@seg, @cur, $prev);
 	for my $p (@$pts) {
-		next if $p->[0] < $start;
+		next if $p->[1] < $start;
 		if (defined $prev && $p->[0] - $prev > $step * 1.5) {
 			push @seg, [@cur] if @cur;
 			@cur = ();
@@ -671,10 +726,10 @@ sub disk_graph {
 	return '' unless @seg;
 
 	my ($first, $last) = ($pts->[0], $pts->[-1]);
-	my ($lo, $hi) = ($first->[1], $first->[1]);
+	my ($lo, $hi) = ($first->[2], $first->[2]);
 	for my $p (@$pts) {
-		$lo = $p->[1] if $p->[1] < $lo;
-		$hi = $p->[1] if $p->[1] > $hi;
+		$lo = $p->[2] if $p->[2] < $lo;
+		$hi = $p->[2] if $p->[2] > $hi;
 	}
 
 	my $cap_y  = $Y->($total);
@@ -682,15 +737,16 @@ sub disk_graph {
 
 	# The accessible name and description carry the same information as the
 	# picture, because for a screen reader they ARE the picture.
-	my $desc = sprintf 'Disk used on the root filesystem from %s to %s: '
+	# Both of these describe the span ACTUALLY DRAWN, not the nominal window,
+	# so they stay true while the axis is still compressed.
+	my $desc = sprintf 'Disk used on the root filesystem over the last %s: '
 	         . '%s GB at the start, %s GB now, ranging between %s and %s GB, '
 	         . 'against a capacity of %s GB.',
-	         daystamp($first->[0]), daystamp($last->[0]),
-	         gb($first->[1]), gb($last->[1]), gb($lo), gb($hi), gb($total);
+	         dur($span), gb($first->[2]), gb($last->[2]), gb($lo), gb($hi), gb($total);
 
 	my $s = qq{<svg viewBox="0 0 } . G_W . qq{ } . G_H . qq{" role="img" }
 	      . qq{aria-labelledby="dgt dgd"><title id="dgt">Disk usage over the last }
-	      . int($win / 86400) . qq{ days</title><desc id="dgd">} . esc($desc) . qq{</desc>};
+	      . esc(dur($span)) . qq{</title><desc id="dgd">} . esc($desc) . qq{</desc>};
 
 	# Baseline and capacity ceiling. Both currentColor; the ceiling is dashed
 	# and faded so it never competes with the data line.
@@ -701,6 +757,40 @@ sub disk_graph {
 	            . qq{stroke-opacity=".45" stroke-dasharray="4 4"/>},
 	            G_L, $cap_y, G_W - G_R, $cap_y;
 
+	# INTERIOR GRIDLINES. Without them the eye has only the baseline and the
+	# ceiling to work from, and a line wandering in the middle of the box is
+	# unreadable to within several GB. The step is chosen from a round-number
+	# ladder so the labels are values a person would actually say (5, 10, 15),
+	# never whatever an even division of 19.4 GB happens to produce.
+	#
+	# At most five intervals: more turns the box into graph paper and starts
+	# crowding 12px labels into each other at this height.
+	#
+	# Drawn BEFORE the data so the fill and the line sit on top of them, and
+	# fainter than either axis line — a gridline that competes with the data is
+	# worse than no gridline.
+	my @grid;
+	{
+		my $cap_gb = $total / 1048576;
+		my $stepg;
+		for my $n (1, 2, 2.5, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000) {
+			$stepg = $n, last if $cap_gb / $n <= 5;
+		}
+		if ($stepg) {
+			for (my $v = $stepg; $v < $cap_gb; $v += $stepg) {
+				my $y = $Y->($v * 1048576);
+				# Skip anything that would land on top of the baseline or the
+				# capacity line, whose labels are already there and would
+				# overprint.
+				next if abs($y - $cap_y) < 10 || abs($y - $base_y) < 10;
+				push @grid, [ $y, sprintf('%g', $v) ];
+			}
+		}
+	}
+	$s .= sprintf qq{<line x1="%s" y1="%s" x2="%s" y2="%s" stroke="currentColor" }
+	            . qq{stroke-opacity=".15"/>},
+	            G_L, $_->[0], G_W - G_R, $_->[0] for @grid;
+
 	# Axis labels. text-anchor rather than manual offsets so they stay put when
 	# the value width changes (9.8 GB vs 19.0 GB).
 	my $lab = qq{font-size="12" fill="currentColor" fill-opacity=".7"};
@@ -708,8 +798,21 @@ sub disk_graph {
 	              G_L - 6, $cap_y + 4, $lab, gb($total);
 	$s .= sprintf qq{<text x="%s" y="%s" text-anchor="end" %s>0</text>},
 	              G_L - 6, $base_y + 4, $lab;
+	$s .= sprintf qq{<text x="%s" y="%s" text-anchor="end" %s>%s</text>},
+	              G_L - 6, $_->[0] + 4, $lab, $_->[1] for @grid;
+	# With the figcaption gone these two labels are the only temporal context
+	# on the page, so the left one switches to a clock below two days, where a
+	# bare date would read as though the graph covered a whole day.
+	#
+	# The clock form carries "UTC"; the date form does not. A date is a coarse
+	# enough anchor across a multi-day span that the zone cannot shift it by
+	# more than a few pixels of axis, and "2 Aug UTC" reads as clutter for no
+	# gain. An HH:MM with no zone, by contrast, is a number a reader will
+	# quietly assume is their own.
+	my @lt = gmtime($start);
+	my $left = $span < 172800 ? sprintf('%02d:%02d UTC', $lt[2], $lt[1]) : daystamp($start);
 	$s .= sprintf qq{<text x="%s" y="%s" %s>%s</text>},
-	              G_L, G_H - 6, $lab, esc(daystamp($start));
+	              G_L, G_H - 6, $lab, esc($left);
 	$s .= sprintf qq{<text x="%s" y="%s" text-anchor="end" %s>now</text>},
 	              G_W - G_R, G_H - 6, $lab;
 
@@ -721,13 +824,13 @@ sub disk_graph {
 			# nothing at all, so mark it rather than silently dropping a real
 			# measurement.
 			$s .= sprintf qq{<circle cx="%s" cy="%s" r="2" fill="currentColor"/>},
-			              $X->($g->[0][0]), $Y->($g->[0][1]);
+			              $X->($g->[0][1]), $Y->($g->[0][2]);
 			next;
 		}
-		my $pl = join ' ', map { $X->($_->[0]) . ',' . $Y->($_->[1]) } @$g;
+		my $pl = join ' ', map { $X->($_->[1]) . ',' . $Y->($_->[2]) } @$g;
 		$s .= sprintf qq{<polygon points="%s,%s %s %s,%s" fill="currentColor" }
 		            . qq{fill-opacity=".15"/>},
-		            $X->($g->[0][0]), $base_y, $pl, $X->($g->[-1][0]), $base_y;
+		            $X->($g->[0][1]), $base_y, $pl, $X->($g->[-1][1]), $base_y;
 		$s .= qq{<polyline points="$pl" fill="none" stroke="currentColor" }
 		    . qq{stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>};
 	}
@@ -749,7 +852,8 @@ h1{margin-bottom:.25rem}
 .stamp{color:GrayText;margin-top:0}
 .warn{border:2px solid;border-radius:.5rem;padding:.75rem 1rem;margin-block:1rem;font-weight:600}
 section{margin-block:2rem}
-.metric{display:grid;grid-template-columns:7rem 1fr auto;gap:.5rem 1rem;align-items:center;margin-block:.5rem}
+.metrics{display:grid;grid-template-columns:7rem 1fr auto;gap:.5rem 1rem;align-items:center;margin-block:.5rem}
+.metric{display:contents}
 .bar{display:block;height:1rem;border:1px solid;border-radius:.25rem;overflow:hidden;display:flex}
 .bar i,.bar u{display:block;height:100%;text-decoration:none}
 .bar i{background:currentColor}
@@ -758,7 +862,6 @@ section{margin-block:2rem}
 .mval{font-variant-numeric:tabular-nums;white-space:nowrap}
 figure.graph{margin:1rem 0 0}
 figure.graph svg{display:block;width:100%;height:auto;overflow:visible}
-figcaption{color:GrayText;font-size:.9rem;margin-top:.25rem}
 .koo{color:#A80030}
 table{border-collapse:collapse;width:100%}
 caption{text-align:left;padding:.5em 0}
@@ -812,13 +915,30 @@ CSS
 	$out .= qq{<p>Debian 13 <span class="koo" aria-hidden="true">꩜</span> }
 	      . qq{RackNerd 1&nbsp;vCPU, 1&nbsp;GB RAM <span aria-hidden="true">🖱️</span> Mouseover bar segments for details.</p>\n};
 
+	# THE METRIC ROWS ARE BUILT SEPARATELY so they can share ONE grid.
+	#
+	# Each row used to be its own display:grid, which meant its "auto" value
+	# column was sized to that row's own text — so "84% · 4m avg" and
+	# "680 / 967 MB" reserved different widths and the bars ended at four
+	# different places. The bars all START together (the 7rem label column is
+	# the same number in every row), which made the ragged right edge read as
+	# a bug rather than a consequence.
+	#
+	# One grid on the wrapper with .metric{display:contents} puts every row on
+	# the SAME three tracks, so the value column is sized to the widest value
+	# across all of them and every bar gets identical width. Deliberately not
+	# a fixed rem width for that column: these strings grow (a swap figure
+	# reaching 1024 / 3072 MB, a resized disk going to three digits), and a
+	# guessed width would either clip them or waste space forever.
+	my $rows = '';
+
 	if ($d->{cpu}) {
 		# Δ, not an instantaneous reading: the bar is a delta between the first
 		# and last samples in cpu.hist. iowait is named explicitly because
 		# folding it into idle is a judgement call, not a given — see the
 		# sampler. The span is already beside the bar ("4m avg"), so the title
 		# says "sampled window" rather than repeating a number.
-		$out .= qq{<div class="metric"><span>CPU</span>}
+		$rows .= qq{<div class="metric"><span>CPU</span>}
 		      . bar($d->{cpu}{pct}, undef, 0,
 		            [ T_CPU, undef ])
 		      . sprintf(qq{<span class="mval">%.0f%% · %s avg</span></div>\n},
@@ -836,12 +956,12 @@ CSS
 		# each segment is. They give the arithmetic verbatim rather than a
 		# friendly paraphrase, because the exact meminfo fields are the whole
 		# answer to "why does this disagree with free(1)" — see read_mem().
-		$out .= qq{<div class="metric"><span>Memory</span>}
+		$rows .= qq{<div class="metric"><span>Memory</span>}
 		      . bar(100 * $m->{used} / $m->{total}, 100 * $m->{cache} / $m->{total}, 0,
 		            [ T_MEM_USED, T_MEM_CACHE ])
 		      . sprintf(qq{<span class="mval">%s / %s MB</span></div>\n}, mb($m->{used}), mb($m->{total}));
 		if ($m->{swap_total}) {
-			$out .= qq{<div class="metric"><span>Swap</span>}
+			$rows .= qq{<div class="metric"><span>Swap</span>}
 			      . bar(100 * $m->{swap_used} / $m->{swap_total},
 			            100 * ($m->{swap_cache} // 0) / $m->{swap_total}, 0,
 			            [ T_SWAP_USED, T_SWAP_CACHE ])
@@ -872,27 +992,33 @@ CSS
 		# free space visible as the gap in between.
 		my $reserve_free = $k->{total} - $k->{used} - ($k->{avail} // 0);
 		$reserve_free = 0 if $reserve_free < 0;
-		$out .= qq{<div class="metric"><span>Disk</span>}
+		$rows .= qq{<div class="metric"><span>Disk</span>}
 		      . bar(100 * $k->{used} / $k->{total}, 100 * $reserve_free / $k->{total}, 1,
 		            [ T_DISK_USED, T_DISK_RSVD ])
 		      . sprintf(qq{<span class="mval">%s / %s GB</span></div>\n},
 		                gb($k->{used}), gb($k->{total}));
 	}
+	# Wrapper only if there is something to put in it — on the degraded path
+	# where neither /proc read succeeded, an empty grid would still be an
+	# empty element in the markup.
+	$out .= qq{<div class="metrics">\n$rows</div>\n} if length $rows;
+
 	$out .= qq{<p>Uptime } . esc(dur($d->{uptime})) . qq{.</p>\n} if $d->{uptime};
 
+	# NO FIGCAPTION, deliberately. It used to spell out the window, the sample
+	# interval, the age of the history and the meaning of the dashed line, and
+	# every one of those is either visible in the drawing or too fine-grained
+	# to matter: the axis labels give the span, the dashed line is labelled
+	# with the capacity figure it sits at, and a five-minute sample interval is
+	# invisible at two-hour buckets. The axis compressing to the available
+	# history replaced the "history began N ago" note — the left-hand label now
+	# says when collection started, by saying where the data starts.
+	#
+	# The <title>/<desc> inside the SVG are unaffected and still carry the full
+	# reading for anyone who cannot see it. They are the text alternative; the
+	# caption was redundant with the picture.
 	if ($d->{disk} && (my $svg = disk_graph($d->{disk}))) {
-		my $k = $d->{disk};
-		$out .= qq{<figure class="graph">\n$svg\n<figcaption>};
-		$out .= qq{Disk used over the last } . int(($k->{window} || 2592000) / 86400)
-		      . qq{ days, sampled every five minutes};
-		# If the history is younger than the window, say so. The line starting
-		# partway across the axis already shows it, but only to someone who
-		# reads graphs carefully, and the figure that is missing here is the
-		# reader's basis for trusting the trend.
-		if ($k->{first_ts} && $k->{first_ts} > ($k->{sampled_at} // time) - ($k->{window} || 2592000)) {
-			$out .= qq{ · history began } . esc(dur(($k->{sampled_at} // time) - $k->{first_ts})) . qq{ ago};
-		}
-		$out .= qq{. Dashed line is capacity.</figcaption>\n</figure>\n};
+		$out .= qq{<figure class="graph">\n$svg\n</figure>\n};
 	}
 	$out .= qq{</section>\n};
 
