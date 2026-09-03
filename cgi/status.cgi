@@ -913,7 +913,7 @@ CSS
 	# The ꩜ is decoration and is aria-hidden, so a screen reader reads the two
 	# halves as one phrase rather than announcing "khmer sign koomuut".
 	$out .= qq{<p>Debian 13 <span class="koo" aria-hidden="true">꩜</span> }
-	      . qq{RackNerd 1 vCPU, 1 GB RAM <span aria-hidden="true">🖱️</span> Mouseover bar segments for details.</p>\n};
+	      . qq{RackNerd 1&nbsp;vCPU, 1&nbsp;GB RAM <span aria-hidden="true">🖱️</span> Mouseover bar segments for details.</p>\n};
 
 	# THE METRIC ROWS ARE BUILT SEPARATELY so they can share ONE grid.
 	#
