@@ -155,13 +155,28 @@ body {
                                         * x=1 in the reference */
   z-index: 2;
 }
-.panel .winlist {                      /* the window-list applet's one entry */
+/* The window-list applet's one entry, and the site's home link (requirement
+ * 3). At rest it must be indistinguishable from the reference — the panel band
+ * is one of the six that diff byte-identical — so the hover and focus states
+ * are the only thing this rule adds, and they borrow the toolbar Home
+ * button's treatment so the two homes look like the same control. */
+.panel a.winlist {
   grid-column: 1;
   justify-self: start;
   width: 24px; height: 24px;
   display: flex; align-items: center; justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 2px;
 }
-.panel .winlist img { width: 24px; height: 24px; display: block; }
+.panel a.winlist:hover {
+  border-color: #c09060;
+  background: linear-gradient(to bottom, #fbe4cc, #f4c99f);
+}
+.panel a.winlist:focus-visible {
+  outline: 2px solid var(--urlbar-border);
+  outline-offset: -1px;
+}
+.panel a.winlist img { width: 24px; height: 24px; display: block; }
 
 /* "Live session user" in the reference; the site name here. Centred on the
  * panel rather than pinned to the reference's x=544, because a name of any

@@ -20,7 +20,12 @@
 
   <!-- ==================================================== GNOME panel ==== -->
   <div class="panel">
-    <span class="winlist"><img src="/tmp-ubuntu804/i/firefox24.png" width="24" height="24" alt=""></span>
+    <!-- Requirement 3's home link. It lives HERE, on the panel's window-list
+         icon, and not on the window's own title-bar icon below — in Hardy the
+         title-bar icon opened metacity's window menu, which is not a
+         navigation, whereas clicking the panel entry was already the gesture
+         for "go to that window". -->
+    <a class="winlist" href="/tmp-ubuntu804/" title="dreamstation.systems home"><img src="/tmp-ubuntu804/i/firefox24.png" width="24" height="24" alt="Home"></a>
     <span class="who">dreamstation.systems</span>
     <!-- The clock. nginx renders this in-worker: no CGI, no fork, no process,
          nothing on disk. date_gmt is UTC and the suffix says so, both by the
@@ -35,8 +40,9 @@
   <div class="window">
 
     <div class="titlebar">
-      <!-- Requirement 3: the Firefox icon links home, same as the Home button. -->
-      <a href="/tmp-ubuntu804/" title="dreamstation.systems home"><img class="wicon" src="/tmp-ubuntu804/i/firefox16.png" width="16" height="16" alt="Home"></a>
+      <!-- Decorative, like the window buttons at the other end of this bar.
+           The home link is the panel icon above and the Home button below. -->
+      <img class="wicon" src="/tmp-ubuntu804/i/firefox16.png" width="16" height="16" alt="" aria-hidden="true">
       <span class="wtitle">Welcome to dreamstation.systems! - Mozilla Firefox</span>
       <!-- Decorative. Not buttons: nothing here can minimise or close a page. -->
       <span class="wbtns" aria-hidden="true">
@@ -224,8 +230,10 @@ runs any JavaScript, because there is none on this site to run.</p>
 bottom of the <strong>View</strong> menu, because in 2008 there were always three ways to do
 everything.</p>
 
-<p>The Firefox icon in the title bar and the house in the toolbar both go home.
-The window buttons do not close anything — they are a picture of buttons.</p>
+<p>The Firefox icon up in the panel and the house in the toolbar both go home. The
+one on the window’s own title bar does not — in Hardy that opened metacity’s
+window menu, not a page, so here it is decoration. So are the window buttons at
+the other end of that bar; they close nothing, being a picture of buttons.</p>
 
 <h2>What this machine actually does</h2>
 

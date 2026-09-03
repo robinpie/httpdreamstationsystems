@@ -23,8 +23,10 @@ The bookmarks toolbar is the navigation. So is the **Bookmarks** menu, and the
 bottom of the **View** menu, because in 2008 there were always three ways to do
 everything.
 
-The Firefox icon in the title bar and the house in the toolbar both go home.
-The window buttons do not close anything — they are a picture of buttons.
+The Firefox icon up in the panel and the house in the toolbar both go home. The
+one on the window’s own title bar does not — in Hardy that opened metacity’s
+window menu, not a page, so here it is decoration. So are the window buttons at
+the other end of that bar; they close nothing, being a picture of buttons.
 
 ## What this machine actually does
 

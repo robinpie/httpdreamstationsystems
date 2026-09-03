@@ -317,7 +317,14 @@ Do not "fix" these; they were decided.
     without the desktop around it.
   - The window buttons are not buttons. Not links, not focusable, aria-hidden.
     A control that looks like it closes the window and does nothing is worse
-    than a picture of one.
+    than a picture of one. The Firefox icon on the window's TITLE BAR is the
+    same: in Hardy it opened metacity's window menu, which is not a
+    navigation, so it is decoration too.
+  - The home link (requirement 3) is therefore on the PANEL's window-list
+    icon, top left of the screen, and on the toolbar's Home button. Both point
+    at site.conf's Home. Clicking a panel window-list entry was already the
+    gesture for "go to that window", which is the closest thing Hardy had to
+    "go home".
   - The badge shelf and the bookmarks row both scroll sideways with no visible
     scrollbar. The shelf is a picture of bare desktop and a scrollbar across
     the bottom 6px of it is 6px of wallpaper you cannot see. Wheel, trackpad
