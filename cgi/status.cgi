@@ -570,6 +570,11 @@ sub daystamp { my @t = gmtime($_[0] // 0); return sprintf '%d %s', $t[3], $MON[ 
 # Status is conveyed by symbol AND word AND colour — never colour alone. The
 # page this hangs off claims WCAG 2.2 AA conformance with a W3C badge, and a
 # bare coloured dot would break that claim.
+# WRAPPED IN aria-hidden AT THE POINT OF USE, because the word beside each mark
+# already says the same thing: unwrapped, these announce as "black circle up" and
+# "multiplication x DOWN". Hiding the glyph costs a screen reader nothing (the
+# word is the content) and the colour+symbol+word triple survives intact for
+# everyone else. Same reason the ꩜ and the 🖱️ in the host line are hidden.
 my %MARK = (up => '●', down => '✕', unknown => '○');
 
 # bar($pct, $extra_pct, $far)
@@ -852,12 +857,19 @@ sub render {
 	my $age = int(time - ($d->{generated} // time));
 	my $out = '';
 
+	# --muted REPLACED THE GrayText SYSTEM COLOUR, and not for looks. GrayText is
+	# specified as the colour of DISABLED text, which is exactly what it renders
+	# as under forced-colors: the freshness stamp, the footer and the "unknown"
+	# status word are all real content, and all three were being painted in the
+	# one colour a UA is entitled to treat as "this is switched off". The pair
+	# below is an explicit light/dark pair — same idiom as .up/.down two rules
+	# down — at 7.0:1 on white and 7.7:1 on the dark canvas.
 	my $css = <<'CSS';
-html{color-scheme:light dark}
+html{color-scheme:light dark;--muted:#595959}
 body{padding:1rem;font:100%/1.5 system-ui,sans-serif;max-width:60rem;margin-inline:auto}
 .skip:not(:focus){position:absolute;left:-100vw}
 h1{margin-bottom:.25rem}
-.stamp{color:GrayText;margin-top:0}
+.stamp{color:var(--muted);margin-top:0}
 .warn{border:2px solid;border-radius:.5rem;padding:.75rem 1rem;margin-block:1rem;font-weight:600}
 section{margin-block:2rem}
 .metrics{display:grid;grid-template-columns:7rem 1fr auto;gap:.5rem 1rem;align-items:center;margin-block:.5rem}
@@ -875,12 +887,12 @@ table{border-collapse:collapse;width:100%}
 caption{text-align:left;padding:.5em 0}
 th,td{padding:.4em .5em;border:1px solid #888;text-align:left}
 td.st{white-space:nowrap;font-weight:600}
-.up{color:#0a7a28}.down{color:#c00}.unknown{color:GrayText}
-@media(prefers-color-scheme:dark){.up{color:#4ade80}.down{color:#f87171}}
+.up{color:#0a7a28}.down{color:#c00}.unknown{color:var(--muted)}
+@media(prefers-color-scheme:dark){html{--muted:#a6a6a6}.up{color:#4ade80}.down{color:#f87171}}
 dl{display:grid;grid-template-columns:auto 1fr;gap:.4rem 1rem;margin:0}
 dt{font-weight:600}dd{margin:0;font-variant-numeric:tabular-nums}
 .scroll{overflow-x:auto}
-footer{margin-top:3rem;color:GrayText;font-size:.9rem}
+footer{margin-top:3rem;color:var(--muted);font-size:.9rem}
 a{overflow-wrap:anywhere}
 :focus-visible{outline:2px solid;outline-offset:2px}
 CSS
@@ -898,13 +910,13 @@ CSS
 	# banners below still lead with the age, because in those cases the age IS
 	# the headline and burying it would be dishonest.
 	$out .= qq{<header>\n<h1>Service status</h1>\n};
-	$out .= qq{<p><a href="/professional/">← Robin Reel</a></p>\n</header>\n};
+	$out .= qq{<p><a href="/professional/"><span aria-hidden="true">←</span> Robin Reel</a></p>\n</header>\n};
 
 	if ($err) {
-		$out .= qq{<p class="warn down">⚠ Could not refresh: } . esc($err)
+		$out .= qq{<p class="warn down"><span aria-hidden="true">⚠</span> Could not refresh: } . esc($err)
 		      . qq{. Showing the last successful measurement, } . esc(dur($age)) . qq{ old.</p>\n};
 	} elsif ($stale) {
-		$out .= qq{<p class="warn down">⚠ This data is } . esc(dur($age))
+		$out .= qq{<p class="warn down"><span aria-hidden="true">⚠</span> This data is } . esc(dur($age))
 		      . qq{ old and may no longer be accurate.</p>\n};
 	}
 	if ($d->{deadline_hit}) {
@@ -1039,7 +1051,15 @@ CSS
 	# aria-labelledby replaces the <caption> that used to name this table, so
 	# cutting the visible line did not leave the table anonymous to a screen
 	# reader — it now takes its name from the "Services" heading above.
-	$out .= qq{<div class="scroll"><table aria-labelledby="svc">\n};
+	# tabindex+role ON THE SCROLL CONTAINER, NOT DECORATION. .scroll is
+	# overflow-x:auto, and Chrome and Safari do not put a scroll container in the
+	# tab order on their own (Firefox does), so on a narrow viewport a keyboard-
+	# only user could not scroll to the Notes column at all — WCAG 2.1.1. A
+	# focusable scroll region must also have an accessible name or it is
+	# announced as an anonymous stop, which is why the role and the label come
+	# with the tabindex rather than the tabindex going on alone.
+	$out .= qq{<div class="scroll" role="region" aria-labelledby="svc" tabindex="0">};
+	$out .= qq{<table aria-labelledby="svc">\n};
 	$out .= qq{<thead><tr><th scope="col">Service</th><th scope="col">Status</th>};
 	$out .= qq{<th scope="col">Notes</th></tr></thead>\n<tbody>\n};
 
@@ -1059,7 +1079,8 @@ CSS
 		push @notes, "unit $r->{unit}" if ($r->{unit} // '') ne 'active' && ($r->{unit} // '') ne 'unknown';
 
 		$out .= qq{<tr><th scope="row">} . esc($label) . qq{</th>};
-		$out .= qq{<td class="st $state">$MARK{$state} } . esc($word) . qq{</td>};
+		$out .= qq{<td class="st $state"><span aria-hidden="true">$MARK{$state}</span> }
+		      . esc($word) . qq{</td>};
 		$out .= qq{<td>} . esc(join ' · ', @notes) . qq{</td></tr>\n};
 	}
 	$out .= qq{</tbody></table></div>\n</section>\n};
