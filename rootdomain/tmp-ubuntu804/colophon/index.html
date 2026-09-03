@@ -57,7 +57,7 @@
       <!-- ====================================================== menu bar == -->
       <div class="menubar">
 
-        <div class="menu"><span class="label" tabindex="0"><u>F</u>ile</span>
+        <details class="menu" name="menubar"><summary class="label"><u>F</u>ile</summary>
           <ul class="drop">
             <li><span class="off" aria-disabled="true">New Window<span class="key">Ctrl+N</span></span></li>
             <li><span class="off" aria-disabled="true">New Tab<span class="key">Ctrl+T</span></span></li>
@@ -79,9 +79,9 @@
             <li><span class="off" aria-disabled="true">Work Offline</span></li>
             <li><span class="off" aria-disabled="true">Quit<span class="key">Ctrl+Q</span></span></li>
           </ul>
-        </div>
+        </details>
 
-        <div class="menu"><span class="label" tabindex="0"><u>E</u>dit</span>
+        <details class="menu" name="menubar"><summary class="label"><u>E</u>dit</summary>
           <ul class="drop">
             <li><span class="off" aria-disabled="true">Undo<span class="key">Ctrl+Z</span></span></li>
             <li><span class="off" aria-disabled="true">Redo<span class="key">Ctrl+Shift+Z</span></span></li>
@@ -96,9 +96,9 @@
             <li class="rule"></li>
             <li><span class="off" aria-disabled="true">Preferences</span></li>
           </ul>
-        </div>
+        </details>
 
-        <div class="menu"><span class="label" tabindex="0"><u>V</u>iew</span>
+        <details class="menu" name="menubar"><summary class="label"><u>V</u>iew</summary>
           <ul class="drop">
             <li><span class="off" aria-disabled="true">Toolbars<span class="key">▸</span></span></li>
             <li><span class="off" aria-disabled="true">Status Bar</span></li>
@@ -117,9 +117,9 @@
             <li><a href="/tmp-ubuntu804/colophon" aria-current="page">Colophon</a></li>
 
           </ul>
-        </div>
+        </details>
 
-        <div class="menu"><span class="label" tabindex="0">Hi<u>s</u>tory</span>
+        <details class="menu" name="menubar"><summary class="label">Hi<u>s</u>tory</summary>
           <ul class="drop">
             <li><span class="off" aria-disabled="true">Back<span class="key">Alt+←</span></span></li>
             <li><span class="off" aria-disabled="true">Forward<span class="key">Alt+→</span></span></li>
@@ -128,9 +128,9 @@
             <li><span class="off" aria-disabled="true">Recently Closed Tabs<span class="key">▸</span></span></li>
             <li><span class="off" aria-disabled="true">Show All History<span class="key">Ctrl+Shift+H</span></span></li>
           </ul>
-        </div>
+        </details>
 
-        <div class="menu"><span class="label" tabindex="0"><u>B</u>ookmarks</span>
+        <details class="menu" name="menubar"><summary class="label"><u>B</u>ookmarks</summary>
           <ul class="drop">
             <li><span class="off" aria-disabled="true">Bookmark This Page<span class="key">Ctrl+D</span></span></li>
             <li><span class="off" aria-disabled="true">Subscribe to This Page…</span></li>
@@ -144,9 +144,9 @@
             <li><a href="/tmp-ubuntu804/colophon" aria-current="page">Colophon</a></li>
 
           </ul>
-        </div>
+        </details>
 
-        <div class="menu"><span class="label" tabindex="0"><u>T</u>ools</span>
+        <details class="menu" name="menubar"><summary class="label"><u>T</u>ools</summary>
           <ul class="drop">
             <li><span class="off" aria-disabled="true">Web Search<span class="key">Ctrl+K</span></span></li>
             <li class="rule"></li>
@@ -157,9 +157,9 @@
             <li class="rule"></li>
             <li><span class="off" aria-disabled="true">Clear Private Data…<span class="key">Ctrl+Shift+Del</span></span></li>
           </ul>
-        </div>
+        </details>
 
-        <div class="menu"><span class="label" tabindex="0"><u>H</u>elp</span>
+        <details class="menu" name="menubar"><summary class="label"><u>H</u>elp</summary>
           <ul class="drop">
             <li><a href="/tmp-ubuntu804/colophon">Colophon&#8201;&mdash;&#8201;how this was built</a></li>
             <li><a href="/tmp-ubuntu804/about">About this site</a></li>
@@ -167,7 +167,7 @@
             <li><span class="off" aria-disabled="true">Report a Broken Web Site…</span></li>
             <li><span class="off" aria-disabled="true">About Mozilla Firefox</span></li>
           </ul>
-        </div>
+        </details>
 
         <!-- Firefox 3's idle throbber. Right end of the menu bar, which is
              where the reference has it. -->
@@ -326,10 +326,17 @@ toolbar throbber, and thirteen 88&times;31 badges drawn for this site with
 ImageMagick and no antialiasing. Full attribution is in
 <a href="/tmp-ubuntu804/CREDITS.txt">CREDITS.txt</a>.</p>
 
-<p><strong>No JavaScript.</strong> Not “minimal”, not “progressive” — none. The menus in the
-menu bar are <code>:focus-within</code>, keyboard‐reachable, and open with CSS. The window
-buttons are decoration and are marked as such. The location bar is real text,
-selectable and not typeable, because there is nothing to submit it to.</p>
+<p><strong>No JavaScript.</strong> Not “minimal”, not “progressive” — none. The seven menus
+in the menu bar are <code>&lt;details name="menubar"&gt;</code>: the browser toggles one open
+and shut on a click, and the shared <code>name</code> makes them an exclusive group, so
+opening one closes the rest. Both behaviours are the browser’s own, which is
+also why Enter and Space work on them with no <code>tabindex</code> and no ARIA of ours — a
+<code>&lt;summary&gt;</code> is focusable and announces its own state. They do not open on
+hover, which is correct: a real menu bar opens nothing until you click it.</p>
+
+<p>The window buttons are decoration and are marked as such. The location bar is
+real text, selectable and not typeable, because there is nothing to submit it
+to.</p>
 
 <p>One consequence worth admitting: <strong>File &rarr; Print&hellip; is inert</strong>, along
 with the rest of that menu, because printing needs <code>print()</code> and <code>print()</code>

@@ -309,24 +309,64 @@ body {
   margin-right: 6px;
   align-self: center;
 }
+/* The menus are <details name="menubar"> with a <summary> label, which is a
+ * change from PLAN.md section 4's :focus-within and the reason is behavioural,
+ * not stylistic. :focus-within cannot express either half of how a menu bar
+ * actually works:
+ *
+ *   - Clicking an open menu could not close it. The label stayed focused, so
+ *     :focus-within stayed true and the dropdown stayed down.
+ *   - Two menus could be open at once — one held open by focus, another by
+ *     hover — because nothing tied them together.
+ *
+ * <details> toggles on click natively, and the shared name= makes the seven of
+ * them an exclusive group, so opening one closes the rest. Both behaviours are
+ * the browser's, not ours, which also means Enter and Space work on the
+ * summary with no tabindex and no ARIA of our own: a <summary> is focusable and
+ * announces its own expanded state. That is strictly better than the
+ * tabindex'd <span> it replaces.
+ *
+ * Older browsers ignore name= and give seven independent toggles — still
+ * click-to-open, click-to-close, just not mutually exclusive.
+ */
 .menu { position: relative; display: flex; }
 .menu > .label {
   display: flex; align-items: center;
   padding: 0 5.5px;                    /* 11.17px between labels, measured */
   cursor: default;
   white-space: nowrap;
+  list-style: none;                    /* kills the disclosure triangle */
 }
-.menu > .label:focus { outline: none; }
+.menu > .label::-webkit-details-marker { display: none; }
+.menu > .label::marker { content: ""; }
+/* Keyboard users need to see where they are; mouse users do not need an
+ * outline on every click. */
+.menu > .label:focus-visible {
+  outline: 2px solid var(--urlbar-border);
+  outline-offset: -2px;
+}
+.menu[open] > .label { background: #f8b078; }
 
-/* The dropdowns. :focus-within covers keyboard and (on every browser that
- * focuses a tabindex'd element on tap) touch; :hover covers the mouse. The
- * label carries tabindex=0 in the markup — PLAN.md section 10 is explicit
- * that :hover alone would exclude keyboard and touch users. */
-.menu:hover > .label,
-.menu:focus-within > .label { background: #f8b078; }
+/* Visibility is stated explicitly rather than left to the UA, because UAs have
+ * hidden a closed <details>'s children with display:none and with
+ * content-visibility on an internal wrapper at different times. */
 .menu > .drop { display: none; }
-.menu:hover > .drop,
-.menu:focus-within > .drop { display: block; }
+.menu[open] > .drop { display: block; }
+
+/* NO hover-to-open, deliberately. A real GTK menu bar opens nothing on hover
+ * over a closed bar — you have to click — so click-only is the faithful
+ * behaviour, and it is what the previous :hover rule got wrong.
+ *
+ * A real menu bar does switch on hover once a menu IS open, and that half was
+ * attempted here with :has() and abandoned. Chromium wraps a closed
+ * <details>'s content in an internal box that is hidden whatever the child's
+ * display says, so the rules moved the label highlight without revealing the
+ * dropdown: hovering Edit while File was open highlighted Edit and showed
+ * nothing at all. Getting it to work would mean moving each <ul> out of its
+ * <details> to dodge that wrapper, which would leave seven disclosure widgets
+ * that expand to nothing for a screen reader. Not worth it for a mouse-only
+ * nicety, so this is the one menu-bar behaviour that stays unfaithful.
+ */
 
 .menu > .drop {
   position: absolute;

@@ -118,10 +118,17 @@ toolbar throbber, and thirteen 88&times;31 badges drawn for this site with
 ImageMagick and no antialiasing. Full attribution is in
 [CREDITS.txt]({{ROOT}}/CREDITS.txt).
 
-**No JavaScript.** Not “minimal”, not “progressive” — none. The menus in the
-menu bar are `:focus-within`, keyboard‐reachable, and open with CSS. The window
-buttons are decoration and are marked as such. The location bar is real text,
-selectable and not typeable, because there is nothing to submit it to.
+**No JavaScript.** Not “minimal”, not “progressive” — none. The seven menus
+in the menu bar are `<details name="menubar">`: the browser toggles one open
+and shut on a click, and the shared `name` makes them an exclusive group, so
+opening one closes the rest. Both behaviours are the browser’s own, which is
+also why Enter and Space work on them with no `tabindex` and no ARIA of ours — a
+`<summary>` is focusable and announces its own state. They do not open on
+hover, which is correct: a real menu bar opens nothing until you click it.
+
+The window buttons are decoration and are marked as such. The location bar is
+real text, selectable and not typeable, because there is nothing to submit it
+to.
 
 One consequence worth admitting: **File &rarr; Print&hellip; is inert**, along
 with the rest of that menu, because printing needs `print()` and `print()`

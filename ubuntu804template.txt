@@ -20,8 +20,8 @@ close it gets and why it cannot get closer.
 
 There is NO client-side JavaScript. Not minimal - none. build.pl refuses to
 write a page containing a script element, an inline event handler or a
-javascript: URL. The menus in the menu bar open with :focus-within, the clock
-is an nginx SSI directive, and the window buttons are decoration.
+javascript: URL. The menus in the menu bar are <details name="menubar">, the
+clock is an nginx SSI directive, and the window buttons are decoration.
 
 
 Pieces
@@ -297,6 +297,47 @@ on screen next to the reference before believing any story about why.
 Note also that PLAN.md section 8 names heron-simple.png and states it was
 "confirmed correct" on exactly the average-colour test described above. That
 line is wrong.
+
+
+The menu bar
+------------
+Seven <details name="menubar">, each with a <summary> label. This is a change
+from PLAN.md section 4, which specified :focus-within, and the reason is
+behavioural: :focus-within cannot express either half of how a menu bar works.
+
+  - Clicking an open menu could not close it. The label stayed focused, so
+    :focus-within stayed true and the dropdown stayed down.
+  - Two menus could be open at once, one held by focus and one by hover,
+    because nothing tied them to each other.
+
+<details> toggles natively, and the shared name= makes the seven an exclusive
+group, so both behaviours come free and correct from the browser. It is also
+better for keyboard and screen readers than what it replaced: a <summary> is
+focusable without tabindex and announces its own expanded state, so the
+hand-rolled tabindex on a <span> is gone.
+
+Verified in a real browser rather than assumed: a page carrying `open` on three
+of them in the source paints exactly one dropdown.
+
+Three behaviours it does NOT have, all deliberate:
+
+  - No hover-to-open. That is correct - a real GTK menu bar opens nothing until
+    you click it. The old :hover rule was wrong about this.
+  - No hover-to-SWITCH once one is open, which a real menu bar does do. It was
+    attempted with :has() and abandoned: Chromium wraps a closed <details>'s
+    content in an internal box that stays hidden whatever the child's display
+    says, so the rules moved the label highlight without revealing the
+    dropdown - hovering Edit while File was open highlighted Edit and showed
+    nothing at all. Making it work would mean moving each <ul> out of its
+    <details> to dodge that wrapper, leaving seven disclosure widgets that
+    expand to nothing for a screen reader. Not worth it for a mouse-only
+    nicety, so this is the one menu-bar behaviour that stays unfaithful.
+  - Clicking the page does not close an open menu. Nothing in CSS can see that
+    click. Clicking the same label, another label, or any link inside the menu
+    all close it, which covers the realistic paths.
+
+Older browsers ignore name= and get seven independent toggles: still
+click-to-open and click-to-close, just not mutually exclusive.
 
 
 Things that are deliberate
