@@ -49,19 +49,25 @@ ASCII art.
 │ Further examples of deliberate ASCII                                        │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-    ath/index.html                 BUILT-IN                       code
-    googleAuthenticatorMigrator    otpauth-migration              URI scheme
-    gzipt.html                     GPT-2-124M                     model name
-    gzipt.html                     non-party, [...]               corpus data
-    hypnospace.html                sway/spin/.../color-cycle      effect names
-    ntppost.html                   Attribution-NonCommercial      license name
-    professional/index.html        AC-Letter-Scorer, JSON-LD,
-                                   MTA-STS, SHA-256, TLS-RPT,
-                                   atlantik-git, chessament-git,
-                                   dinky-git, hash-o-matic-git,
-                                   kdominate-git,
-                                   plasma-claude-usage,
-                                   warpinator-windows             proper names, identifiers
-    status.cgi output              NTS-KE                         protocol name
-    llms.txt / humans.txt /
-    security.txt / robots.txt      everything                     text/plain
+ath/index.html                 BUILT-IN                       code
+googleAuthenticatorMigrator    otpauth-migration              URI scheme
+gzipt.html                     GPT-2-124M                     model name
+gzipt.html                     non-party, [...]               corpus data
+hypnospace.html                sway/spin/.../color-cycle      effect names
+ntppost.html                   Attribution-NonCommercial      license name
+professional/index.html        AC-Letter-Scorer, JSON-LD,
+                               MTA-STS, SHA-256, TLS-RPT,
+                               atlantik-git, chessament-git,
+                               dinky-git, hash-o-matic-git,
+                               kdominate-git,
+                               plasma-claude-usage,
+                               warpinator-windows             proper names, identifiers
+status.cgi output              NTS-KE                         protocol name
+llms.txt / humans.txt /
+security.txt / robots.txt      everything                     text/plain
+    
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Miscellaneous                                                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Prefer literal characters over HTML entities, except for & or where literal characters may be ambiguous in parsing in some browsers.

@@ -1152,7 +1152,7 @@ sub render_box {
 		            [ T_MEM_USED, T_MEM_CACHE ])
 		      . sprintf(qq{<span class="sbval">%.0f%%</span></div>\n}, $pct);
 	}
-	$out .= qq{<p class="sbmore"><a href="/professional/status">&#8594; full status page</a></p>\n};
+	$out .= qq{<p class="sbmore"><a href="/professional/status">→ full status page</a></p>\n};
 	$out .= qq{</aside>\n};
 	return $out;
 }
