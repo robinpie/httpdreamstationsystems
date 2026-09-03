@@ -129,7 +129,7 @@ use constant HOST => '127.0.0.1';
 my @SERVICES = (
 	[ 'time',    'Time (NTP / NTS)', 4460, 'tls',   'chrony.service',                 'NTP on 123/udp, NTS-KE on 4460/tcp' ],
 	[ 'web',     'Web',              80,   'http',  'nginx.service',                  'HTTP and HTTPS'                     ],
-	[ 'gopher',  'Gopher',           70,   'line',  'gophernicus.socket',             'socket-activated'                   ],
+	[ 'gopher',  'Gopher',           70,   'line',  'gophernicus.socket',             'socket‐activated'                   ],
 	[ 'gemini',  'Gemini',           1965, 'tls',   'molly-brown@dreamstation.service', ''                                 ],
 	[ 'spartan', 'Spartan',          300,  'req',   'spartan.service',                ''                                   ],
 	[ 'finger',  'Finger',           79,   'line',  'finger.service',                 ''                                   ],
@@ -913,7 +913,7 @@ CSS
 	# The ꩜ is decoration and is aria-hidden, so a screen reader reads the two
 	# halves as one phrase rather than announcing "khmer sign koomuut".
 	$out .= qq{<p>Debian 13 <span class="koo" aria-hidden="true">꩜</span> }
-	      . qq{RackNerd 1&nbsp;vCPU, 1&nbsp;GB RAM <span aria-hidden="true">🖱️</span> Mouseover bar segments for details.</p>\n};
+	      . qq{RackNerd 1 vCPU, 1 GB RAM <span aria-hidden="true">🖱️</span> Mouseover bar segments for details.</p>\n};
 
 	# THE METRIC ROWS ARE BUILT SEPARATELY so they can share ONE grid.
 	#
