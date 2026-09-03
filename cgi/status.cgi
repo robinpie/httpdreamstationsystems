@@ -615,9 +615,17 @@ sub bar {
 	my $a_faded = defined $t_faded ? ' title="' . esc($t_faded) . '"' : '';
 
 	# aria-hidden: the bar is decoration. The number beside it is the content.
-	return qq{<span class="bar" aria-hidden="true"><i$a_solid style="width:$w%"></i>}
+	#
+	# The newlines around the bar are load-bearing, not formatting. Every caller
+	# emits label-bar-value with no whitespace between them, and the bar renders
+	# as nothing in a text browser, so lynx ran the two together as "CPU51%".
+	# Both row layouts are grid (.sbrow directly, .metric via display:contents
+	# on .metrics), and a grid or flex container drops whitespace-only text
+	# between its items, so these cost exactly nothing in a graphical browser
+	# while giving lynx a word break. Do not tidy them away.
+	return qq{\n<span class="bar" aria-hidden="true"><i$a_solid style="width:$w%"></i>}
 	     . ($w2 ? qq{<u} . ($far ? ' class="far"' : '') . qq{$a_faded style="width:$w2%"></u>} : '')
-	     . qq{</span>};
+	     . qq{</span>\n};
 }
 
 # ------------------------------------------------------------------ the graph
