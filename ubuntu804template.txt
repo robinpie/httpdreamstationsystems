@@ -1,0 +1,324 @@
+ubuntu804template (Ubuntu 8.04 desktop web template)
+=====================================================
+
+What/why
+--------
+A static site template whose entire chrome is a recreation of an Ubuntu 8.04
+LTS "Hardy Heron" desktop running Firefox 3, served at
+
+    https://dreamstation.systems/tmp-ubuntu804/
+    http://dreamstation.systems/tmp-ubuntu804/
+
+The panel, window frame, title bar, both toolbars, the status bar and the
+masthead are HTML elements with CSS backgrounds, not a screenshot. Page content
+renders inside the browser window. The exposed strip of wallpaper along the
+bottom is a shelf for 88x31 web badges.
+
+It was built from one 1280x720 screenshot, treated as the specification and
+measured with ImageMagick a pixel row at a time. See "Verification" for how
+close it gets and why it cannot get closer.
+
+There is NO client-side JavaScript. Not minimal - none. build.pl refuses to
+write a page containing a script element, an inline event handler or a
+javascript: URL. The menus in the menu bar open with :focus-within, the clock
+is an nginx SSI directive, and the window buttons are decoration.
+
+
+Pieces
+------
+  http/ubuntu804/                  source. A SIBLING of rootdomain/, not inside
+                                   it - if it lived under rootdomain/ the
+                                   deploy would serve build.pl as a raw file.
+    build.pl                       the build
+    site.conf                      base URL, root path, site name, strip height
+    chrome.html                    the desktop chrome template
+    desktop.html                   the badge shelf, shared by every page
+    site.css                       all of it; {{...}} tokens filled at build
+    pages/*.{md,html}              one file per page, RFC822 header on top
+    art/mark.svg, art/mark16.svg   the logotype mark, original artwork
+    badges/make.sh, badges/*.png   the 88x31 badges. PNGs committed.
+    assets-src/                    extracted originals, pre-optimisation
+    fonts-src/DejaVuSans*.ttf      the two faces, unmodified
+    verify.py                      the band-by-band diff harness
+    nginx/tmp-ubuntu804.conf       the snippet, kept in the repo as well as
+                                   installed, so it is not lost to a rebuild
+
+  http/rootdomain/tmp-ubuntu804/   BUILD OUTPUT, committed
+    -> /srv/http/tmp-ubuntu804/    deployed by deploy-site.sh on commit
+
+  /etc/nginx/snippets/tmp-ubuntu804.conf
+                                   ssi on, plus the 404. Included from BOTH the
+                                   :80 and :443 dreamstation.systems blocks.
+
+The reference screenshot and the Ubuntu 8.04 ISO it was extracted from live on
+the workstation, not here.
+
+
+The clock
+---------
+The panel clock on every page is this, and nothing else:
+
+    <!--#config timefmt="%a %b %e, %-l:%M %p" --><!--#echo var="date_gmt" --> UTC
+
+nginx expands it inside the worker. Zero forks, zero processes, zero disk, no
+CGI and no Perl at request time. That is the whole reason it is SSI and not a
+CGI: on a 1-vCPU box whose real job is the NTP pool, a Perl interpreter per
+page view to render a decoration would be a poor trade. A CGI clock with GeoIP
+timezone lookup was considered and rejected for the same reason, plus the 60MB
+of database it would have wanted out of 3.1GB free.
+
+Two things about that format string were established by trying it on this
+machine rather than by reading strftime(3):
+
+  - %-l, not %l. The reference shows "Thu Sep  3, 3:19 PM": two spaces after
+    "Sep", one after the comma. %e is space-padded, which gives the first;
+    plain %l is ALSO space-padded, which wrongly gives a second one after the
+    comma. glibc's - flag suppresses the padding and nginx passes it through.
+  - date_gmt, not date_local. The box's local time is America/Los_Angeles;
+    UTC with an explicit " UTC" suffix was the choice, so visitors in any
+    timezone read the same unambiguous thing.
+
+ssi_silent_errors is on, so if the directive ever fails to expand it renders
+nothing and leaves the page intact. The clock is decoration and must never be
+able to damage the page carrying it - same reasoning as snippets/status-cgi.conf
+for the vitals box on /professional/.
+
+
+nginx
+-----
+snippets/tmp-ubuntu804.conf:
+
+    location ^~ /tmp-ubuntu804/ {
+        ssi on;
+        ssi_silent_errors on;
+        error_page 404 /tmp-ubuntu804/404.html;
+    }
+
+  - ^~ and not =, because this is a tree of pages and every one of them carries
+    the clock. It also has to survive the `index index.html` internal redirect
+    that turns /tmp-ubuntu804/about/ into .../about/index.html: internal
+    redirects re-run location matching, so an exact-match location would drop
+    SSI on every page.
+  - Included from :80 AND :443. A page whose clock works over HTTP but renders
+    a raw SSI comment over HTTPS would be a particularly silly bug.
+  - error_page has no "=" before the URI, so the response keeps its 404 status.
+
+The 404 page shows the address that was actually requested in its location bar,
+via <!--#echo var="REQUEST_URI" -->. #echo defaults to encoding=entity, so
+nginx escapes <, > and & before the value reaches the page. That was verified
+against the running server with raw angle brackets in the request line, not
+assumed:
+
+    GET /tmp-ubuntu804/<b>hi</b>  ->  ...&lt;b&gt;hi&lt;/b&gt;
+
+A raw apostrophe comes through unescaped, which is harmless where it lands
+(element text, not an attribute value). Anything with a space or a quote in the
+request line is rejected by nginx as 400 before SSI ever sees it.
+
+
+Build and deploy
+----------------
+The build runs on the WORKSTATION. This box never builds. Dependencies there,
+and nowhere else:
+
+    Text::Markdown   .md pages only; required at point of use, so an
+                     all-.html tree builds without it.
+                     Debian: libtext-markdown-perl   Arch: perl-text-markdown
+    pyftsubset       fonttools, with brotli, for --flavor=woff2
+    magick           ImageMagick: the wallpaper's WebP, the 24px panel icon,
+                     the rasterised favicon, and the badges
+
+    cd <workstation>/ubuntu804webtemplate
+    ubuntu804/build.pl                       # -> ./build-output/
+    rsync -av --delete ubuntu804/     robin@dreamstation.systems:~/configNotes/http/ubuntu804/
+    rsync -av --delete build-output/  robin@dreamstation.systems:~/configNotes/http/rootdomain/tmp-ubuntu804/
+
+then here:
+
+    cd ~/configNotes/http
+    git add ubuntu804 rootdomain/tmp-ubuntu804
+    git commit -m "..."             # post-commit hook -> deploy-site.sh
+
+Install the nginx snippet BEFORE the first commit, or the first deployed pages
+serve the raw <!--#echo ...--> comment instead of a clock:
+
+    sudo install -m644 ~/configNotes/http/ubuntu804/nginx/tmp-ubuntu804.conf \
+        /etc/nginx/snippets/
+    sudoedit /etc/nginx/sites-available/dreamstation.systems   # both includes
+    sudo nginx -t && sudo systemctl reload nginx
+
+
+Authoring a page
+----------------
+One file in pages/, RFC822-style header, blank line, body. Markdown if the file
+is .md, passed through verbatim if it is .html.
+
+    Title:    required.  Title bar text and <title>: "<Title> - Mozilla Firefox"
+    Url:      required.  Appended to Base for the location bar, and the output
+                         path: /about -> about/index.html, / -> index.html
+    Bookmark: optional.  Label in the bookmarks toolbar. OMIT IT to keep the
+                         page out of the navigation - that is how 404 stays out.
+    Order:    optional.  Integer, sorts the bookmarks row. Default 999.
+    Desc:     optional.  meta description.
+    Out:      optional.  Overrides the output path. Only 404 needs it: nginx's
+                         error_page points at 404.html, not 404/index.html.
+    Loc:      optional.  Overrides the location bar text, inserted VERBATIM -
+                         it is template content and carries template trust.
+                         Only 404 uses it. May contain {{ORIGIN}}.
+
+The bookmarks toolbar, the Bookmarks menu and the bottom of the View menu are
+all generated from these headers, so adding a page to the navigation means
+adding a page. Flat list; there are no folders, by choice.
+
+
+Fonts
+-----
+DejaVu Sans and DejaVu Sans Bold, self-hosted, the same face Ubuntu 8.04 fell
+back to for its "Sans" default. Four files ship per build:
+
+    f/dejavu-subset.woff2       ~14kB   the codepoints the site actually uses
+    f/dejavu-subset-bold.woff2  ~14kB
+    f/dejavu-full.woff2        ~194kB   safety net, normally never fetched
+    f/dejavu-full-bold.woff2   ~179kB
+
+The ORDER of the @font-face rules in site.css is load-bearing. When several
+rules match the same family and weight, the LAST one wins for any codepoint
+both cover, so the full font is declared FIRST and the subset second. The
+subset therefore wins for everything it carries, and the full file is fetched
+only if a page ever contains a codepoint the subset lacks.
+
+build.pl builds the subset's unicode-range from a census of every generated
+HTML file, resolving entity references first, and forces printable ASCII in
+regardless: the clock's glyphs are produced by nginx at request time and appear
+in no source file, so every day name, month name, digit and AM/PM marker has to
+be assumed present.
+
+The census bit once already. build.pl has literal non-ASCII characters in its
+entity table and reads/writes through :encoding(UTF-8) layers, so the source
+has to be decoded too - without `use utf8` the multiplication sign was a
+two-BYTE string, the census recorded U+00C3 and U+0097, and x quietly fell out
+of the subset, which is what pulled the 194kB full font on two pages. There is
+now an assertion that every entity-table value is exactly one character, which
+is the shape of bug that hides best.
+
+To check by hand that nothing falls back, tail the access log while loading
+every page and look for dejavu-full.
+
+
+Verification
+------------
+    ubuntu804/verify.py
+
+Screenshots the local build headless at exactly 1280x720 and 1x, then diffs it
+against the reference band by band. It needs a local nginx with ssi on, so the
+clock renders (a static server would leave the panel blank). Two columns per
+band: CHROME excludes every x range that contains text on either side, and is
+the number that means anything; FULL includes the glyphs and sits around 13%
+everywhere there is writing, because 2008 X11 rasterisation and a 2026 browser
+hint the same font differently.
+
+Current state - six of seven bands are byte-identical:
+
+    panel       0.00%      title bar   0.00%      menu bar    0.00%
+    toolbar     0.00%      bookmarks   0.00%      status bar  0.00%
+    wallpaper   8.59%      (floor is about 6%, see below)
+
+The single most useful thing measurement turned up: ALL 921,600 pixels of the
+reference screenshot sit exactly on the RGB565 lattice - red and blue multiples
+of 8, green multiples of 4, no exceptions. It was captured from a 16-bit
+framebuffer. Consequences:
+
+  - Every colour in site.css measured off that screenshot is the TRUNCATED form
+    of whatever the Human theme really specified. Matching the screenshot was
+    the goal, so they stay as measured, and verify.py truncates our render onto
+    the same lattice before comparing. Without that, a perfect match still
+    reports about 2% and the number means nothing.
+  - GNOME dithered the wallpaper down to those 16 bits. In a smooth patch of
+    the reference strip, 77% of horizontally adjacent pixels differ, against
+    27% for a clean resample of the same file. That noise cannot be reproduced
+    in 24-bit colour, so about 6% is the floor on the wallpaper band. WebP
+    quality is irrelevant to it - lossless scores identically, at 176kB instead
+    of 11kB, which is why the shipped file is quality 78.
+
+Two more numbers worth recording, both confirmations rather than assumptions:
+
+  - The chrome font is 13.33px. Ubuntu 8.04's default was "Sans 10", and 10pt
+    at 96dpi is 13.333px. Solving the six gaps between the File..Help menu
+    labels for (font size, padding) by least squares gives 13.329px and
+    11.17px, residuals under 1.4px.
+  - The content font is 14.4px. ubuntu.css says html{font-size:0.90em} against
+    a 16px default. Independently: #content's 3em left margin plus 5px of
+    window frame and gutter puts body ink at x=48.2, and the reference's body
+    text starts at x=48.
+
+The title bar and the menu bar are drawn as hard 1px gradient bands, one per
+measured row, rather than as interpolated ramps. A ramp puts each output row
+halfway between two sampled colours - row 26 came out 24/255 off - and the
+plateaus are what the original actually was, having already been quantised on
+the machine that drew it.
+
+
+Things that are deliberate
+--------------------------
+Do not "fix" these; they were decided.
+
+  - No back, forward, reload or stop button, and no search box. The reference
+    screenshot does not have them, because whoever took it had customised them
+    away, and the screenshot is the specification.
+  - Flat navigation. No bookmark folders.
+  - The masthead carries an ORIGINAL logotype. The Ubuntu wordmark and Circle
+    of Friends are Canonical trademarks and do not ship. Neither does
+    headerlogo.png, which carried them: its light wash was measured across and
+    rebuilt as a CSS gradient specifically so the bitmap would not have to.
+  - File -> Print... is inert, like the rest of that menu. Printing needs
+    print(), print() needs JavaScript, and there is none. The print stylesheet
+    in site.css does the job instead: the browser's own Ctrl+P gives the page
+    without the desktop around it.
+  - The window buttons are not buttons. Not links, not focusable, aria-hidden.
+    A control that looks like it closes the window and does nothing is worse
+    than a picture of one.
+  - The badge shelf and the bookmarks row both scroll sideways with no visible
+    scrollbar. The shelf is a picture of bare desktop and a scrollbar across
+    the bottom 6px of it is 6px of wallpaper you cannot see. Wheel, trackpad
+    and swipe still work, and Tab walks the badges and scrolls them into view.
+  - ubuntu.css's <strong> rule (1.3em, brown, weight normal) was NOT carried
+    over. It is a Plone quirk that would turn every bold word into a
+    subheading. Everything else in that stylesheet was.
+  - Page prose follows configNotes/http/unicodePedanticism.txt. This file does
+    not, being a repository document read in a terminal.
+
+
+Promoting out of the temp path
+------------------------------
+Everything path-shaped is in site.conf. To move the tree to the domain root,
+change these and rebuild:
+
+    Base:  https://dreamstation.systems
+    Root:                                (empty)
+    Home:  /
+
+then move rootdomain/tmp-ubuntu804/ to wherever it should live, retarget the
+nginx location, and update the two include lines. Nothing in chrome.html,
+site.css or any page carries a hardcoded /tmp-ubuntu804.
+
+
+Removal
+-------
+    cd ~/configNotes/http
+    git rm -r ubuntu804 rootdomain/tmp-ubuntu804
+    git commit -m "ubuntu804: remove temporary template"
+    sudo rm /etc/nginx/snippets/tmp-ubuntu804.conf
+    sudoedit /etc/nginx/sites-available/dreamstation.systems   # both includes
+    sudo nginx -t && sudo systemctl reload nginx
+
+deploy-site.sh rsyncs with --delete, so the commit is what actually removes the
+files from /srv/http.
+
+
+Attribution
+-----------
+rootdomain/tmp-ubuntu804/CREDITS.txt, generated by build.pl from the same asset
+table the build copies, so it cannot drift from what ships. It covers the
+Canonical artwork (wallpaper, header gradient, Human icons), the two Mozilla
+Firefox images, DejaVu Sans, and the ubuntu.css typography, and states plainly
+that this site is not affiliated with Canonical or Mozilla.
