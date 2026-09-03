@@ -3,9 +3,10 @@
 
     ./verify.py [--url URL] [--ref PATH] [--shot PATH] [--strip N]
 
-Runs on the WORKSTATION only (PLAN.md section 12): the reference screenshot,
-chromium and ImageMagick are all here, and iterating against the live server
-would mean a commit and a deploy per screenshot.
+Runs wherever chromium and ImageMagick are: the reference screenshot lives in
+reference/ beside this script, so the source tree is self-contained. Point it
+at devserver.sh's loopback server rather than at the live site, or every
+screenshot costs a commit and a deploy.
 
 Two things about this comparison are worth knowing before reading its output.
 
@@ -47,7 +48,7 @@ That is what the FULL column measures and why it sits around 13% on every band
 with writing in it while CHROME reads 0.00%.
 """
 
-import argparse, os, re, subprocess, sys
+import argparse, os, re, subprocess, sys, tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 W, H = 1280, 720
@@ -226,10 +227,13 @@ def geometry(shot):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--url", default="http://127.0.0.1:8804/tmp-ubuntu804/")
+    ap.add_argument("--url", default="http://127.0.0.1:8804/tmp-ubuntu804/",
+                    help="default is the devserver.sh loopback server; pass the "
+                         "live URL to check what is actually deployed")
     ap.add_argument("--ref", default=os.path.join(
-        HERE, "..", "Screenshot_testubuntu804_2026-09-03_10:19:10.png"))
-    ap.add_argument("--shot", default=os.path.join(HERE, "..", ".work", "shots", "verify.png"))
+        HERE, "reference", "reference-1280x720.png"))
+    ap.add_argument("--shot", default=os.path.join(
+        tempfile.gettempdir(), "ubuntu804-verify.png"))
     ap.add_argument("--strip", type=int, default=None,
                     help="strip height the page was built with (default: read site.conf)")
     ap.add_argument("--no-shoot", action="store_true", help="reuse an existing --shot")

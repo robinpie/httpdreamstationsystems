@@ -86,8 +86,12 @@ it holds the extracted originals unmodified: heron-simple.png, header.png,
 ubuntu.css, firefox-index.html, the Human go-home and window-decoration icons,
 Firefox's default16/default32 and Throbber.png, and headerlogo.png. That last
 one is present for reference only and is NOT shipped, for the trademark reason
-given above. ubuntu804/fonts-src/ holds the two DejaVu TTFs. Same copyrights,
-same licences, same attribution as everything listed here.
+given above. ubuntu804/fonts-src/ holds the two DejaVu TTFs, ubuntu804/art/ the
+bitmaps derived from those originals, and
+ubuntu804/reference/ holds the 1280x720 screenshot this whole template was
+measured against, which depicts the Human theme, that wallpaper and Firefox 3's
+chrome. Same copyrights, same licences, same attribution as everything listed
+here. None of it is served.
 
 ORIGINAL TO THIS SITE
 ---------------------

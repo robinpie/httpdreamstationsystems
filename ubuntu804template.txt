@@ -40,6 +40,11 @@ Pieces
     assets-src/                    extracted originals, pre-optimisation
     fonts-src/DejaVuSans*.ttf      the two faces, unmodified
     verify.py                      the band-by-band diff harness
+    devserver.sh                   loopback nginx for the verification loop
+    reference/reference-1280x720.png
+                                   the screenshot the whole thing is measured
+                                   against, committed so the tree is
+                                   self-contained
     nginx/tmp-ubuntu804.conf       the snippet, kept in the repo as well as
                                    installed, so it is not lost to a rebuild
 
@@ -50,8 +55,8 @@ Pieces
                                    ssi on, plus the 404. Included from BOTH the
                                    :80 and :443 dreamstation.systems blocks.
 
-The reference screenshot and the Ubuntu 8.04 ISO it was extracted from live on
-the workstation, not here.
+The Ubuntu 8.04 ISO the artwork came out of lives on the workstation, not here;
+assets-src/ holds the extracted originals, so it is only needed for a new one.
 
 
 The clock
@@ -126,31 +131,112 @@ A raw apostrophe comes through unescaped, which is harmless where it lands
 request line is rejected by nginx as 400 before SSI ever sees it.
 
 
-Build and deploy
-----------------
-The build runs on the WORKSTATION. This box never builds. Dependencies there,
-and nowhere else:
+Dependencies
+------------
+All installed on this box as of 2026-09-03, so it builds here now. Nothing in
+the list is needed at request time - the served site is static files plus one
+SSI directive.
 
     Text::Markdown   .md pages only; required at point of use, so an
                      all-.html tree builds without it.
                      Debian: libtext-markdown-perl   Arch: perl-text-markdown
-    pyftsubset       fonttools, with brotli, for --flavor=woff2
-    magick           ImageMagick: the wallpaper's WebP, the 24px panel icon,
-                     the rasterised favicon, and the badges
+    pyftsubset       the woff2 subsetting. Needs brotli.
+                     Debian: fonttools     <- NOT python3-fonttools, which is
+                     the library only and is often already present as somebody
+                     else's dependency. That makes this one easy to
+                     misdiagnose: `import fontTools` works while the command
+                     does not exist.
+                     Arch: python-fonttools
+That is the whole build list. No ImageMagick, no librsvg. Every bitmap the
+site ships is committed under ubuntu804/art/ and only copied by build.pl.
 
-    cd <workstation>/ubuntu804webtemplate
-    ubuntu804/build.pl                       # -> ./build-output/
-    rsync -av --delete ubuntu804/     robin@dreamstation.systems:~/configNotes/http/ubuntu804/
-    rsync -av --delete build-output/  robin@dreamstation.systems:~/configNotes/http/rootdomain/tmp-ubuntu804/
+    magick           art/make.sh only. Debian: imagemagick   Arch: imagemagick
+    rsvg-convert     art/make.sh only. Debian: librsvg2-bin  Arch: librsvg
+    chromium         verify.py only, for the 1x screenshots. NOT installed
+                     here - it is 315MB and this disk is 84% full. Band diffs
+                     are therefore a workstation-only step; everything else,
+                     including the build, works here.
 
-then here:
+
+Why the bitmaps are committed and the fonts are not
+---------------------------------------------------
+The line is whether an artifact depends on the site's CONTENT.
+
+The font subset does. It comes from a codepoint census of the generated HTML,
+so it must be rebuilt whenever a page changes. Its bytes vary between
+fontTools versions - the workstation's 4.64 and this box's 4.57 produce
+different woff2 for identical input - so switching build machines churns four
+files in git. Cosmetic: coverage and glyph order are identical, checked.
+
+The bitmaps do not. They are fixed functions of fixed inputs, and building
+them per-machine bought nothing while costing correctness: ImageMagick
+7.1.2-HDRI on the workstation and 7.1.1 here disagreed about firefox24.png by
+10% RMSE with a max channel difference of 255, in a piece of visible panel
+chrome. Whichever machine built last silently changed the panel icon. They are
+now generated once by art/make.sh, committed, and copied.
+
+Regenerate them only when the art changes:
+
+    cd ~/configNotes/http/ubuntu804/art && ./make.sh     # needs the two above
+
+art/make.sh records why each one is made the way it is - notably that the 24px
+panel icon is resampled from 32 with Catrom, chosen by scoring five filters
+against the reference screenshot's own panel icon (Catrom 5.62%, Lanczos
+5.84%, Cubic 6.88%, and 16 padded to 24 a hopeless 36%). The alignment that
+scoring settled on, +1+0, independently confirms site.css's 1px of panel
+padding.
+
+
+Building on this box
+--------------------
+The output directory can BE the committed one, because build.pl deletes
+anything in it that the build did not write (see prune(), and its two guards).
+No rsync --delete step, so no second machine:
 
     cd ~/configNotes/http
-    git add ubuntu804 rootdomain/tmp-ubuntu804
+    ubuntu804/build.pl rootdomain/tmp-ubuntu804
+
+Look at it before committing, because committing IS deploying:
+
+    ubuntu804/devserver.sh start rootdomain/tmp-ubuntu804
+    # http://127.0.0.1:8804/tmp-ubuntu804/   -- ssh -L 8804:127.0.0.1:8804 to
+    # reach it from a browser elsewhere
+    ubuntu804/devserver.sh stop
+
+devserver.sh runs an nginx as you, in its own prefix under /tmp, listening on
+loopback only. It does not touch /etc/nginx and cannot disturb the nginx
+serving the site - which is also the only way this can work here, since
+/home/robin is mode 710 and www-data cannot read a build tree inside it.
+
+It INCLUDES ubuntu804/nginx/tmp-ubuntu804.conf, the same file that is installed
+into /etc/nginx/snippets, so the loop exercises the real ssi, error_page and
+try_files directives and the two cannot drift apart.
+
+Then:
+
+    git add -A ubuntu804 rootdomain/tmp-ubuntu804
     git commit -m "..."             # post-commit hook -> deploy-site.sh
 
-Install the nginx snippet BEFORE the first commit, or the first deployed pages
-serve the raw <!--#echo ...--> comment instead of a clock:
+
+Building on a workstation instead
+---------------------------------
+    ubuntu804/build.pl                       # -> ../build-output/
+    ubuntu804/devserver.sh start             # same script, finds build-output
+    ubuntu804/verify.py                      # band diffs, needs chromium
+    rsync -av --delete ubuntu804/     robin@dreamstation.systems:~/configNotes/http/ubuntu804/
+    rsync -av --delete build-output/  robin@dreamstation.systems:~/configNotes/http/rootdomain/tmp-ubuntu804/
+    # then commit on the server as above
+
+The source tree is self-contained: reference/reference-1280x720.png travels
+with it, so verify.py needs nothing from outside the repo. The Ubuntu 8.04 ISO
+does NOT travel with it and is not needed - assets-src/ holds every extracted
+original, including a few that are not currently shipped (go-home at 16px,
+bookmark-new, the restore window button). A NEW asset from the ISO is the one
+job that still needs the workstation, where the squashfs is.
+
+First-time nginx setup, if this is ever rebuilt from scratch: install the
+snippet BEFORE the first commit, or the first deployed pages serve the raw
+<!--#echo ...--> comment instead of a clock.
 
     sudo install -m644 ~/configNotes/http/ubuntu804/nginx/tmp-ubuntu804.conf \
         /etc/nginx/snippets/

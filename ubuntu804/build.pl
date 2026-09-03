@@ -16,10 +16,26 @@
 #   Text::Markdown   CPAN. Only for .md pages. Debian: libtext-markdown-perl,
 #                    Arch: perl-text-markdown. Required at point of use, so a
 #                    tree of nothing but .html pages builds without it.
-#   pyftsubset       fonttools, for the woff2 subsetting. Needs the brotli
-#                    module for --flavor=woff2.
-#   magick           ImageMagick, for the wallpaper's WebP, the 24px panel
-#                    icon and the rasterised favicon.
+#   pyftsubset       fonttools, for the woff2 subsetting. Needs brotli.
+#                    Debian: `fonttools`, NOT `python3-fonttools` — the latter
+#                    is the library only and is often already installed as
+#                    somebody else's dependency, which makes this easy to
+#                    misdiagnose: `import fontTools` works while the command
+#                    does not exist. Arch: python-fonttools.
+#
+# That is the whole list. No ImageMagick, no librsvg. Every bitmap this build
+# ships is committed under art/ and only copied here, because a bitmap is a
+# fixed function of a fixed input and building it per-machine bought nothing:
+# ImageMagick 7.1.2-HDRI here and 7.1.1 on the server disagreed about
+# firefox24.png by 10% RMSE in visible panel chrome, so whichever machine built
+# last silently changed the panel icon. art/make.sh regenerates them and needs
+# both tools; see the reasoning at the top of it.
+#
+# The font subset stays a build step because it is the one artifact derived
+# from the site's CONTENT — a codepoint census of the generated HTML — so it
+# has to be rebuilt whenever a page changes. Its bytes do vary between
+# fontTools versions, which shows up as four churned woff2 files when the build
+# machine changes. Cosmetic; the coverage is identical.
 #
 # House style (see ~/configNotes/CLAUDE.md): core-only Perl, strict and
 # warnings at the top and nothing else, expensive modules required where they
@@ -35,6 +51,12 @@ use warnings;
 # multiplication sign — which is exactly what happened before this line existed.
 use utf8;
 
+# `use utf8` above decodes this file's literals, so anything printed from them
+# needs an encoding layer on the way out or perl warns "Wide character" and
+# mangles it. Diagnostics carrying an em dash are still diagnostics.
+binmode STDOUT, ':encoding(UTF-8)';
+binmode STDERR, ':encoding(UTF-8)';
+
 # ---------------------------------------------------------------- where things are
 
 my $SRC = $0;
@@ -44,6 +66,13 @@ my $OUT = $ARGV[0] || "$SRC/../build-output";
 
 # Codepoints seen across every generated file, for the font subset (step 7).
 my %seen_cp;
+
+# Every path this build wrote, relative to $OUT. prune() deletes anything in
+# $OUT that is not in here, which is what makes it safe to build STRAIGHT INTO
+# rootdomain/tmp-ubuntu804 with no rsync --delete step and therefore no second
+# machine. Without it, deleting a page would leave its old index.html deployed
+# and live forever.
+my %written;
 
 # ---------------------------------------------------------------- small helpers
 
@@ -65,8 +94,16 @@ sub mkpath_for {
     File::Path::make_path($dir);
 }
 
+sub note_written {
+    my ($path) = @_;
+    my $rel = $path;
+    $rel =~ s{^\Q$OUT\E/?}{};
+    $written{$rel} = 1;
+}
+
 sub spit {
     my ($path, $content) = @_;
+    note_written($path);
     mkpath_for($path);
     open my $fh, '>:encoding(UTF-8)', $path or die "build.pl: write $path: $!\n";
     print $fh $content;
@@ -399,6 +436,8 @@ sub build_fonts {
     );
     for my $f (@faces) {
         my ($ttf, $subset, $full) = @$f;
+        note_written("$OUT/f/$subset");
+        note_written("$OUT/f/$full");
         mkpath_for("$OUT/f/$subset");
         run('pyftsubset', "$SRC/fonts-src/$ttf",
             "--unicodes=$pyft_range",
@@ -423,44 +462,33 @@ sub build_fonts {
 # Copies and conversions, source of truth for what CREDITS.txt has to cover.
 # Each entry: [ source, output, how ].
 my @ASSETS = (
-    # The wallpaper, and mind the filenames. Ubuntu 8.04 kept the historical
-    # name warty-final-ubuntu.png for its DEFAULT background — the one with the
-    # heron on it — and shipped heron-simple.png alongside as the plain
-    # swirls-only variant. The names say the opposite of what they contain.
-    # gnome-background-properties/ubuntu-wallpapers.xml settles it: this file is
-    # listed first, named "Ubuntu", with <options>zoom</options>, which is why
-    # site.css uses background-size:cover.
-    #
-    # Kept at full 1600x1200 rather than cropped to the strip: body's background
-    # is cover/fixed against the whole viewport, so which rows of the file show
-    # in the strip depends on the viewport's aspect ratio, and a crop would be
-    # right at exactly one ratio.
-    #
-    # Quality 78 rather than lossless. The heron has hard edges, so unlike a
-    # plain gradient the quality setting does move the number here — but only
-    # from 1.76% to 1.52% against the reference, and lossless costs 290kB
-    # instead of 32kB. At 2.5x zoom on the 48px of it anyone ever sees, the two
-    # are indistinguishable.
-    [ 'assets-src/warty-final-ubuntu.png', 'i/heron.webp', 'webp' ],
+    # The wallpaper. warty-final-ubuntu.png, which despite the name is 8.04's
+    # DEFAULT background — the one with the heron. heron-simple.png is the
+    # plain swirls-only variant, and shipping it by mistake cost 6% on the
+    # wallpaper band; see ubuntu804template.txt. Kept at full 1600x1200 rather
+    # than cropped to the strip, because body's background is cover/fixed
+    # against the whole viewport, so which rows show depends on the viewport's
+    # aspect ratio and a crop would be right at exactly one ratio.
+    [ 'art/heron.webp',              'i/heron.webp',      'copy' ],
 
     [ 'assets-src/header.png',       'i/header.png',      'copy' ],
     [ 'assets-src/firefox16.png',    'i/firefox16.png',   'copy' ],
-    [ 'assets-src/firefox32.png',    'i/firefox24.png',   'resize24' ],
+    [ 'art/firefox24.png',           'i/firefox24.png',   'copy' ],
     [ 'assets-src/go-home-24.png',   'i/go-home.png',     'copy' ],
     [ 'assets-src/throbber.png',     'i/throbber.png',    'copy' ],
     [ 'assets-src/wb-minimize.png',  'i/wb-minimize.png', 'copy' ],
     [ 'assets-src/wb-maximize.png',  'i/wb-maximize.png', 'copy' ],
     [ 'assets-src/wb-close.png',     'i/wb-close.png',    'copy' ],
     [ 'art/mark.svg',                'i/mark.svg',        'copy' ],
-    [ 'art/mark16.svg',              'i/favicon16.png',   'raster16' ],
+    [ 'art/favicon16.png',           'i/favicon16.png',   'copy' ],
 );
-
 sub build_assets {
     for my $a (@ASSETS) {
         my ($src, $dst, $how) = @$a;
         my $in  = "$SRC/$src";
         my $out = "$OUT/$dst";
         -e $in or die "build.pl: missing asset source $in\n";
+        note_written($out);
         mkpath_for($out);
         if ($how eq 'copy') {
             # Byte copy, not slurp/spit: these are binaries.
@@ -469,22 +497,6 @@ sub build_assets {
             my $data = do { local $/; <$i> };
             print $o $data;
             close $i; close $o or die "build.pl: $out: $!\n";
-        }
-        elsif ($how eq 'webp') {
-            run('magick', $in, '-strip', '-quality', '78', '-define',
-                'webp:method=6', $out);
-        }
-        elsif ($how eq 'resize24') {
-            # The reference's panel icon is 24px and Firefox 3 shipped 16/32/48.
-            # 32 down to 24 beats 16 up to 24.
-            run('magick', $in, '-filter', 'Lanczos', '-resize', '24x24',
-                '-strip', $out);
-        }
-        elsif ($how eq 'raster16') {
-            # mark16.svg is the mark REDRAWN for 16px, not the 64px one scaled
-            # down; see the comment in art/mark16.svg.
-            run('magick', '-background', 'none', $in, '-resize', '16x16',
-                '-strip', $out);
         }
         else { die "build.pl: unknown asset method '$how'\n" }
         printf "  %-30s -> %-18s %6.1f kB\n", $src, $dst, (-s $out) / 1024;
@@ -497,6 +509,7 @@ sub build_assets {
     @b or die "build.pl: badges/ is empty — run badges/make.sh\n";
     my $bytes = 0;
     for my $f (@b) {
+        note_written("$OUT/i/b/$f");
         mkpath_for("$OUT/i/b/$f");
         open my $i, '<:raw', "$SRC/badges/$f" or die "build.pl: $f: $!\n";
         open my $o, '>:raw', "$OUT/i/b/$f"    or die "build.pl: $f: $!\n";
@@ -607,8 +620,12 @@ it holds the extracted originals unmodified: heron-simple.png, header.png,
 ubuntu.css, firefox-index.html, the Human go-home and window-decoration icons,
 Firefox's default16/default32 and Throbber.png, and headerlogo.png. That last
 one is present for reference only and is NOT shipped, for the trademark reason
-given above. ubuntu804/fonts-src/ holds the two DejaVu TTFs. Same copyrights,
-same licences, same attribution as everything listed here.
+given above. ubuntu804/fonts-src/ holds the two DejaVu TTFs, ubuntu804/art/ the
+bitmaps derived from those originals, and
+ubuntu804/reference/ holds the 1280x720 screenshot this whole template was
+measured against, which depicts the Human theme, that wallpaper and Firefox 3's
+chrome. Same copyrights, same licences, same attribution as everything listed
+here. None of it is served.
 
 ORIGINAL TO THIS SITE
 ---------------------
@@ -634,6 +651,54 @@ END
     return;
 }
 
+# ---------------------------------------------------------------- prune
+
+# Delete anything in $OUT this build did not write. That is what lets the
+# output directory BE rootdomain/tmp-ubuntu804 rather than a staging area that
+# has to be rsynced --delete into place from somewhere else, which in turn is
+# what lets the whole thing be built on the server with no workstation
+# involved. deploy-site.sh already rsyncs --delete from the repo to /srv/http,
+# so a stale file here is a stale file live.
+sub prune {
+    return unless -d $OUT;
+
+    # Two guards, because this function deletes files and takes its target
+    # from the command line.
+    die "build.pl: refusing to prune $OUT: it contains .git\n" if -e "$OUT/.git";
+
+    require File::Find;
+    my (@files, @dirs);
+    # no_chdir makes $_ the full path, which avoids naming
+    # $File::Find::name — a package variable of a runtime-required module,
+    # which perl -c warns about as a possible typo.
+    File::Find::find({ no_chdir => 1, wanted => sub {
+        return if $_ eq $OUT;
+        push @files, $_ if -f $_;
+        push @dirs,  $_ if -d $_;
+    } }, $OUT);
+
+    my @stale = grep {
+        my $r = $_; $r =~ s{^\Q$OUT\E/?}{}; !$written{$r}
+    } @files;
+
+    # More strangers than files of our own means $OUT is probably not what the
+    # caller thinks it is. Stop instead of emptying somebody's directory.
+    if (@stale > scalar keys %written) {
+        die sprintf "build.pl: refusing to prune %s: %d unrecognised files "
+            . "against %d written — is that the right output directory?\n",
+            $OUT, scalar @stale, scalar keys %written;
+    }
+
+    for my $f (@stale) {
+        unlink $f or die "build.pl: unlink $f: $!\n";
+        my $r = $f; $r =~ s{^\Q$OUT\E/?}{};
+        print "  pruned $r\n";
+    }
+    # Deepest first; rmdir declines to remove a non-empty directory, which is
+    # exactly the filter wanted here.
+    rmdir $_ for sort { length($b) <=> length($a) } @dirs;
+}
+
 # ---------------------------------------------------------------- main
 
 my $conf  = read_conf();
@@ -648,5 +713,7 @@ build_assets();
 my $range = build_fonts();
 build_css($conf, $range);
 build_credits($conf, $pages);
+prune();
 
-printf "\nbuild.pl: %d pages, done.\n", scalar @$pages;
+printf "\nbuild.pl: %d pages, %d files, done.\n",
+    scalar @$pages, scalar keys %written;
