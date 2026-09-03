@@ -231,7 +231,7 @@ Current state - six of seven bands are byte-identical:
 
     panel       0.00%      title bar   0.00%      menu bar    0.00%
     toolbar     0.00%      bookmarks   0.00%      status bar  0.00%
-    wallpaper   8.59%      (floor is about 6%, see below)
+    wallpaper   1.78%      (floor is about 1.5%, see below)
 
 The single most useful thing measurement turned up: ALL 921,600 pixels of the
 reference screenshot sit exactly on the RGB565 lattice - red and blue multiples
@@ -246,9 +246,10 @@ framebuffer. Consequences:
   - GNOME dithered the wallpaper down to those 16 bits. In a smooth patch of
     the reference strip, 77% of horizontally adjacent pixels differ, against
     27% for a clean resample of the same file. That noise cannot be reproduced
-    in 24-bit colour, so about 6% is the floor on the wallpaper band. WebP
-    quality is irrelevant to it - lossless scores identically, at 176kB instead
-    of 11kB, which is why the shipped file is quality 78.
+    in 24-bit colour, so about 1.5% is the floor on the wallpaper band. WebP
+    q78 adds roughly 0.25 on top; lossless would recover it for 290kB instead
+    of 32kB, and at 2.5x zoom on the 48px anyone ever sees the two are
+    indistinguishable.
 
 Two more numbers worth recording, both confirmations rather than assumptions:
 
@@ -266,6 +267,36 @@ measured row, rather than as interpolated ramps. A ramp puts each output row
 halfway between two sampled colours - row 26 came out 24/255 off - and the
 plateaus are what the original actually was, having already been quantised on
 the machine that drew it.
+
+
+MIND THE WALLPAPER FILENAMES
+----------------------------
+Ubuntu 8.04 kept the historical name warty-final-ubuntu.png for its DEFAULT
+desktop background - the one with the heron on it - and shipped
+heron-simple.png alongside as the plain, swirls-only variant. The names say
+very nearly the opposite of what the files contain.
+
+This site shipped the plain one for a while. Two checks failed to notice:
+
+  - The check that picked the file compared the AVERAGE COLOUR of the exposed
+    strip against the average colour of the candidate, and they agreed to about
+    one part in sixty. They would: the two images are the same gradient, one of
+    them with a bird on it. An average over 1280x48 pixels cannot see a bird.
+  - RMSE could not either. Over a large smooth gradient every candidate scaling
+    of every candidate file scored between 5.5% and 7.5% - the surface is
+    almost flat, and the wrong answer sometimes beat the right one.
+
+What settled it was cropping both strips and stacking them: the reference
+plainly had grey and cream brushstrokes in it and this site plainly did not.
+Correcting the file took the band from 6.16% to 1.78%.
+
+The general lesson, worth keeping: a metric that aggregates over a large area
+is blind to a small bright thing inside it. When a band refuses to move, put it
+on screen next to the reference before believing any story about why.
+
+Note also that PLAN.md section 8 names heron-simple.png and states it was
+"confirmed correct" on exactly the average-colour test described above. That
+line is wrong.
 
 
 Things that are deliberate

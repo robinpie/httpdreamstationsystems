@@ -17,7 +17,21 @@ Two things about this comparison are worth knowing before reading its output.
     anything is measured. Otherwise a perfect render would still report ~2%
     RMSE and the number would mean nothing.
 
-2.  SOME BANDS CANNOT REACH ZERO, BY DESIGN.  The panel says
+2.  THIS BAND CAUGHT A REAL BUG, AND ALMOST DID NOT.  The wallpaper band sat
+    at 6% for a while, and the explanation on file was dithering. It was the
+    wrong image: Ubuntu 8.04 kept the historical name warty-final-ubuntu.png
+    for its DEFAULT background, the one with the heron on it, and shipped
+    heron-simple.png alongside as the plain swirls-only variant. The names say
+    the opposite of what they contain, and the check that picked the wrong one
+    compared AVERAGE COLOUR over the strip - which cannot distinguish a
+    gradient from the same gradient with a bird on it. RMSE over a smooth
+    gradient could not either: every candidate scaling of every candidate file
+    scored between 5.5% and 7.5%. What settled it was looking at the two
+    strips side by side. Correcting the file took the band from 6.16% to
+    1.78%. If a band is stuck, put it on screen next to the reference before
+    believing any story about why.
+
+3.  SOME BANDS CANNOT REACH ZERO, BY DESIGN.  The panel says
     "dreamstation.systems" where the reference says "Live session user"; the
     title bar and location bar carry this site's title and URL; the bookmarks
     row is this site's navigation. Those bands are reported, but the number to
@@ -80,12 +94,17 @@ BANDS = [
          chrome=[(60, 1250)],
          note="'Done' is the only text and it is identical"),
     dict(name="wallpaper", y0=635, y1=719, anchor="bottom", probe=300,
-         chrome=[(0, 1280)], rows=list(range(0, 7)) + list(range(40, 48)),
-         note="bare desktop rows above/below the badge shelf. ~6% is the FLOOR "
-              "here: GNOME dithered the wallpaper down to 16-bit, so 77% of "
-              "adjacent pixels in a smooth patch of the reference differ, "
-              "against 27% for a clean resample. WebP quality is irrelevant "
-              "to this number - lossless scores identically."),
+         # A badge is 31px plus a 1px keyline, so its box is 33px centred in a
+         # 48px strip: rows 8..40. Rows 40 and 41 were in this list and clipped
+         # the bottom keyline, which put 2.7 points of badge into a number
+         # reported as bare wallpaper.
+         chrome=[(0, 1280)], rows=list(range(0, 7)) + list(range(42, 48)),
+         note="bare desktop rows above/below the badge shelf. ~1.5% is the "
+              "FLOOR: GNOME dithered the wallpaper into 16 bits, so 77% of "
+              "adjacent pixels in a smooth patch of the reference differ "
+              "against 27% for a clean resample, and WebP q78 adds ~0.25 "
+              "more. This band read 6% until the wallpaper turned out to be "
+              "the wrong file - see the docstring."),
 ]
 
 

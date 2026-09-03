@@ -114,11 +114,19 @@ body {
                                         * browser viewport inside it does */
   font: 400 var(--chrome-font)/1.2 var(--chrome-stack);
   color: var(--ink);
-  /* GNOME's "zoom" wallpaper mode is background-size:cover against the whole
-   * screen, and background-attachment:fixed is what makes "the whole screen"
-   * mean the viewport rather than this element's box. That matters: the strip
-   * along the bottom must show the same rows of heron-simple.png that a real
-   * 8.04 desktop would show there, not the bottom rows of the file. */
+  /* The wallpaper is warty-final-ubuntu.png, which despite the name is 8.04's
+   * default background — the one with the heron. heron-simple.png is the plain
+   * variant, and shipping it instead was a real bug here for a while: the two
+   * differ by 6% RMSE over the visible strip, and the correct file scores
+   * 1.5%.
+   *
+   * ubuntu-wallpapers.xml declares <options>zoom</options> for it, and GNOME's
+   * zoom mode is background-size:cover against the whole screen.
+   * background-attachment:fixed is what makes "the whole screen" mean the
+   * viewport rather than this element's box, which is the part that matters:
+   * the strip along the bottom has to show the rows a real 8.04 desktop would
+   * show there, not the bottom rows of the file. At 1280x720 that is source
+   * rows 990-1049, which catches the bird's tail feathers. */
   background: var(--wallpaper-avg) url({{ROOT}}/i/heron.webp) center center / cover no-repeat fixed;
 }
 

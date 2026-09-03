@@ -23,10 +23,13 @@ only to depict the browser this desktop is a picture of.
 THIRD-PARTY ARTWORK THAT SHIPS HERE
 -----------------------------------
 i/heron.webp
-    "heron-simple.png", the Ubuntu 8.04 default wallpaper.
-    (c) Canonical Ltd. Ubuntu artwork, CC-BY-SA. Re-encoded to WebP; not
-    otherwise altered. From the ubuntu-wallpapers package on the Ubuntu
-    8.04.4 desktop-amd64 install image.
+    "warty-final-ubuntu.png", the Ubuntu 8.04 LTS default desktop wallpaper -
+    the one with the heron. (Ubuntu kept the historical Warty filename for the
+    default background; heron-simple.png, despite its name, is the plain
+    variant with no bird.)
+    (c) Canonical Ltd. Ubuntu artwork, CC-BY-SA. Re-encoded to WebP at quality
+    78; not otherwise altered, cropped or recoloured. From
+    /usr/share/backgrounds/ on the Ubuntu 8.04.4 desktop-amd64 install image.
 
 i/header.png
     The masthead gradient from /usr/share/ubuntu-artwork/img/header.png,

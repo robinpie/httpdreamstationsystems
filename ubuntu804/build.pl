@@ -423,11 +423,25 @@ sub build_fonts {
 # Copies and conversions, source of truth for what CREDITS.txt has to cover.
 # Each entry: [ source, output, how ].
 my @ASSETS = (
-    # The wallpaper. Kept at full 1600x1200 rather than cropped to the strip:
-    # body's background is cover/fixed against the whole viewport, so which
-    # rows of the file are visible in the strip depends on the viewport's
-    # aspect ratio, and cropping would be wrong at every ratio but one.
-    [ 'assets-src/heron-simple.png', 'i/heron.webp', 'webp' ],
+    # The wallpaper, and mind the filenames. Ubuntu 8.04 kept the historical
+    # name warty-final-ubuntu.png for its DEFAULT background — the one with the
+    # heron on it — and shipped heron-simple.png alongside as the plain
+    # swirls-only variant. The names say the opposite of what they contain.
+    # gnome-background-properties/ubuntu-wallpapers.xml settles it: this file is
+    # listed first, named "Ubuntu", with <options>zoom</options>, which is why
+    # site.css uses background-size:cover.
+    #
+    # Kept at full 1600x1200 rather than cropped to the strip: body's background
+    # is cover/fixed against the whole viewport, so which rows of the file show
+    # in the strip depends on the viewport's aspect ratio, and a crop would be
+    # right at exactly one ratio.
+    #
+    # Quality 78 rather than lossless. The heron has hard edges, so unlike a
+    # plain gradient the quality setting does move the number here — but only
+    # from 1.76% to 1.52% against the reference, and lossless costs 290kB
+    # instead of 32kB. At 2.5x zoom on the 48px of it anyone ever sees, the two
+    # are indistinguishable.
+    [ 'assets-src/warty-final-ubuntu.png', 'i/heron.webp', 'webp' ],
 
     [ 'assets-src/header.png',       'i/header.png',      'copy' ],
     [ 'assets-src/firefox16.png',    'i/firefox16.png',   'copy' ],
@@ -530,10 +544,13 @@ only to depict the browser this desktop is a picture of.
 THIRD-PARTY ARTWORK THAT SHIPS HERE
 -----------------------------------
 i/heron.webp
-    "heron-simple.png", the Ubuntu 8.04 default wallpaper.
-    (c) Canonical Ltd. Ubuntu artwork, CC-BY-SA. Re-encoded to WebP; not
-    otherwise altered. From the ubuntu-wallpapers package on the Ubuntu
-    8.04.4 desktop-amd64 install image.
+    "warty-final-ubuntu.png", the Ubuntu 8.04 LTS default desktop wallpaper -
+    the one with the heron. (Ubuntu kept the historical Warty filename for the
+    default background; heron-simple.png, despite its name, is the plain
+    variant with no bird.)
+    (c) Canonical Ltd. Ubuntu artwork, CC-BY-SA. Re-encoded to WebP at quality
+    78; not otherwise altered, cropped or recoloured. From
+    /usr/share/backgrounds/ on the Ubuntu 8.04.4 desktop-amd64 install image.
 
 i/header.png
     The masthead gradient from /usr/share/ubuntu-artwork/img/header.png,
