@@ -34,7 +34,17 @@ PIDFILE=$RUN/nginx.pid
 
 die() { echo "devserver.sh: $*" >&2; exit 1; }
 
-command -v nginx >/dev/null || die "nginx not installed. Debian: apt install nginx-light"
+# Debian installs nginx in /usr/sbin, which is not in an ordinary user's PATH,
+# so `command -v nginx` fails on the very machine this script exists for. Look
+# there too. The binary itself is world-executable; it only needs root for
+# privileged ports and /var/log/nginx, and this config uses neither.
+NGINX=${NGINX:-}
+if [ -z "$NGINX" ]; then
+    for c in nginx /usr/sbin/nginx /usr/local/sbin/nginx /usr/bin/nginx; do
+        if p=$(command -v "$c" 2>/dev/null); then NGINX=$p; break; fi
+    done
+fi
+[ -n "$NGINX" ] || die "nginx not found. Debian: apt install nginx-light"
 
 resolve_out() {
     if [ $# -ge 1 ] && [ -n "${1:-}" ]; then
@@ -91,8 +101,8 @@ case ${1:-status} in
     running && die "already running (pid $(cat "$PIDFILE")); use restart"
     out=$(resolve_out "${2:-}")
     write_conf "$out"
-    nginx -t -c "$CONF" 2>&1 | grep -v 'types_hash' || true
-    nginx -c "$CONF"
+    "$NGINX" -t -c "$CONF" 2>&1 | grep -v 'types_hash' || true
+    "$NGINX" -c "$CONF"
     sleep 1
     running || die "failed to start; see $RUN/error.log"
     echo "devserver.sh: serving $out"
@@ -100,11 +110,11 @@ case ${1:-status} in
     ;;
   stop)
     running || die "not running"
-    nginx -s quit -c "$CONF"
+    "$NGINX" -s quit -c "$CONF"
     echo "devserver.sh: stopped"
     ;;
   restart)
-    if running; then nginx -s quit -c "$CONF"; sleep 1; fi
+    if running; then "$NGINX" -s quit -c "$CONF"; sleep 1; fi
     exec "$0" start "${2:-}"
     ;;
   status)

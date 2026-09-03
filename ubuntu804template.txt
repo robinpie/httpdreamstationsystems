@@ -152,10 +152,26 @@ site ships is committed under ubuntu804/art/ and only copied by build.pl.
 
     magick           art/make.sh only. Debian: imagemagick   Arch: imagemagick
     rsvg-convert     art/make.sh only. Debian: librsvg2-bin  Arch: librsvg
-    chromium         verify.py only, for the 1x screenshots. NOT installed
-                     here - it is 315MB and this disk is 84% full. Band diffs
-                     are therefore a workstation-only step; everything else,
-                     including the build, works here.
+    chromium         verify.py only, for the 1x screenshots. Deliberately NOT
+                     installed here: 307MB, and it is the only dependency the
+                     build does not need. Band diffs are therefore the one
+                     step that wants another machine. Everything else - build,
+                     devserver, link check, deploy - runs here.
+
+                     From a machine that has chromium, either diff the
+                     deployed site directly:
+
+                         ubuntu804/verify.py \
+                             --url https://dreamstation.systems/tmp-ubuntu804/
+
+                     or tunnel to the devserver here and diff a build that has
+                     not been committed yet:
+
+                         ssh -N -L 8804:127.0.0.1:8804 robin@dreamstation.systems &
+                         ubuntu804/verify.py      # 127.0.0.1:8804 is the default
+
+                     The second one is the useful one: committing is deploying,
+                     so without the tunnel every screenshot costs a deploy.
 
 
 Why the bitmaps are committed and the fonts are not
