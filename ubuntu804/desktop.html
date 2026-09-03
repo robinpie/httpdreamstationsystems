@@ -6,7 +6,7 @@
 
      Badges are 88x31 PNGs drawn by badges/make.sh. Every claim on one is true:
      if a service listed here stops running, the badge comes off. -->
-<div class="strip" aria-label="Web badges">
+<div class="strip" role="group" aria-label="Web badges">
 
   <a href="https://validator.w3.org/nu/?doc={{CANONICAL_ENC}}" rel="noopener"
      title="Check this page with the W3C validator"><img
@@ -48,6 +48,6 @@
   <a href="{{ROOT}}/links" title="88x31 forever"><img
      src="{{ROOT}}/i/b/eightyeight.png" width="88" height="31" alt="88x31 forever"></a>
 
-  <span class="note">the window is 48px short of the screen on purpose &rarr;</span>
+  <span class="note">the window is {{STRIP_H}}px short of the screen on purpose &rarr;</span>
 
 </div>

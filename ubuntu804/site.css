@@ -613,6 +613,22 @@ body {
 }
 #content th { background: #f4ecd8; font-weight: 700; }
 
+/* The badge wall on the Links page. Here rather than in a <style> on that page
+ * because a style element is metadata content and only conforms inside <head>,
+ * and one of the badges links to the W3C validator. */
+.badgewall {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 1.5em 0;
+  max-width: 40em;
+}
+.badgewall img {
+  display: block;
+  border: 1px solid #b8a878;
+  image-rendering: pixelated;
+}
+
 /* --------------------------------------------------------------- status bar */
 
 .statusbar {
@@ -631,7 +647,8 @@ body {
 .statusbar .grip {
   flex: 0 0 auto;
   width: 12px; height: 12px;
-  background-image: radial-gradient(circle .8px at 50% 50%, #a09890 99%, transparent 0);
+  /* The metacity resize grip: a 4px dot grid. Two hard stops, not a ramp. */
+  background-image: radial-gradient(circle closest-side at 50% 50%, #a09890 0 60%, transparent 60%);
   background-size: 4px 4px;
   opacity: .8;
 }

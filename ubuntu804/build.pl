@@ -298,11 +298,16 @@ sub build_pages {
             LOC_SHORT     => esc($c->{SiteName}),
             BOOKMARKS     => $bm,
             MENU_PAGES    => $menu,
-            BODY          => render_body($p),
         );
-        # These two are filled from the vars above, so they must come after
-        # the hash literal: desktop.html becomes {{STRIP}} and uses tokens of
-        # its own, and a page's Loc may contain {{ORIGIN}}.
+        # These three are filled FROM the vars above, so they have to come
+        # after the hash literal rather than inside it. fill() is a single
+        # pass: tokens inside a value it substitutes are never revisited, so
+        # anything that carries tokens of its own has to be filled separately
+        # first. That is not a stylistic point — page bodies contain
+        # {{ROOT}}-relative links, and building BODY inside the hash literal
+        # above shipped every one of them to production as the literal text
+        # "{{ROOT}}/about". Hence also the assertion at the end of this loop.
+        $vars{BODY}     = fill(render_body($p), \%vars);
         $vars{LOC_FULL} = defined $p->{loc} ? fill($p->{loc}, \%vars)
                                             : esc($canonical);
         $vars{STRIP}    = fill($desktop, \%vars);
@@ -321,6 +326,13 @@ sub build_pages {
             die "build.pl: $p->{file}: $bad->[1] reached the output\n"
                 if $html =~ $bad->[0];
         }
+
+        # Nothing may reach the output still wearing a token. This is the
+        # cheapest possible regression test for the single-pass fill() trap
+        # described above, and it is here because that trap has already been
+        # fallen into once.
+        die "build.pl: $p->{file}: unsubstituted token $1 reached the output\n"
+            if $html =~ /(\{\{\w+\}\})/;
 
         census($html);
         spit("$OUT/$p->{out}", $html);

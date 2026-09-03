@@ -48,7 +48,7 @@
 
     <div class="client">
 
-      <!-- ------------------------------------------------------ menu bar -- -->
+      <!-- ====================================================== menu bar == -->
       <div class="menubar">
 
         <div class="menu"><span class="label" tabindex="0"><u>F</u>ile</span>
@@ -169,7 +169,7 @@
 
       </div><!-- /menubar -->
 
-      <!-- --------------------------------------------- navigation toolbar -- -->
+      <!-- ============================================= navigation toolbar == -->
       <!-- Home, location bar, autocomplete arrow. That is the whole toolbar:
            the reference has no back, forward, reload or stop button and no
            search box, because the user had removed them. See PLAN.md 2 and 16. -->
@@ -185,7 +185,7 @@
         </span>
       </div>
 
-      <!-- ------------------------------------- bookmarks toolbar = site nav -- -->
+      <!-- ===================================== bookmarks toolbar = site nav == -->
       <nav class="bookmarks" aria-label="Site">
         <a href="/tmp-ubuntu804/"><img src="/tmp-ubuntu804/i/favicon16.png" width="16" height="16" alt="">Welcome</a>
         <a href="/tmp-ubuntu804/about"><img src="/tmp-ubuntu804/i/favicon16.png" width="16" height="16" alt="">About</a>
@@ -195,7 +195,7 @@
 
       </nav>
 
-      <!-- ------------------------------------------------------- viewport -- -->
+      <!-- ======================================================= viewport == -->
       <div class="viewport">
         <div id="page">
           <div id="mastwrap"><div id="masthead">
@@ -291,7 +291,7 @@ ever contains a character the subset lacks.</p>
 theme’s home and window‐decoration icons, Firefox 3's title bar icon and
 toolbar throbber, and thirteen 88&times;31 badges drawn for this site with
 ImageMagick and no antialiasing. Full attribution is in
-<a href="{{ROOT}}/CREDITS.txt">CREDITS.txt</a>.</p>
+<a href="/tmp-ubuntu804/CREDITS.txt">CREDITS.txt</a>.</p>
 
 <p><strong>No JavaScript.</strong> Not “minimal”, not “progressive” — none. The menus in the
 menu bar are <code>:focus-within</code>, keyboard‐reachable, and open with CSS. The window
@@ -343,7 +343,7 @@ already customised them away, and the screenshot was the specification.</p>
 
      Badges are 88x31 PNGs drawn by badges/make.sh. Every claim on one is true:
      if a service listed here stops running, the badge comes off. -->
-<div class="strip" aria-label="Web badges">
+<div class="strip" role="group" aria-label="Web badges">
 
   <a href="https://validator.w3.org/nu/?doc=https%3A%2F%2Fdreamstation.systems%2Ftmp-ubuntu804%2Fcolophon" rel="noopener"
      title="Check this page with the W3C validator"><img

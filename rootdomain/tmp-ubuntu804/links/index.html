@@ -48,7 +48,7 @@
 
     <div class="client">
 
-      <!-- ------------------------------------------------------ menu bar -- -->
+      <!-- ====================================================== menu bar == -->
       <div class="menubar">
 
         <div class="menu"><span class="label" tabindex="0"><u>F</u>ile</span>
@@ -169,7 +169,7 @@
 
       </div><!-- /menubar -->
 
-      <!-- --------------------------------------------- navigation toolbar -- -->
+      <!-- ============================================= navigation toolbar == -->
       <!-- Home, location bar, autocomplete arrow. That is the whole toolbar:
            the reference has no back, forward, reload or stop button and no
            search box, because the user had removed them. See PLAN.md 2 and 16. -->
@@ -185,7 +185,7 @@
         </span>
       </div>
 
-      <!-- ------------------------------------- bookmarks toolbar = site nav -- -->
+      <!-- ===================================== bookmarks toolbar = site nav == -->
       <nav class="bookmarks" aria-label="Site">
         <a href="/tmp-ubuntu804/"><img src="/tmp-ubuntu804/i/favicon16.png" width="16" height="16" alt="">Welcome</a>
         <a href="/tmp-ubuntu804/about"><img src="/tmp-ubuntu804/i/favicon16.png" width="16" height="16" alt="">About</a>
@@ -195,7 +195,7 @@
 
       </nav>
 
-      <!-- ------------------------------------------------------- viewport -- -->
+      <!-- ======================================================= viewport == -->
       <div class="viewport">
         <div id="page">
           <div id="mastwrap"><div id="masthead">
@@ -284,27 +284,20 @@ does.</p>
 the only correct size for a web badge. Here they are again, at rest.</p>
 
 <div class="badgewall">
-  <img src="{{ROOT}}/i/b/valid-html.png"   width="88" height="31" alt="Valid HTML 5">
-  <img src="{{ROOT}}/i/b/no-js.png"        width="88" height="31" alt="0 bytes of JavaScript">
-  <img src="{{ROOT}}/i/b/nginx.png"        width="88" height="31" alt="Powered by nginx">
-  <img src="{{ROOT}}/i/b/debian.png"       width="88" height="31" alt="Debian 13 trixie">
-  <img src="{{ROOT}}/i/b/ntp.png"          width="88" height="31" alt="In the NTP pool">
-  <img src="{{ROOT}}/i/b/gopher.png"       width="88" height="31" alt="Also on Gopher, port 70">
-  <img src="{{ROOT}}/i/b/gemini.png"       width="88" height="31" alt="Gemini capsule">
-  <img src="{{ROOT}}/i/b/finger.png"       width="88" height="31" alt="RFC 1288 finger">
-  <img src="{{ROOT}}/i/b/anybrowser.png"   width="88" height="31" alt="Works in every browser">
-  <img src="{{ROOT}}/i/b/heron.png"        width="88" height="31" alt="Hardy Heron">
-  <img src="{{ROOT}}/i/b/cookies.png"      width="88" height="31" alt="0 cookies set, ever">
-  <img src="{{ROOT}}/i/b/dejavu.png"       width="88" height="31" alt="Set in DejaVu Sans">
-  <img src="{{ROOT}}/i/b/eightyeight.png"  width="88" height="31" alt="88x31 forever">
+  <img src="/tmp-ubuntu804/i/b/valid-html.png"   width="88" height="31" alt="Valid HTML 5">
+  <img src="/tmp-ubuntu804/i/b/no-js.png"        width="88" height="31" alt="0 bytes of JavaScript">
+  <img src="/tmp-ubuntu804/i/b/nginx.png"        width="88" height="31" alt="Powered by nginx">
+  <img src="/tmp-ubuntu804/i/b/debian.png"       width="88" height="31" alt="Debian 13 trixie">
+  <img src="/tmp-ubuntu804/i/b/ntp.png"          width="88" height="31" alt="In the NTP pool">
+  <img src="/tmp-ubuntu804/i/b/gopher.png"       width="88" height="31" alt="Also on Gopher, port 70">
+  <img src="/tmp-ubuntu804/i/b/gemini.png"       width="88" height="31" alt="Gemini capsule">
+  <img src="/tmp-ubuntu804/i/b/finger.png"       width="88" height="31" alt="RFC 1288 finger">
+  <img src="/tmp-ubuntu804/i/b/anybrowser.png"   width="88" height="31" alt="Works in every browser">
+  <img src="/tmp-ubuntu804/i/b/heron.png"        width="88" height="31" alt="Hardy Heron">
+  <img src="/tmp-ubuntu804/i/b/cookies.png"      width="88" height="31" alt="0 cookies set, ever">
+  <img src="/tmp-ubuntu804/i/b/dejavu.png"       width="88" height="31" alt="Set in DejaVu Sans">
+  <img src="/tmp-ubuntu804/i/b/eightyeight.png"  width="88" height="31" alt="88x31 forever">
 </div>
-
-<style>
-/* Page-scoped, because the badge wall exists on this page and nowhere else and
-   does not deserve bytes in site.css. A style element is not a script one. */
-.badgewall { display: flex; flex-wrap: wrap; gap: 8px; margin: 1.5em 0; max-width: 40em; }
-.badgewall img { display: block; border: 1px solid #b8a878; image-rendering: pixelated; }
-</style>
 
           </main>
         </div>
@@ -327,7 +320,7 @@ the only correct size for a web badge. Here they are again, at rest.</p>
 
      Badges are 88x31 PNGs drawn by badges/make.sh. Every claim on one is true:
      if a service listed here stops running, the badge comes off. -->
-<div class="strip" aria-label="Web badges">
+<div class="strip" role="group" aria-label="Web badges">
 
   <a href="https://validator.w3.org/nu/?doc=https%3A%2F%2Fdreamstation.systems%2Ftmp-ubuntu804%2Flinks" rel="noopener"
      title="Check this page with the W3C validator"><img

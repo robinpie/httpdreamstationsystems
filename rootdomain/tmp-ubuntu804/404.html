@@ -48,7 +48,7 @@
 
     <div class="client">
 
-      <!-- ------------------------------------------------------ menu bar -- -->
+      <!-- ====================================================== menu bar == -->
       <div class="menubar">
 
         <div class="menu"><span class="label" tabindex="0"><u>F</u>ile</span>
@@ -169,7 +169,7 @@
 
       </div><!-- /menubar -->
 
-      <!-- --------------------------------------------- navigation toolbar -- -->
+      <!-- ============================================= navigation toolbar == -->
       <!-- Home, location bar, autocomplete arrow. That is the whole toolbar:
            the reference has no back, forward, reload or stop button and no
            search box, because the user had removed them. See PLAN.md 2 and 16. -->
@@ -185,7 +185,7 @@
         </span>
       </div>
 
-      <!-- ------------------------------------- bookmarks toolbar = site nav -- -->
+      <!-- ===================================== bookmarks toolbar = site nav == -->
       <nav class="bookmarks" aria-label="Site">
         <a href="/tmp-ubuntu804/"><img src="/tmp-ubuntu804/i/favicon16.png" width="16" height="16" alt="">Welcome</a>
         <a href="/tmp-ubuntu804/about"><img src="/tmp-ubuntu804/i/favicon16.png" width="16" height="16" alt="">About</a>
@@ -195,7 +195,7 @@
 
       </nav>
 
-      <!-- ------------------------------------------------------- viewport -- -->
+      <!-- ======================================================= viewport == -->
       <div class="viewport">
         <div id="page">
           <div id="mastwrap"><div id="masthead">
@@ -214,9 +214,9 @@ that advice remains sound. Failing that:</p>
 
 <ul>
 <li>Try the bookmarks toolbar above. It has every page on this site in it.</li>
-<li>Try <a href="{{ROOT}}/">the front page</a>, which is the same thing with sentences.</li>
+<li>Try <a href="/tmp-ubuntu804/">the front page</a>, which is the same thing with sentences.</li>
 <li>If a link on <em>this</em> site sent you here, that is a bug on this end, and the
-address in <a href="{{ROOT}}/about">About</a> reaches a human who would like to know.</li>
+address in <a href="/tmp-ubuntu804/about">About</a> reaches a human who would like to know.</li>
 </ul>
 
 <p>There is no site search, because a site with six pages that needs a search box
@@ -243,7 +243,7 @@ has a different problem.</p>
 
      Badges are 88x31 PNGs drawn by badges/make.sh. Every claim on one is true:
      if a service listed here stops running, the badge comes off. -->
-<div class="strip" aria-label="Web badges">
+<div class="strip" role="group" aria-label="Web badges">
 
   <a href="https://validator.w3.org/nu/?doc=https%3A%2F%2Fdreamstation.systems%2Ftmp-ubuntu804%2F404" rel="noopener"
      title="Check this page with the W3C validator"><img
