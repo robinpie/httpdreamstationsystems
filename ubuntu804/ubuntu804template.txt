@@ -29,6 +29,9 @@ Pieces
   http/ubuntu804/                  source. A SIBLING of rootdomain/, not inside
                                    it - if it lived under rootdomain/ the
                                    deploy would serve build.pl as a raw file.
+    ubuntu804template.txt          this file. It lives WITH the source rather
+                                   than up in http/ with the other notes, so
+                                   the tree stays self-contained.
     build.pl                       the build
     site.conf                      base URL, root path, site name, strip height
     chrome.html                    the desktop chrome template
@@ -45,8 +48,6 @@ Pieces
                                    the screenshot the whole thing is measured
                                    against, committed so the tree is
                                    self-contained
-    nginx/tmp-ubuntu804.conf       the snippet, kept in the repo as well as
-                                   installed, so it is not lost to a rebuild
 
   http/rootdomain/tmp-ubuntu804/   BUILD OUTPUT, committed
     -> /srv/http/tmp-ubuntu804/    deployed by deploy-site.sh on commit
@@ -224,7 +225,7 @@ loopback only. It does not touch /etc/nginx and cannot disturb the nginx
 serving the site - which is also the only way this can work here, since
 /home/robin is mode 710 and www-data cannot read a build tree inside it.
 
-It INCLUDES ubuntu804/nginx/tmp-ubuntu804.conf, the same file that is installed
+It INCLUDES nginx/snippets/tmp-ubuntu804.conf, the same file that is installed
 into /etc/nginx/snippets, so the loop exercises the real ssi, error_page and
 try_files directives and the two cannot drift apart.
 
@@ -250,14 +251,16 @@ original, including a few that are not currently shipped (go-home at 16px,
 bookmark-new, the restore window button). A NEW asset from the ISO is the one
 job that still needs the workstation, where the squashfs is.
 
-First-time nginx setup, if this is ever rebuilt from scratch: install the
-snippet BEFORE the first commit, or the first deployed pages serve the raw
-<!--#echo ...--> comment instead of a clock.
+First-time nginx setup, if this is ever rebuilt from scratch: the snippet must
+be installed BEFORE the first commit, or the first deployed pages serve the raw
+<!--#echo ...--> comment instead of a clock. deploy-site.sh now installs it, so
+one deploy of the repo as it stands is enough:
 
-    sudo install -m644 ~/configNotes/http/ubuntu804/nginx/tmp-ubuntu804.conf \
-        /etc/nginx/snippets/
-    sudoedit /etc/nginx/sites-available/dreamstation.systems   # both includes
-    sudo nginx -t && sudo systemctl reload nginx
+    ~/configNotes/http/deploy-site.sh
+
+The snippet and the two `include snippets/tmp-ubuntu804.conf` lines in
+sites-available/dreamstation.systems are both in the repo (nginx/), so there is
+nothing left to hand-edit. See nginx.txt.
 
 
 Authoring a page

@@ -19,7 +19,7 @@
 #     server, where /home/robin is mode 710 and the system nginx (www-data)
 #     could not read a build tree in there anyway.
 #   - It listens on 127.0.0.1 only. Nothing about this should be reachable.
-#   - It INCLUDES nginx/tmp-ubuntu804.conf, the same file installed into
+#   - It INCLUDES nginx/snippets/tmp-ubuntu804.conf, the same file installed into
 #     /etc/nginx/snippets. So the dev loop exercises the real ssi on,
 #     ssi_silent_errors, error_page and try_files directives, and the two
 #     cannot drift apart. If the snippet is wrong, it is wrong here too, which
@@ -88,7 +88,7 @@ http {
         listen 127.0.0.1:$PORT;
         root $RUN/root;
         index index.html;
-        include $SRC/nginx/tmp-ubuntu804.conf;
+        include $SRC/../nginx/snippets/tmp-ubuntu804.conf;
     }
 }
 EOF

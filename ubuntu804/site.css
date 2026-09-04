@@ -396,13 +396,6 @@ body {
  * a mistake rather than as a period detail. */
 .menu .drop span.off { color: var(--ink-dim); }
 .menu .drop li.rule { border-top: 1px solid #c0b8a8; margin: 2px 0; }
-.menu .drop li.head {
-  padding: 3px 10px 1px;
-  color: var(--ink-dim);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-}
 .menu .drop .key { float: right; margin-left: 2em; color: var(--ink-dim); }
 
 /* ------------------------------------------------------- navigation toolbar */
