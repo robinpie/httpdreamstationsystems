@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>robin’s page</title>
   <link rel="stylesheet" href="base.css">
-  <link id="theme-css" rel="stylesheet" href="themes/gtk2.css">
-  <script src="theme.js"></script>
+  <link rel="stylesheet" href="themes/<!--# echo var="theme" -->.css">
 </head>
 <body>
   <header class="site-header">
@@ -14,7 +13,20 @@
       <a href="index.html">home</a>
       <a href="blog.html">blog</a>
     </nav>
-    <div id="theme-switcher" class="theme-switcher"></div>
+    <div id="theme-switcher" class="theme-switcher">
+      <!-- A GET form, so switching themes is a plain form submission to
+           ?theme=<id> and needs no JavaScript. nginx reads the parameter and
+           SSI stamps the choice back in below - see nginx/snippets/theme.conf. -->
+      <form method="get">
+        <select name="theme" aria-label="Theme">
+          <option value="gtk2"<!--# if expr="$theme = gtk2" --> selected<!--# endif -->>GTK2</option>
+          <option value="motif"<!--# if expr="$theme = motif" --> selected<!--# endif -->>Motif</option>
+          <option value="skeuslop"<!--# if expr="$theme = skeuslop" --> selected<!--# endif -->>skeuslop</option>
+          <option value="plain"<!--# if expr="$theme = plain" --> selected<!--# endif -->>Plain</option>
+        </select>
+        <button type="submit">Apply</button>
+      </form>
+    </div>
   </header>
 
   <main>

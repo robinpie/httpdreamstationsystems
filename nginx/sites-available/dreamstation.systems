@@ -7,6 +7,39 @@
 # like pool.ntp.org's *.pool.ntp.org, so this only catches subdomains of
 # dreamstation.systems itself.
 
+# ------------------------------------------------------------ theme selection
+#
+# The /personal/ pages choose their stylesheet server-side. The location that
+# uses these lives in snippets/theme.conf, which explains the whole design;
+# only the maps are here, because `map` is valid in http context and a snippet
+# included from inside a server block is not that.
+#
+# Read as one chain: $theme is the query parameter if it names a real theme,
+# otherwise the cookie if that names a real theme, otherwise gtk2. Both maps
+# list the themes explicitly, so an unknown id from either source can never
+# reach the page — it lands on the default instead.
+#
+# TO ADD A THEME: drop themes/<id>.css, add <id> to BOTH maps, and add an
+# <option> to the switcher on each themed page. (Under theme.js this was two
+# steps; the map pair is the price of the page working without JavaScript.)
+map $cookie_theme $theme_cookie {
+    default   gtk2;
+    gtk2      gtk2;
+    motif     motif;
+    skeuslop  skeuslop;
+    plain     plain;
+}
+
+# Note the default: an absent or unrecognised ?theme= falls through to
+# whatever the cookie map resolved to, rather than jumping straight to gtk2.
+map $arg_theme $theme {
+    default   $theme_cookie;
+    gtk2      gtk2;
+    motif     motif;
+    skeuslop  skeuslop;
+    plain     plain;
+}
+
 server {
     include snippets/clacks.conf;
     listen 80;
@@ -19,6 +52,7 @@ server {
     include snippets/status-cgi.conf;
     include snippets/tmp-ubuntu804.conf;
     include snippets/pgp-key.conf;
+    include snippets/theme.conf;
 }
 
 # HTTPS for the apex.
@@ -55,6 +89,7 @@ server {
     include snippets/tmp-ubuntu804.conf;
     include snippets/wkd.conf;
     include snippets/pgp-key.conf;
+    include snippets/theme.conf;
 }
 
 # openpgpkey.dreamstation.systems — OpenPGP Web Key Directory, advanced method.

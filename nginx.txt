@@ -18,14 +18,14 @@ Config layout:
                                                        redirect. ALSO the
                                                        internal-only
                                                        /professional/status-box
-                                                       fragment, and the single
-                                                       location where SSI is
+                                                       fragment, and one of the
+                                                       two places SSI is
                                                        switched on
                                                        (= /professional/index.html,
                                                        which pulls that fragment
                                                        into the resume page's
-                                                       corner). Nothing else on
-                                                       this site is server-parsed.
+                                                       corner). The other is
+                                                       theme.conf, below.
                                                        INCLUDED FROM
                                                        BOTH the :80 and the apex
                                                        :443 block below, so the
@@ -35,6 +35,24 @@ Config layout:
                                                        over HTTPS would be a
                                                        silly bug). See
                                                        ~/configNotes/status.txt
+  /etc/nginx/snippets/theme.conf                     — server-side theme
+                                                       selection for the seven
+                                                       themed pages under
+                                                       /personal/. Switches SSI
+                                                       on for exactly those
+                                                       files, sets the theme
+                                                       cookie and Vary. The
+                                                       two maps it depends on
+                                                       are NOT here — map is
+                                                       http context, so they
+                                                       live at the top of
+                                                       sites-available/
+                                                       dreamstation.systems.
+                                                       INCLUDED FROM both the
+                                                       :80 and apex :443 block,
+                                                       same anti-drift reason
+                                                       as status-cgi.conf.
+                                                       See THEME SELECTION below
   /etc/nginx/sites-available/dreamstation.systems   — main site, server_name
                                                        dreamstation.systems
                                                        www.dreamstation.systems
@@ -290,8 +308,9 @@ Two traps, both already handled:
   - add_header is inherited into a nested block ONLY IF that block sets no
     add_header of its own. wkd.conf's location sets the CORS header, so it
     would have silently dropped the clacks header; it includes clacks.conf
-    again for that reason. Any FUTURE location that adds a header must do
-    the same.
+    again for that reason. theme.conf's location is the second such place
+    (it sets Set-Cookie and Vary) and does the same. Any FUTURE location
+    that adds a header must too.
   - openget sets this header itself (openget/internal/web/server.go), so
     grandexchange's :443 block carried it twice until a
     `proxy_hide_header X-Clacks-Overhead;` was added there. nginx is now the
@@ -326,3 +345,72 @@ Useful commands:
   sudo systemctl reload nginx       — reload config without dropping connections
   sudo systemctl restart nginx
   sudo journalctl -u nginx
+
+THEME SELECTION (/personal/)
+----------------------------
+The seven themed pages under /personal/ (index, blog, hypnospace, ntppost,
+ntpuserinfo, slowqotd, gzipt) let a visitor pick one of four stylesheets.
+This used to be theme.js: a script loaded synchronously in <head> that read
+localStorage and rewrote <link id="theme-css"> before first paint. It is now
+done by nginx, and theme.js is deleted.
+
+Two halves, in two files, because map is only valid in http context:
+
+  sites-available/dreamstation.systems   the $theme_cookie and $theme maps,
+                                         at the top, outside every server block
+  snippets/theme.conf                    the location that turns SSI on
+
+Precedence is one chain: ?theme=<id> if it names a known theme, else the
+cookie if IT names a known theme, else gtk2. Both maps list the themes
+explicitly, so an unknown value from either source lands on the default and
+can never reach the page.
+
+The switcher is a GET form submitting to ?theme=<id>. It is NOT a set of
+links carrying the parameter around the site: that would have meant editing
+every <a href> on every themed page to append it, and one forgotten link
+resets the theme mid-navigation. The cookie carries it instead, so no href
+anywhere had to change.
+
+WHY THE QUERY PARAMETER IS SERVED, NOT REDIRECTED
+  The obvious design is: ?theme= sets the cookie, then 302 to the bare path.
+  Do not do this. With cookies disabled the redirect drops the parameter and
+  the cookie never comes back, so the page reloads looking identical and the
+  switcher appears broken — a silent no-op, worse than the localStorage
+  version it replaced (that at least applied the theme for the pageview).
+  Serving the requested theme on the same request means a cookieless visitor
+  gets what they asked for and merely loses it on the next navigation. Also
+  one round trip cheaper, and the ?theme= URL is bookmarkable as a way to pin
+  a theme with no cookie at all.
+
+THINGS THAT WILL BITE
+  - The file list in theme.conf's regex is explicit. A new themed page that
+    is not added there is served WITHOUT SSI, so its stylesheet href comes
+    out as themes/.css and the page renders unstyled. This is the loud
+    failure mode; it is loud on purpose.
+  - /personal/ with no filename works only because the server-level `index`
+    makes it an internal redirect to /personal/index.html and location
+    matching runs AGAIN on the rewritten URI. Verified, not assumed. If
+    `index` is ever moved into a location that the regex does not follow,
+    the bare directory URL starts serving raw SSI comments.
+  - NEVER add gzip_static for this tree. The SSI filter cannot parse a
+    precompressed body. (Not currently used anywhere here.)
+  - SSI drops Content-Length and disables sendfile for these seven files.
+    Irrelevant at this site's traffic; noted so it is not a surprise.
+  - Adding a theme is now THREE steps, not one: themes/<id>.css, the id in
+    BOTH maps, and an <option> in each page's form. The stylesheet alone
+    does nothing — the maps are the whitelist.
+  - The pages no longer render correctly from disk over file://. Serve them.
+
+VERIFYING
+  Config test, then the behaviours that actually matter:
+
+    curl -s localhost/personal/index.html | grep themes/          # gtk2
+    curl -s 'localhost/personal/index.html?theme=motif' | grep themes/
+    curl -s --cookie theme=skeuslop localhost/personal/gzipt.html | grep themes/
+    curl -s 'localhost/personal/index.html?theme=bogus' | grep themes/  # gtk2
+    curl -s localhost/personal/ | grep -c '<!--#'                 # must be 0
+    curl -sI localhost/personal/index.html | grep -i 'vary\|clacks'
+
+  The last two are the regressions worth guarding: raw SSI leaking on the
+  directory URL, and the clacks header being dropped by this location's own
+  add_header.

@@ -12,6 +12,17 @@
   z-index: 1000;
 }
 
+/* The switcher is a GET form (no JavaScript — nginx reads ?theme= and SSI
+   stamps the choice back into the page). The form is pure plumbing and must
+   contribute no layout of its own: browsers give <form> a default margin,
+   which would push the widget off its corner. */
+#theme-switcher form {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+}
+
 /* Stop oversized media from blowing out the layout. */
 img {
   max-width: 100%;

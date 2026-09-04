@@ -133,6 +133,38 @@ body {
   outline-offset: 1px;
 }
 
+/* The Apply button beside it: the same GTK2 bevel as the combobox, minus the
+   dropdown arrow. Symmetric padding and no appearance reset — a <button> has
+   no platform chrome to strip the way a <select> does. */
+#theme-switcher button {
+  margin: 0;
+  font-family: var(--gtk-font);
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--gtk-text);
+  padding: 3px 10px;
+  border: 1px solid;
+  border-color: var(--gtk-hi) var(--gtk-lo) var(--gtk-lo) var(--gtk-hi);
+  border-radius: 3px;
+  background-color: #e9e7e2;
+  background-image: linear-gradient(to bottom, var(--gtk-bg-light), var(--gtk-bg-dark));
+  cursor: pointer;
+}
+
+#theme-switcher button:hover {
+  background-image: linear-gradient(to bottom, #ffffff, #e0ddd6);
+}
+
+/* Bevel inverts on press, the way a real GTK2 button sinks. */
+#theme-switcher button:active {
+  border-color: var(--gtk-lo) var(--gtk-hi) var(--gtk-hi) var(--gtk-lo);
+}
+
+#theme-switcher button:focus {
+  outline: 1px dotted var(--gtk-text);
+  outline-offset: 1px;
+}
+
 /* ---- main: a white document inside the window ------------------------ */
 
 main {

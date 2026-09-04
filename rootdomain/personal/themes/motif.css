@@ -133,6 +133,33 @@ body {
   outline-offset: 1px;
 }
 
+/* The Apply button: an XmPushButton next to the option menu. Same 2px bevel
+   and bold label, square corners, no indicator glyph. */
+#theme-switcher button {
+  margin: 0;
+  font-family: var(--mtf-font);
+  font-size: 13px;
+  font-weight: bold;
+  line-height: 1.2;
+  color: var(--mtf-text);
+  padding: 4px 12px;
+  background-color: var(--mtf-bg);
+  border: 2px solid;
+  border-color: var(--mtf-light) var(--mtf-dark) var(--mtf-dark) var(--mtf-light);
+  border-radius: 0;
+  cursor: pointer;
+}
+
+/* Motif's armed state: the bevel flips so the button reads as pushed in. */
+#theme-switcher button:active {
+  border-color: var(--mtf-dark) var(--mtf-light) var(--mtf-light) var(--mtf-dark);
+}
+
+#theme-switcher button:focus {
+  outline: 1px solid var(--mtf-text);
+  outline-offset: 1px;
+}
+
 /* ---- main: the application's raised work area ------------------------- */
 
 main {
