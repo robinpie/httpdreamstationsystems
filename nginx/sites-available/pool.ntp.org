@@ -1,0 +1,11 @@
+server {
+    listen 80;
+    listen [::]:80;
+    server_name pool.ntp.org *.pool.ntp.org ntppool.org *.ntppool.org;
+
+    # Someone occasionally points an HTTP client at pool.ntp.org or one of
+    # its subdomains (the NTP pool project's domains, not something we own
+    # or control). If that traffic ever lands on this server, send them to
+    # the real project site instead of falling through to the 444 catchall.
+    return 301 https://www.ntppool.org/;
+}

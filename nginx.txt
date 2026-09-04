@@ -1,0 +1,328 @@
+nginx
+=====
+
+Serves /srv/http/ on port 80, scoped to dreamstation.systems /
+www.dreamstation.systems only. Content is intentionally minimal —
+index.html just tells visitors to use something else.
+
+nginx dispatches on the Host header, so each hostname gets its own
+server block — this sets up name-based virtual hosting for future
+subdomains.
+
+Config layout:
+  /etc/nginx/snippets/status-cgi.conf                — the /professional/status
+                                                       location: fcgiwrap ->
+                                                       /srv/cgi/status.cgi, its
+                                                       502/504 static backstop,
+                                                       and a trailing-slash
+                                                       redirect. ALSO the
+                                                       internal-only
+                                                       /professional/status-box
+                                                       fragment, and the single
+                                                       location where SSI is
+                                                       switched on
+                                                       (= /professional/index.html,
+                                                       which pulls that fragment
+                                                       into the resume page's
+                                                       corner). Nothing else on
+                                                       this site is server-parsed.
+                                                       INCLUDED FROM
+                                                       BOTH the :80 and the apex
+                                                       :443 block below, so the
+                                                       two cannot drift apart
+                                                       (a status page that
+                                                       worked over HTTP but 404d
+                                                       over HTTPS would be a
+                                                       silly bug). See
+                                                       ~/configNotes/status.txt
+  /etc/nginx/sites-available/dreamstation.systems   — main site, server_name
+                                                       dreamstation.systems
+                                                       www.dreamstation.systems
+                                                       mta-sts.dreamstation.systems
+                                                       *.dreamstation.systems
+                                                       (the wildcard means any
+                                                       unrecognized subdomain
+                                                       falls through to this
+                                                       block and gets the same
+                                                       content, rather than the
+                                                       000-default-catchall's
+                                                       444 — nginx still prefers
+                                                       more specific server
+                                                       blocks like pool.ntp.org's
+                                                       *.pool.ntp.org, so this
+                                                       only catches subdomains
+                                                       of dreamstation.systems
+                                                       itself)
+                                                       (plus an HTTPS block
+                                                       for mta-sts.dreamstation.systems,
+                                                       needed so mail senders can
+                                                       fetch the MTA-STS policy)
+                                                       (plus an EXPLICIT HTTPS
+                                                       block for the apex —
+                                                       see below)
+
+APEX HTTPS — was working by accident, now stated
+------------------------------------------------
+https://dreamstation.systems/ worked long before it had a server block of its
+own. The mta-sts block was the only :443 server for this domain, so nginx used
+it as the default server for any unmatched :443 request, and the certificate it
+loads happens to carry dreamstation.systems as a SAN:
+
+    subject=CN=dreamstation.systems
+    SAN: DNS:dreamstation.systems, DNS:mta-sts.dreamstation.systems
+
+That is a coincidence of block ordering and SAN contents, not a configuration.
+Adding any :443 block that sorted earlier would have silently broken the apex —
+and with it professional/index.html's declared https canonical and the status
+page. There is now an explicit block:
+
+    server { listen 443 ssl; server_name dreamstation.systems www....;
+             root /srv/http; include snippets/status-cgi.conf; }
+
+Same certificate, same content, same blast radius (deliberately NOT merged with
+grandexchange's separate cert — see that file's note about keeping inbound
+mail's TLS out of a web deploy's blast radius). Port 80 is still deliberately
+not redirected to HTTPS: this box's character is serving plain old protocols,
+and nothing here is sensitive.
+  /etc/nginx/sites-available/pool.ntp.org            — server_name pool.ntp.org,
+                                                       *.pool.ntp.org,
+                                                       ntppool.org,
+                                                       *.ntppool.org; 301
+                                                       redirect to
+                                                       https://www.ntppool.org/.
+                                                       This server is a member
+                                                       of the NTP Pool project
+                                                       (we don't own the
+                                                       pool.ntp.org / ntppool.org
+                                                       domains themselves —
+                                                       the project's DNS just
+                                                       points them at member
+                                                       servers, including us
+                                                       occasionally). People
+                                                       sometimes point a browser
+                                                       at their NTP server out
+                                                       of mistake or curiosity;
+                                                       the project recommends
+                                                       serving this redirect
+                                                       for that case.
+  /etc/nginx/sites-available/grandexchange.dreamstation.systems
+                                                     — the OpenGET OSRS
+                                                       Grand Exchange site.
+                                                       EXACT server_name, so
+                                                       it beats the
+                                                       *.dreamstation.systems
+                                                       wildcard above. :80
+                                                       redirects to :443
+                                                       (the only host here
+                                                       that does); :443
+                                                       proxies to
+                                                       127.0.0.1:4151. Uses
+                                                       its OWN certificate,
+                                                       deliberately not an
+                                                       expansion of the apex
+                                                       one — that lineage
+                                                       also covers mta-sts,
+                                                       and re-issuing it to
+                                                       add a web host would
+                                                       put inbound mail's
+                                                       TLS in the blast
+                                                       radius of a web
+                                                       deploy. Full details
+                                                       in openget.txt.
+  /etc/nginx/sites-available/000-default-catchall    — default_server block,
+                                                       server_name _, returns
+                                                       444 (drops connection)
+                                                       for any Host that
+                                                       doesn't match a real
+                                                       server block
+
+All are symlinked into /etc/nginx/sites-enabled/. EDIT sites-available —
+`tee` into a sites-enabled path writes THROUGH the symlink and silently
+clobbers the real config (cost ten confusing minutes once; see openget.txt).
+
+Content is SERVED from /srv/http/ but its SOURCE OF TRUTH is the monorepo at
+~/configNotes/http/rootdomain/. Do not hand-edit /srv/http — edit rootdomain/
+and run ~/configNotes/http/deploy-site.sh (rsync --delete to /srv/http,
+preserving certbot's .well-known/acme-challenge/ webroot dir). See
+~/configNotes/http/README.md.
+
+THE CONFIG ITSELF IS ALSO VERSIONED, and the same rule applies to it. Every
+hand-authored file above lives in ~/configNotes/http/nginx/ and is installed by
+deploy-site.sh:
+
+    nginx/sites-available/000-default-catchall
+    nginx/sites-available/dreamstation.systems
+    nginx/sites-available/grandexchange.dreamstation.systems
+    nginx/sites-available/pool.ntp.org
+    nginx/snippets/clacks.conf
+    nginx/snippets/pgp-key.conf
+    nginx/snippets/status-cgi.conf
+    nginx/snippets/tmp-ubuntu804.conf
+    nginx/snippets/wkd.conf
+
+DO NOT HAND-EDIT /etc/nginx for any of these. The next commit reinstalls them
+and your edit is gone with no warning. Edit the repo copy and commit.
+
+Not in the repo, and deliberately: sites-available/default and
+snippets/{fastcgi-php,snakeoil}.conf are Debian's, unmodified; the sites-enabled
+symlinks are made once by hand; and the certificates are certbot's. That is why
+deploy-site.sh installs a NAMED LIST of files one at a time instead of rsyncing
+the tree — an rsync --delete into /etc/nginx would eat all of the above. Adding
+a file to nginx/ therefore does nothing until it is added to NGINX_SITES or
+NGINX_SNIPPETS at the top of deploy-site.sh, AND symlinked into sites-enabled
+if it is a vhost.
+
+nginx config cannot be syntax-checked before it is installed — the vhosts
+`include snippets/...` relative to nginx's own prefix, so a copy in the repo
+does not resolve. deploy-site.sh therefore installs, runs `nginx -t`, and rolls
+the files back from a backup if the test fails. The running server is never at
+risk: the reload happens only after `nginx -t` passes, and until then nginx
+keeps serving the last good config out of memory.
+
+Before this, the only history these files had was the .bak / .bak2 /
+.bak-20260827-150428 copies sitting in sites-available/. Those are inert
+(sites-enabled/* globs symlinks, and nothing links to them) and are left where
+they are for now, but git supersedes them.
+  index.html   — "use something else" page
+  resume.png
+  robots.txt
+
+OPENPGP WEB KEY DIRECTORY (WKD)
+-------------------------------
+Publishes the PGP key so `gpg --locate-keys robin@dreamstation.systems` just
+works, with no keyserver involved. Spec: draft-koch-openpgp-webkey-service.
+
+Both methods are served, because GnuPG tries ADVANCED first and only falls
+back to DIRECT:
+
+  advanced  https://openpgpkey.dreamstation.systems/.well-known/openpgpkey/
+              dreamstation.systems/hu/<hash>
+  direct    https://dreamstation.systems/.well-known/openpgpkey/hu/<hash>
+
+<hash> is z-base-32(sha1("robin")) — NOT a hash of the full address:
+  e78qu5ozuc8c6n6nqoryxgomnzs4j1c7
+Recompute with: gpg-wks-client --print-wkd-hash robin@dreamstation.systems
+
+Three things are easy to get wrong here:
+  - The key file must be BINARY OpenPGP, not ASCII-armored. Generate it with
+    `gpg --dearmor < rootdomain/pgp.asc`. An armored file is served happily by
+    nginx and rejected silently by gpg.
+  - The empty `policy` file next to each hu/ dir is REQUIRED. Without it the
+    method is not considered supported.
+  - Content-Type must be application/octet-stream. The hu/ files are
+    extensionless, so they inherit nginx.conf's default_type and this is
+    already correct — do NOT add a types{} entry for them.
+
+snippets/wkd.conf holds the CORS header and is included from BOTH the apex
+:443 block and the openpgpkey block, same anti-drift reasoning as
+status-cgi.conf. The openpgpkey vhost shares /srv/http as its docroot (so one
+rsync covers it) but returns 404 for everything outside the WKD tree.
+
+The openpgpkey name resolved via the *.dreamstation.systems wildcard long
+before this existed, and the apex :443 block answered it — but the cert had no
+SAN for it, so advanced lookups died in the TLS handshake and fell back to
+direct without ever saying so. Adding the SAN is what actually enabled it.
+
+Verify:
+  gpg --locate-external-keys robin@dreamstation.systems   (from an empty
+    GNUPGHOME, or it just reads the local keyring and proves nothing)
+  gpg-wks-client --check robin@dreamstation.systems
+
+/pgp.asc CONTENT-TYPE
+---------------------
+The armored key linked from /professional is a DIFFERENT file from the WKD
+ones above, and wants the opposite treatment. .asc is absent from
+/etc/nginx/mime.types, so it inherited default_type application/octet-stream
+and browsers downloaded it instead of showing it. snippets/pgp-key.conf now
+serves it as text/plain; charset=utf-8, included from both apex blocks (:80
+and :443) — the same anti-drift pattern as clacks/status-cgi/wkd.
+
+text/plain rather than the registered application/pgp-keys (RFC 3156): the
+registered type also triggers a download in browsers, which is the whole
+behaviour being fixed, and this file exists to be read and copy-pasted.
+Anything consuming keys by content type uses the WKD tree.
+
+It is an exact-match `location = /pgp.asc`, so it cannot touch the WKD regex
+location — the hu/ files stay application/octet-stream. Verified after the
+change; both still correct. No add_header in the snippet, so clacks is still
+inherited.
+
+CERTIFICATE (dreamstation.systems lineage)
+------------------------------------------
+authenticator = webroot, webroot_path = /srv/http. Expanded 2026-08-27 from
+2 SANs to 4:
+  dreamstation.systems, mta-sts.dreamstation.systems,
+  openpgpkey.dreamstation.systems, www.dreamstation.systems
+
+www was in the :443 server_name but NOT in the cert, so
+https://www.dreamstation.systems/ failed hostname verification outright —
+config implied it worked, TLS disagreed. Fixed in the same expand.
+
+To expand again:
+  sudo certbot certonly --webroot -w /srv/http \
+    --cert-name dreamstation.systems --expand \
+    -d dreamstation.systems -d www.dreamstation.systems \
+    -d mta-sts.dreamstation.systems -d openpgpkey.dreamstation.systems
+
+renewal-hooks/deploy/fix-perms-restart-mail.sh fixes privkey perms
+(root:ssl-cert 640) and reloads nginx + postfix/dovecot/vsftpd. It runs on
+manual issuance too, not just scheduled renewal — check with
+`ls -lL /etc/letsencrypt/live/dreamstation.systems/privkey.pem` if mail breaks
+after a cert operation.
+
+NOTE: adding a :443 block for a name NOT in the cert is worse than useless —
+the wildcard DNS means it will resolve and connect, then fail verification.
+Expand the cert first.
+
+X-CLACKS-OVERHEAD
+-----------------
+Every server block for this domain sends:
+
+    X-Clacks-Overhead: GNU Terry Pratchett
+
+It lives in snippets/clacks.conf and is INCLUDED FROM every server block
+(both dreamstation.systems blocks, openpgpkey, mta-sts, and both
+grandexchange blocks) rather than being set once in nginx.conf's http block.
+Same anti-drift reasoning as status-cgi.conf and wkd.conf, plus it keeps
+pool.ntp.org's redirect — a name we do not own — out of it.
+
+Two traps, both already handled:
+  - add_header is inherited into a nested block ONLY IF that block sets no
+    add_header of its own. wkd.conf's location sets the CORS header, so it
+    would have silently dropped the clacks header; it includes clacks.conf
+    again for that reason. Any FUTURE location that adds a header must do
+    the same.
+  - openget sets this header itself (openget/internal/web/server.go), so
+    grandexchange's :443 block carried it twice until a
+    `proxy_hide_header X-Clacks-Overhead;` was added there. nginx is now the
+    single authority for every host, which also means a 502 from a stopped
+    openget daemon still carries the header.
+
+`always` is set so it survives error responses too. Not served over Gopher,
+Gemini, Spartan or finger — none of them have response headers to put it in.
+
+Check with: curl -sI https://dreamstation.systems/ | grep -i clacks
+
+security.txt (RFC 9116) lives at rootdomain/.well-known/security.txt and its
+Expires: field must be refreshed before 2027-08-26 or the file is formally
+invalid.
+
+Adding a new subdomain later:
+  1. Point DNS for the subdomain at this VPS. (Often already done — there is a
+     wildcard A record, which is why an unconfigured subdomain still resolves
+     and connects instead of failing fast. See the NOTE above.)
+  2. Expand the cert to cover it FIRST — see CERTIFICATE above. A :443 block
+     for a name missing from the cert resolves, connects, and then fails
+     hostname verification, which is a much more confusing failure than a
+     404.
+  3. Add /etc/nginx/sites-available/<subdomain>.dreamstation.systems with
+     its own server_name and root/content.
+  4. Symlink it into sites-enabled/.
+  5. sudo nginx -t && sudo systemctl reload nginx
+
+Useful commands:
+  sudo nginx -t                     — test config syntax
+  sudo systemctl status nginx
+  sudo systemctl reload nginx       — reload config without dropping connections
+  sudo systemctl restart nginx
+  sudo journalctl -u nginx

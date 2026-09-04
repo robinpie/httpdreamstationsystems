@@ -1,0 +1,110 @@
+# dreamstation.systems — main site.
+#
+# nginx dispatches on the Host header, so each hostname gets its own server
+# block. The wildcard *.dreamstation.systems means any unrecognized subdomain
+# falls through to this block and gets the same content, rather than the
+# 000-default-catchall's 444 — nginx still prefers more specific server blocks
+# like pool.ntp.org's *.pool.ntp.org, so this only catches subdomains of
+# dreamstation.systems itself.
+
+server {
+    include snippets/clacks.conf;
+    listen 80;
+    listen [::]:80;
+    server_name dreamstation.systems www.dreamstation.systems mta-sts.dreamstation.systems *.dreamstation.systems;
+
+    root /srv/http;
+    index index.html;
+
+    include snippets/status-cgi.conf;
+    include snippets/tmp-ubuntu804.conf;
+    include snippets/pgp-key.conf;
+}
+
+# HTTPS for the apex.
+#
+# This block is NOT new behaviour — https://dreamstation.systems/ already
+# worked before it existed, but only by accident: the mta-sts block below was
+# the sole :443 server for this domain, so it acted as the default server for
+# any unmatched :443 request, and its certificate happens to carry
+# dreamstation.systems as a SAN. That is a coincidence, not a configuration.
+# Adding any :443 block that sorted earlier would have silently broken the
+# apex, along with professional/index.html's declared https canonical.
+#
+# Same certificate, same content, same blast radius — just stated explicitly
+# rather than inherited from block ordering.
+#
+# Port 80 above is deliberately NOT redirected here. This box's whole character
+# is serving plain, old protocols (Gopher, Spartan, finger); forcing HTTPS on
+# the one that predates them would be out of keeping, and nothing served here
+# is sensitive.
+server {
+    include snippets/clacks.conf;
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name dreamstation.systems www.dreamstation.systems;
+
+    ssl_certificate     /etc/letsencrypt/live/dreamstation.systems/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/dreamstation.systems/privkey.pem;
+
+    root /srv/http;
+    index index.html;
+
+    include snippets/status-cgi.conf;
+    include snippets/tmp-ubuntu804.conf;
+    include snippets/wkd.conf;
+    include snippets/pgp-key.conf;
+}
+
+# openpgpkey.dreamstation.systems — OpenPGP Web Key Directory, advanced method.
+#
+# GnuPG tries the advanced method FIRST and only falls back to the direct
+# method (the apex's /.well-known/openpgpkey/hu/) if it fails. This name has
+# always resolved, via the *.dreamstation.systems wildcard A record, and the
+# apex :443 block above answered it by being the first :443 block in config
+# order. But the certificate carried no SAN for it, so every advanced lookup
+# died in the TLS handshake and fell back silently.
+#
+# The cert now covers this name, so both methods work and the fallback is a
+# real backstop rather than the only path that ever succeeded.
+server {
+    include snippets/clacks.conf;
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name openpgpkey.dreamstation.systems;
+
+    ssl_certificate     /etc/letsencrypt/live/dreamstation.systems/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/dreamstation.systems/privkey.pem;
+
+    root /srv/http;
+
+    include snippets/wkd.conf;
+
+    # This vhost exists to serve exactly one tree. It shares a docroot with the
+    # main site purely so one rsync deploy covers both, but nothing else here
+    # should be reachable under this hostname — serving the whole site from a
+    # second name would just be duplicate content on a name nobody browses.
+    #
+    # A regex location wins over this prefix location, so the WKD tree above is
+    # unaffected.
+    location / {
+        return 404;
+    }
+}
+
+# HTTPS is separately needed here for MTA-STS: senders' mail servers fetch
+# https://mta-sts.dreamstation.systems/.well-known/mta-sts.txt to learn this
+# domain requires TLS for inbound mail.
+server {
+    include snippets/clacks.conf;
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name mta-sts.dreamstation.systems;
+
+    ssl_certificate     /etc/letsencrypt/live/dreamstation.systems/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/dreamstation.systems/privkey.pem;
+
+    root /srv/http;
+    index index.html;
+}

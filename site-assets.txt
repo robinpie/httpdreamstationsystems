@@ -1,0 +1,120 @@
+site-assets — favicon, icons, OpenGraph card and sitemap for dreamstation.systems
+================================================================================
+
+Source of truth is ~/configNotes/http/rootdomain/, which mirrors the live
+docroot /srv/http. Edit in configNotes, then install to /srv/http as root.
+
+FILES
+  /srv/http/favicon.svg                theme-aware asterism, modern browsers
+  /srv/http/favicon.ico                32px + 16px, Safari and older browsers
+  /srv/http/apple-touch-icon.png       180px opaque tile, iOS home screen
+  /srv/http/professional/ogimage.png   1200x630 OpenGraph card
+  /srv/http/sitemap.xml                canonical page list
+  /srv/http/robots.txt                 Allow: / plus the Sitemap: line
+
+BUILD SCRIPTS  (~/configNotes/http/assets-build/, in the repo but a SIBLING of
+                rootdomain/, so it is never rsynced into the docroot)
+  make-og.sh          renders ogimage.png with ImageMagick + Pango
+  make-favicon.py     renders favicon.ico AND apple-touch-icon.png from
+                      favicon.svg's geometry — one run produces both
+
+FAVICON
+  The mark is U+2042 ASTERISM, matching the separator already used in the nav
+  and meta description. It is drawn as line geometry, not as a text glyph:
+  U+2042 is missing from most fonts, and a favicon renderer with no glyph for
+  it would draw tofu. Only DejaVu, Free*, Noto Sans Mono, IPA and Unifont have
+  it on this box.
+
+  Arm length (5 units) and star spacing in the 32-unit viewBox are tuned so the
+  three stars stay visually separate at 16px. Tighter spacing merged them into
+  a blob. The asterisk template lives in <defs> — a bare <g> would also be
+  painted at the origin, which is a real rendering bug, not just a preview one.
+
+  The SVG follows prefers-color-scheme (#111 light / #eee dark). ICO has no way
+  to do that, so it is a fixed mid grey (#666) that stays legible against both
+  light and dark browser chrome.
+
+  Caveat: ImageMagick's internal SVG renderer (MSVG) ignores stroke-width
+  through <use>, so rasterising favicon.svg with `magick` produces hairlines
+  and is NOT a valid preview. make-favicon.py redraws the geometry from
+  primitives instead. If favicon.svg's geometry changes, change the constants
+  at the top of make-favicon.py to match — they are duplicated, not shared.
+
+APPLE TOUCH ICON
+  Same geometry, but it cannot reuse the favicon's tricks. iOS composites any
+  transparency onto black, so a transparent PNG with the dark #111 mark would
+  render as a black square. It is therefore drawn opaque, #111 on #ffffff.
+
+  It is redrawn from primitives rather than recoloured from the favicon's
+  512px render: that render is antialiased grey on transparency, and flattening
+  it onto white leaves grey fringing on every stroke.
+
+  The mark is inset to 84% of the tile. Edge-to-edge looked cramped beside
+  other home screen icons. Do NOT round the corners — iOS applies its own mask,
+  and pre-rounded art gets clipped twice.
+
+  Only the 180px size is shipped. iOS downscales it cleanly for every smaller
+  slot, and the pile of legacy apple-touch-icon-NNxNN.png variants has not been
+  needed since iOS 8.
+
+OPENGRAPH
+  Tags live in professional/index.html, after <link rel="canonical">.
+  og:description is intentionally shorter than the page's meta description.
+  twitter:title/description/image are omitted: they fall back to the og:* tags.
+
+  The card is a terminal mock: `finger robin@localhost`, name, tagline, three
+  asterism bullets, URL. Monochrome: pure black background, pure white text,
+  saved as a grayscale PNG (the greys are text antialiasing only, not palette).
+  Rendered with Pango markup at -pointsize 22; at 30 the
+  block overflowed 1200px. Font is Noto Sans Mono, one of the few monospace
+  faces here with U+2042.
+
+  The stats on the card (pool score, CVE status) are point-in-time and scrapers
+  cache images hard. After re-running make-og.sh, bust the caches via
+  Facebook's Sharing Debugger and LinkedIn's Post Inspector, or the old card
+  will keep appearing for weeks.
+
+  Filename gotcha: the file is ogimage.png, NOT og.png. make-og.sh defaulted to
+  og.png until 2026-08-27, which would have silently written an orphan and left
+  the real card stale. The default now matches. Do not "tidy" the name —
+  scrapers cache og:image URLs hard and a rename costs a re-scrape everywhere.
+
+HEAD TAGS  (professional/index.html)
+  Deliberately present: author, robots (max-image-preview:large so Google may
+  use the full og card in results), theme-color as a light/dark PAIR with media
+  attributes, og:locale (en_US — underscore, not the hyphen used by lang=""),
+  profile:first_name/last_name/username (og:type is "profile", which defines
+  them), twitter:image:alt.
+
+  Deliberately ABSENT: <meta name="color-scheme">. The inline CSS in the same
+  <head> already sets html{color-scheme:light dark}, which is equivalent. Do
+  not add it back "for completeness" — it is a second source of truth for the
+  same setting.
+
+  profile:gender is also omitted: optional, spec only accepts male/female, and
+  nothing meaningful consumes it.
+
+SITEMAP
+  sitemap.xml lists only canonical, currently-linked pages: /, /professional/,
+  /personal/, /personal/blog.html. Discovered via the Sitemap: line in
+  robots.txt (a sitemap nothing points at is a sitemap nobody reads).
+
+  Excluded on purpose, and the exclusions matter more than the inclusions:
+    /old/*      the authorized phishing-simulation pages and reveal pages.
+                These must never be indexed.
+    /oldsite/*  superseded by /personal/.
+    the unlinked /personal/*.html orphans carried over from oldsite.
+
+  No priority or changefreq elements — Google ignores both. lastmod IS read, so
+  update it only on real content changes; a sitemap that claims everything
+  changed today gets its lastmod distrusted wholesale.
+
+VERIFY
+  curl -sS -o /dev/null -w '%{http_code} %{content_type}\n' \
+    https://dreamstation.systems/favicon.svg
+  curl -sS -o /dev/null -w '%{http_code} %{content_type}\n' \
+    https://dreamstation.systems/apple-touch-icon.png
+  curl -sS -o /dev/null -w '%{http_code} %{content_type}\n' \
+    https://dreamstation.systems/sitemap.xml
+  # sitemap.xml must come back as application/xml or text/xml, not text/plain
+  python3 -c 'import xml.etree.ElementTree as E; E.parse("sitemap.xml")'

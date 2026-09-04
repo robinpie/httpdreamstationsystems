@@ -1,0 +1,63 @@
+githooks
+========
+
+Hooks for the site repo, which is ~/configNotes/http (NOT ~/configNotes --
+that directory holds these notes and contains a stray empty .git that makes
+git refuse to run there).
+
+Convention, already used by the deploy hook: the script lives at the repo
+root, versioned, and .git/hooks/<name> is a relative symlink to it.
+
+Installed hooks:
+
+    post-checkout                          git-lfs
+    post-commit -> ../../deploy-hook.sh    runs deploy-site.sh
+    post-merge  -> ../../deploy-hook.sh    runs deploy-site.sh
+    pre-commit  -> ../../datestamp-hook.pl schema.org dateModified stamp
+    pre-push                               git-lfs
+
+DO NOT set core.hooksPath. It replaces .git/hooks wholesale, which would
+silently disable the deploy hooks and both git-lfs hooks. Symlink instead.
+
+
+datestamp-hook.pl (pre-commit)
+------------------------------
+
+Perl. Stamps schema.org "dateModified" on the WebSite node of staged HTML and
+re-stages the file, so the JSON-LD date cannot drift from the last real change
+to the page.
+
+Currently affects one file:
+
+    rootdomain/professional/index.html
+
+Applies to any staged .html holding a JSON-LD node of "@type": "WebSite" whose
+object also contains the @id https://dreamstation.systems/#website.
+
+Behaviour:
+
+  - Date only (YYYY-MM-DD), not a timestamp. Several commits in one day
+    therefore produce no diff on the line.
+  - Inserts "dateModified" after the @id line if absent, updates it if
+    present, does nothing if it already reads today.
+  - Re-parses every JSON-LD block after editing. If the edit would produce
+    invalid JSON the file is left alone and the commit aborts.
+  - Skips, with a warning, any file that has unstaged changes, so it never
+    sweeps uncommitted work into the commit. Stage the file first or it is
+    passed over.
+  - Files with no matching WebSite node are ignored.
+
+Anchoring detail if this is ever rewritten: the hook keys on "@type":
+"WebSite", not on the site @id. That @id also appears as an isPartOf reference
+inside the ProfilePage and Blog nodes, earlier in the file, so keying on the
+@id matches the wrong object and silently does nothing.
+
+Test without git -- pass paths as arguments and it stamps them in place, no
+staging, no re-adding:
+
+    cp rootdomain/professional/index.html /tmp/t.html
+    ./datestamp-hook.pl /tmp/t.html
+
+Bypass for one commit:
+
+    git commit --no-verify

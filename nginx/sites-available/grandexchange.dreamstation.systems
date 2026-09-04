@@ -1,0 +1,83 @@
+# OpenGET — OSRS Grand Exchange tracker.
+#
+# A more specific server_name than the *.dreamstation.systems wildcard in
+# dreamstation.systems, so nginx prefers this block for grandexchange.
+#
+# Unlike the bare domain (which is deliberately HTTP-only, being just the "use
+# something else" page), this is a real site people will link to and read on
+# phones, so it gets its own certificate. Deliberately a SEPARATE cert rather
+# than an expansion of the dreamstation.systems one: that certificate also
+# covers mta-sts, and re-issuing it to add an unrelated host would put inbound
+# mail's TLS in the blast radius of a web deploy.
+
+server {
+    include snippets/clacks.conf;
+    listen 80;
+    listen [::]:80;
+    server_name grandexchange.dreamstation.systems;
+
+    # certbot writes challenges here; everything else goes to HTTPS.
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    include snippets/clacks.conf;
+    # openget sets this header itself (internal/web/server.go), so without this
+    # hide the proxied responses would carry it twice. Hidden from the upstream
+    # and re-added by the snippet above, so nginx is the single authority for
+    # every host here and a 502 from a down daemon still carries it.
+    proxy_hide_header X-Clacks-Overhead;
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name grandexchange.dreamstation.systems;
+
+    ssl_certificate     /etc/letsencrypt/live/grandexchange.dreamstation.systems/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/grandexchange.dreamstation.systems/privkey.pem;
+
+    access_log /var/log/nginx/openget-access.log;
+    error_log  /var/log/nginx/openget-error.log;
+
+    # The daemon renders server-side HTML and SVG; nothing here is large.
+    client_max_body_size 1m;
+    gzip on;
+    gzip_types text/plain text/css application/json application/atom+xml image/svg+xml;
+    gzip_min_length 1024;
+
+    # Per-token paths are bearer credentials. Keeping them out of the access
+    # log means a leaked logfile is not a leaked account, and the Atom feed is
+    # the one place a token routinely appears in a URL.
+    location ~ ^/u/ {
+        access_log off;
+        proxy_pass http://127.0.0.1:4151;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    location ~ ^/restore/ {
+        access_log off;
+        proxy_pass http://127.0.0.1:4151;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:4151;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_read_timeout 60s;
+        proxy_buffering on;
+    }
+}

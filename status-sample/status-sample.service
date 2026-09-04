@@ -1,0 +1,46 @@
+[Unit]
+Description=Collect CPU, disk and NTS-KE history for the status page
+Documentation=file:/home/robin/configNotes/status.txt
+After=chrony.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/status-sample.sh
+
+# Never compete with chronyd, which is by far the busiest thing on this box.
+# Same posture as disk-cleanup.service.
+Nice=10
+IOSchedulingClass=idle
+
+# Hardening.
+#
+# ReadWritePaths=/run/chrony is LOAD-BEARING, not incidental: chronyc sets up
+# its own reply socket there, and under ProtectSystem=strict without this it
+# fails with "Not authorised" and the NTS-KE figures silently go to zero. This
+# exact trap already cost time once on ntp-qps-sample.service — see
+# dashboard.txt. If NTS-KE ever reads 0 after touching this block, suspect
+# this line first.
+#
+# AF_UNIX is likewise required: chronyc talks to chronyd over a unix socket.
+#
+# StateDirectory=status is the disk history's home (/var/lib/status). It is
+# used INSTEAD of another ReadWritePaths entry because systemd creates the
+# directory with the right ownership and mode on its own, so nothing has to
+# exist before the first run — and unlike a bare ReadWritePaths, a missing
+# directory is not a startup failure.
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/run/status /run/chrony
+StateDirectory=status
+StateDirectoryMode=0755
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX
+RestrictNamespaces=true
+MemoryDenyWriteExecute=true
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM

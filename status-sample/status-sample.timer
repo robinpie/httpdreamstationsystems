@@ -1,0 +1,13 @@
+[Unit]
+Description=Sample CPU and NTS-KE counters for the status page every 30 seconds
+
+[Timer]
+# Ten samples cover the page's 5-minute CPU window. Starting 30s after boot
+# means the first visitor after a reboot gets a short-window average rather
+# than nothing; the CGI labels the true span either way.
+OnBootSec=30s
+OnUnitActiveSec=30s
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

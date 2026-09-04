@@ -1,0 +1,10 @@
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+
+    # Any Host that doesn't match a configured server block lands here
+    # (e.g. an unconfigured subdomain someone pointed at this IP).
+    # Drop the connection instead of silently serving the main site's content.
+    return 444;
+}
