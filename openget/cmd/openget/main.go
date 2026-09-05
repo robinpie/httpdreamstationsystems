@@ -138,7 +138,7 @@ func main() {
 
 	// Retro frontends regenerate straight off the stats recomputation rather than on a timer of their own, so the gophermaps are never staler than the numbers that produced them.
 	if cfg.Retro.Enabled {
-		gen := retro.New(db, cfg, log)
+		gen := retro.New(db, cfg, log, ing, version)
 		ing.OnStats = gen.Regenerate
 		if err := gen.Regenerate(ctx); err != nil {
 			log.Warn("initial retro generation failed", "err", err)

@@ -516,10 +516,9 @@ func (b *Builder) addFreshness(ctx context.Context, d *render.Doc) {
 func (b *Builder) Status(ctx context.Context, version string, freeDiskMB int64, pauseWhy string, paused bool) (*render.Doc, error) {
 	d := &render.Doc{Title: "Status", Path: "/status"}
 
-	counts, err := b.DB.TableCounts(ctx)
-	if err != nil {
-		return nil, err
-	}
+	// Measured on a timer, not now: counting the archive takes the better part
+	// of a minute (see store.ArchiveStats).
+	stats := b.DB.ArchiveStats()
 	f := render.Facts{Title: "Service", Pairs: []render.KV{
 		{Key: "Version", Value: version},
 		{Key: "Database", Value: render.GPShort(b.DB.SizeOnDisk()) + "B on disk"},
@@ -533,20 +532,31 @@ func (b *Builder) Status(ctx context.Context, version string, freeDiskMB int64, 
 	d.Add(f)
 
 	arch := render.Facts{Title: "Archive"}
-	for _, step := range []string{"5m", "1h", "24h"} {
-		oldest, newest, rows, err := b.DB.ArchiveSpan(ctx, step)
-		if err != nil {
-			continue
+	if stats.At.IsZero() {
+		// Nothing measured yet — the first pass runs shortly after boot. Say so
+		// rather than printing zeroes, which would read as an empty archive.
+		arch.Pairs = append(arch.Pairs, render.KV{Key: "Size", Value: "being measured, check back shortly"})
+	} else {
+		for _, step := range []string{"5m", "1h", "24h"} {
+			sp, ok := stats.Spans[step]
+			if !ok {
+				continue
+			}
+			val := "empty"
+			if sp.Rows > 0 {
+				val = fmt.Sprintf("%s rows, %s → %s", render.GP(sp.Rows),
+					sp.Oldest.UTC().Format("2006-01-02"), sp.Newest.UTC().Format("2006-01-02"))
+			}
+			arch.Pairs = append(arch.Pairs, render.KV{Key: step + " buckets", Value: val})
 		}
-		val := "empty"
-		if rows > 0 {
-			val = fmt.Sprintf("%s rows, %s → %s", render.GP(rows),
-				oldest.UTC().Format("2006-01-02"), newest.UTC().Format("2006-01-02"))
+		for _, t := range []string{"items", "latest", "volumes", "item_stats", "shop_offers"} {
+			arch.Pairs = append(arch.Pairs, render.KV{Key: t, Value: render.GP(stats.Counts[t]) + " rows"})
 		}
-		arch.Pairs = append(arch.Pairs, render.KV{Key: step + " buckets", Value: val})
-	}
-	for _, t := range []string{"items", "latest", "volumes", "item_stats", "shop_offers"} {
-		arch.Pairs = append(arch.Pairs, render.KV{Key: t, Value: render.GP(counts[t]) + " rows"})
+		arch.Pairs = append(arch.Pairs, render.KV{
+			Key:   "Measured",
+			Value: stats.At.UTC().Format("2006-01-02 15:04") + " UTC",
+			Hint:  "Counting the archive takes about a minute, so it is done on a timer rather than when you load this page",
+		})
 	}
 	d.Add(arch)
 

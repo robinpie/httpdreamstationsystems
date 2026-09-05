@@ -25,6 +25,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -37,6 +38,14 @@ type DB struct {
 	r    *sql.DB // readers
 	w    *sql.DB // single writer
 	path string
+
+	// The status page's row counts and archive spans, measured on a timer
+	// rather than per request. See status.go.
+	statsMu      sync.Mutex
+	statsCounts  map[string]int64
+	statsSpans   map[string]ArchiveSpanInfo
+	statsAt      time.Time
+	statsRunning bool
 }
 
 // pragmas applied to every connection. cache_size is deliberately modest: this box has under 1 GiB of RAM and is already into swap, so a generous per-connection page cache would cost more than it buys.
@@ -491,19 +500,6 @@ func (d *DB) SizeOnDisk() int64 {
 		}
 	}
 	return total
-}
-
-// TableCounts returns row counts for the tables worth showing on /status.
-func (d *DB) TableCounts(ctx context.Context) (map[string]int64, error) {
-	out := map[string]int64{}
-	for _, t := range []string{"items", "latest", "prices_5m", "prices_1h", "prices_24h", "volumes", "item_stats", "recipes", "shop_offers", "tokens"} {
-		var n int64
-		if err := d.r.QueryRowContext(ctx, `SELECT count(*) FROM `+t).Scan(&n); err != nil {
-			return nil, fmt.Errorf("store: count %s: %w", t, err)
-		}
-		out[t] = n
-	}
-	return out, nil
 }
 
 // nullInt converts a *int to a driver-friendly value.

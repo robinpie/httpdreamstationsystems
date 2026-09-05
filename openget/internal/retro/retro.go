@@ -39,13 +39,24 @@ type Generator struct {
 	log *slog.Logger
 	vb  *views.Builder
 
+	st      StatusSource
+	version string
+
 	mu   sync.Mutex
 	last time.Time
 }
 
-// New builds a Generator.
-func New(db *store.DB, cfg config.Config, log *slog.Logger) *Generator {
-	return &Generator{db: db, cfg: cfg, log: log, vb: views.New(db, cfg)}
+// StatusSource supplies the two live numbers the status page reports that the
+// database does not know. It is an interface rather than the concrete
+// *ingest.Ingester so this package need not import the ingester to print them.
+type StatusSource interface {
+	Paused() (string, bool)
+	FreeDiskMB() int64
+}
+
+// New builds a Generator. st may be nil, in which case no status page is written.
+func New(db *store.DB, cfg config.Config, log *slog.Logger, st StatusSource, version string) *Generator {
+	return &Generator{db: db, cfg: cfg, log: log, vb: views.New(db, cfg), st: st, version: version}
 }
 
 // gopherHost is the hostname advertised in generated gophermaps. It must match what gophernicus is started with (-h), or clients will follow links to a host that does not answer.
@@ -198,6 +209,17 @@ func (g *Generator) buildPages(ctx context.Context) ([]page, error) {
 				rd.Updated = updated
 				pages = append(pages, page{"calc-" + kind + "/" + r.ID, rd})
 			}
+		}
+	}
+	// The home page links a status page, so the capsules need one. Cheap now
+	// that the archive numbers on it are measured on a timer rather than read
+	// when the page is built (see store.ArchiveStats).
+	if g.st != nil {
+		why, paused := g.st.Paused()
+		if d, err := g.vb.Status(ctx, g.version, g.st.FreeDiskMB(), why, paused); err == nil {
+			pages = append(pages, page{"status", d})
+		} else {
+			g.log.Warn("status page skipped", "err", err)
 		}
 	}
 	return pages, nil

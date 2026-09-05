@@ -252,30 +252,29 @@ func (s *Server) apiTax(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) apiStatus(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	counts, err := s.db.TableCounts(ctx)
-	if err != nil {
-		s.apiError(w, http.StatusInternalServerError, "status failed")
-		return
-	}
+	// Counted on a timer rather than per request; see store.ArchiveStats.
+	stats := s.db.ArchiveStats()
 	arch := map[string]any{}
-	for _, step := range []string{"5m", "1h", "24h"} {
-		oldest, newest, rows, err := s.db.ArchiveSpan(ctx, step)
-		if err != nil {
-			continue
-		}
-		e := map[string]any{"rows": rows}
-		if !oldest.IsZero() {
-			e["oldest"] = oldest.UTC().Format(time.RFC3339)
-			e["newest"] = newest.UTC().Format(time.RFC3339)
+	for step, sp := range stats.Spans {
+		e := map[string]any{"rows": sp.Rows}
+		if !sp.Oldest.IsZero() {
+			e["oldest"] = sp.Oldest.UTC().Format(time.RFC3339)
+			e["newest"] = sp.Newest.UTC().Format(time.RFC3339)
 		}
 		arch[step] = e
 	}
 	out := map[string]any{
 		"version":  s.version,
 		"uptime":   time.Since(s.started).Round(time.Second).String(),
-		"tables":   counts,
+		"tables":   stats.Counts,
 		"archive":  arch,
 		"db_bytes": s.db.SizeOnDisk(),
+	}
+	// A client cannot tell a fresh zero from an unmeasured one without this.
+	if stats.At.IsZero() {
+		out["archive_measured"] = nil
+	} else {
+		out["archive_measured"] = stats.At.UTC().Format(time.RFC3339)
 	}
 	if s.ing != nil {
 		why, paused := s.ing.Paused()
