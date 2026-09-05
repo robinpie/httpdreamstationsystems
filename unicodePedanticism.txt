@@ -54,6 +54,8 @@ googleAuthenticatorMigrator    otpauth-migration              URI scheme
 gzipt.html                     GPT-2-124M                     model name
 gzipt.html                     non-party, [...]               corpus data
 hypnospace.html                sway/spin/.../color-cycle      effect names
+lanfalsehoods.html             Wi-Fi                          proper name
+lanfalsehoods.html             MA-L                           IEEE registry name
 ntppost.html                   Attribution-NonCommercial      license name
 professional/index.html        AC-Letter-Scorer, JSON-LD,
                                MTA-STS, SHA-256, TLS-RPT,
