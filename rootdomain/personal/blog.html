@@ -8,6 +8,11 @@
   <link rel="stylesheet" href="themes/<!--# echo var="theme" -->.css">
 </head>
 <body>
+  <!-- The ubuntu804 theme wraps this page in a picture of an Ubuntu 8.04
+       desktop. The chrome is three fragments under chrome/, pulled in by
+       nginx; every other theme expands these to nothing. chrome/top.html
+       explains the split, and why the title and path are handed in by hand. -->
+<!--# if expr="$theme = ubuntu804" --><!--# set var="wtitle" value="blog — robin’s page" --><!--# set var="path" value="$document_uri" --><!--# include virtual="/personal/chrome/top.html" --><!--# endif -->
   <header class="site-header">
     <nav class="site-nav">
       <a href="index.html">🏠 home</a>
@@ -25,14 +30,16 @@
           <option value="gtk2"<!--# if expr="$theme = gtk2" --> selected<!--# endif -->>GTK2</option>
           <option value="motif"<!--# if expr="$theme = motif" --> selected<!--# endif -->>Motif</option>
           <option value="skeuslop"<!--# if expr="$theme = skeuslop" --> selected<!--# endif -->>skeuslop</option>
+          <option value="ubuntu804"<!--# if expr="$theme = ubuntu804" --> selected<!--# endif -->>Ubuntu 8.04</option>
           <option value="plain"<!--# if expr="$theme = plain" --> selected<!--# endif -->>Plain</option>
         </select>
         <button type="submit">Apply</button>
       </form>
     </div>
   </header>
+<!--# if expr="$theme = ubuntu804" --><!--# include virtual="/personal/chrome/mid.html" --><!--# endif -->
 
-  <main>
+  <main id="content">
     <h1>blog</h1>
     <ul class="posts">
       <li><a href="ntppost.html">Internet centralization and the original sin of NAT</a> <span class="sep">|</span> <time datetime="2026-08-30">2026-08-30</time></li>
@@ -54,5 +61,6 @@
         <li><a href="https://archlinux.org"><img src="badges/Arch.png" alt="Arch Linux" width="88" height="31"></a></li>
     </ul>
   </footer>
+<!--# if expr="$theme = ubuntu804" --><!--# include virtual="/personal/chrome/bottom.html" --><!--# endif -->
 </body>
 </html>

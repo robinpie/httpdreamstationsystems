@@ -1,0 +1,197 @@
+ubuntu804 — an Ubuntu 8.04 desktop as a /personal/ theme
+========================================================
+
+The fifth theme in the /personal/ switcher. Picking it wraps the page in a
+picture of an Ubuntu 8.04 LTS "Hardy Heron" desktop running Firefox 3: GNOME
+panel with a live clock, metacity window frame, a menu bar whose seven menus
+really open, the navigation toolbar, the bookmarks toolbar, a status bar, and
+the exposed wallpaper strip along the bottom with the badge shelf on it.
+
+It is the same desktop as the standalone template under /tmp-ubuntu804/ — see
+ubuntu804/ubuntu804template.txt for that one — but reached a different way, and
+the difference is the whole point of this file.
+
+  /tmp-ubuntu804/   build.pl generates complete pages around chrome.html.
+                    Every hook the stylesheet wants is in the generated markup.
+  this theme        the pages are hand-written, predate the theme by years, and
+                    must still render under four other stylesheets. Nothing may
+                    be generated and nothing may be permanently restructured.
+
+WHERE EVERYTHING IS
+-------------------
+  rootdomain/personal/themes/ubuntu804.css      the stylesheet
+  rootdomain/personal/themes/ubuntu804/i/       11 images (wallpaper, icons)
+  rootdomain/personal/themes/ubuntu804/f/       two DejaVu woff2 faces
+  rootdomain/personal/themes/ubuntu804/CREDITS.txt   attribution; linked from
+                                                the theme's own Help menu
+  rootdomain/personal/chrome/top.html           the desktop markup, in three
+  rootdomain/personal/chrome/mid.html           unbalanced fragments
+  rootdomain/personal/chrome/bottom.html
+  nginx/snippets/theme.conf                     the internal chrome location
+  nginx/sites-available/dreamstation.systems    ubuntu804 in both theme maps
+
+The asset copies are byte-identical to what /tmp-ubuntu804/ ships and were
+taken from the same sources build.pl's @ASSETS table uses. They are DUPLICATED
+rather than shared on purpose: ubuntu804template.txt documents removing that
+tree with a `git rm -r`, and a theme that dies when a temporary template is
+deleted is a theme with a trapdoor under it. 464 kB, most of it the two fonts.
+
+HOW IT WORKS
+------------
+The seven themed pages already run through nginx with `ssi on` — that is how
+they pick a stylesheet at all. So the chrome rides the same machinery: each
+page carries three include lines, each guarded on the theme, and under
+gtk2/motif/skeuslop/plain nginx expands them to nothing. Measured: 5.5 kB for a
+page under any other theme, 21.7 kB under this one.
+
+The fragments are served from their own location — `internal`, and `ssi on`
+again. Both are load-bearing; see THINGS THAT WILL BITE.
+
+THREE FRAGMENTS, NOT TWO
+------------------------
+The obvious split is a prologue and an epilogue. It does not work, because one
+piece of the desktop has to come from the page itself and land in the middle.
+
+    [top]      .desktop > .panel, .window > .titlebar,
+               .client > .menubar, .navbar            (.client left open)
+    <header>   the page's own nav -> THE BOOKMARKS TOOLBAR
+    [mid]      .viewport > #page > #masthead   (.viewport, #page left open)
+    <main>     the page -> the document in the browser viewport
+    <footer>   the page's own badges -> THE BADGE SHELF
+    [bottom]   close #page/.viewport, .statusbar, close .client/.window,
+               close .desktop
+
+The site nav has to sit BETWEEN the navigation toolbar and the viewport,
+because on a real Firefox window the bookmarks toolbar is chrome and does not
+scroll, while the masthead is the top of the document and does. Those two are
+on opposite sides of the scroll container's boundary, and no stylesheet can
+move an element across it. Hence a fragment on each side of the header.
+
+THREE ELEMENTS RE-CAST
+----------------------
+The pages needed almost nothing added because three things they already had
+turned out to be the things the desktop wanted:
+
+  header.site-header  ->  the bookmarks toolbar. Already a row of links, which
+                          is what that toolbar is. `display: contents` on the
+                          <nav> inside dissolves it so the links become flex
+                          items of the bar directly, which is what lets a
+                          two-element header (nav + theme switcher) lay out as
+                          one toolbar with the switcher on the right end.
+  main                ->  the document. Gains id="content" so the skip link has
+                          somewhere to land; that is the only markup change to
+                          the pages besides the includes and the new <option>.
+  footer ul.badges    ->  the badge shelf on the exposed wallpaper. Both were
+                          already 88x31 walls. They line up exactly.
+
+The footer is the one that needs a trick. The shelf sits OUTSIDE the window,
+but the footer's place in the markup is inside it, in the middle of the page,
+where no include split can reach. So the theme gives it `position: fixed` and
+pins it to the bottom strip, and .desktop is short by exactly that strip's
+height to leave the gap. Fixed descendants are not clipped by an ancestor's
+overflow, so the shelf stays put while the page scrolls behind it — which is
+the behaviour wanted anyway.
+
+The theme switcher needed no trick at all: base.css already pins it with
+position:fixed, so it was never in the flow to begin with. This theme puts it
+back (position:static) and lets it ride the right end of the bookmarks toolbar,
+because under this theme the top-right corner of the viewport is the middle of
+the GNOME panel.
+
+WHAT IS PER-PAGE, AND HOW IT GETS THERE
+---------------------------------------
+Two things in the chrome differ per page: the window title and the location
+bar. Both are handed in by the page, on the same line as the first include:
+
+    set wtitle -> the page's own <title>, verbatim
+    set path   -> $document_uri
+
+and the fragment echoes them. It has to be this way round; see the first trap
+below. #echo defaults to encoding=entity, so a value taken from a request
+variable is HTML-escaped before it lands in the markup.
+
+$document_uri is right even for /personal/ with no filename: the server-level
+`index` makes that an internal redirect to /personal/index.html before the
+variable is read. Verified, not assumed.
+
+THINGS THAT WILL BITE
+---------------------
+  - NGINX VARIABLES DO NOT SURVIVE AN #include virtual. The include is a
+    subrequest and they are re-evaluated against it, so inside a fragment
+    $document_uri names THE FRAGMENT and $theme resolves to the map default
+    rather than the visitor's theme. Variables set with #set do arrive, because
+    SSI looks them up in the main request as well as the subrequest. This is
+    why wtitle and path are set by the page and not read in the fragment, and
+    it is silent when you get it wrong — the location bar just shows
+    /personal/chrome/top.html and nothing errors.
+
+  - SSI DOES NOT UNDERSTAND HTML COMMENT NESTING. It scans the byte stream for
+    its own opening sequence, so an SSI directive written inside an HTML
+    comment as documentation is not an example, it is executed. This bit once
+    already: chrome/top.html's header comment illustrated the theme guard, and
+    the illustration ran. Describe the syntax in these files; do not spell it.
+
+  - `ssi on` IS NEEDED ON THE FRAGMENT LOCATION TOO, not just on the pages.
+    Whether a subrequest's output is SSI-parsed is decided by the config of the
+    location that serves IT. Without it the panel clock reaches the browser as
+    a literal SSI comment and never renders, and nothing warns you.
+
+  - MALFORMED MARKUP IN A PAGE NOW BREAKS THE WINDOW. Under a plain stylesheet
+    an unclosed tag near the end of a page is cosmetic. Here everything after
+    it gets nested inside it, including bottom.html's closing structure.
+    index.html had exactly this — a footer <img> missing its ">" swallowed the
+    </a>, and the status bar ended up inside a link to archlinux.org. Fixed.
+    If the chrome ever comes out visibly wrong on one page and right on the
+    others, parse that page before suspecting the theme.
+
+  - THE VIEWPORT IS A NESTED SCROLLER. body has overflow:hidden and the
+    document scrolls inside .viewport, which is deliberate and matches
+    /tmp-ubuntu804/. The long posts (gzipt, ntppost, slowqotd) therefore scroll
+    inside the window rather than moving the page. Correct, but it is a
+    different feel from the other four themes and is the thing most likely to
+    be reported as a bug.
+
+  - THE FULL FONTS SHIP, NOT A SUBSET, and that is deliberate. A subset is
+    declared with a unicode-range, and the browser consults the range BEFORE it
+    looks inside the file: a codepoint in range but absent from the font falls
+    out of the family rather than through to the next @font-face. These pages
+    are full of emoji — the nav alone has four — and DejaVu has none of them at
+    any weight, so a census-derived subset either excludes them (and every page
+    drags the full face down anyway looking for them, buying nothing) or
+    includes them (and the range lies, and the emoji stop rendering). Full
+    faces cost one fetch, need no build step, and cannot rot when a page gains
+    a character.
+
+RELATIONSHIP TO ubuntu804/chrome.html
+-------------------------------------
+The two carry the same menus and the same window furniture and are maintained
+by hand in parallel. They are NOT generated from a common source, and a look at
+what actually differs says why that would have bought little: the menu
+destinations differ (this one's View and Bookmarks menus mirror /personal/'s
+nav, its Help menu points at this theme's own CREDITS.txt), the per-page values
+arrive by a completely different mechanism, and this one is split in three
+around markup the other does not have. What is genuinely shared is the artwork
+and the measurements, and those are shared — the images are byte copies and the
+stylesheet's chrome rules came over from ubuntu804/site.css with their
+reasoning attached.
+
+If the menus change in one, change them in the other.
+
+CHANGING THE STRIP HEIGHT
+-------------------------
+--strip-h in ubuntu804.css, and the sentence in the footer's ::after that says
+what it is. Two places, on purpose: the note is generated content, so it cannot
+read the custom property. /tmp-ubuntu804/ has the same number in site.conf and
+they do not have to agree — they are separate trees.
+
+TESTING IT
+----------
+There is no browser on the server, so this was verified structurally: every
+page parsed with html5lib to confirm the chrome nests as intended, every asset
+URL fetched for a 200, every theme fetched to confirm the fragments expand to
+nothing under the other four and that an unknown theme id falls back to gtk2.
+The look itself has NOT been eyeballed on the server and cannot be. Do that on
+a workstation. ubuntu804/devserver.sh is the model for a loopback nginx that
+serves the repo without committing anything; the same trick works here by
+pointing the root at rootdomain/ and including nginx/snippets/theme.conf plus
+the two map blocks out of the vhost.

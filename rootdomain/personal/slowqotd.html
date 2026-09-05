@@ -33,6 +33,11 @@
   </style>
 </head>
 <body>
+  <!-- The ubuntu804 theme wraps this page in a picture of an Ubuntu 8.04
+       desktop. The chrome is three fragments under chrome/, pulled in by
+       nginx; every other theme expands these to nothing. chrome/top.html
+       explains the split, and why the title and path are handed in by hand. -->
+<!--# if expr="$theme = ubuntu804" --><!--# set var="wtitle" value="Quirky but compliant QOTDs; or, a really slow QOTD server" --><!--# set var="path" value="$document_uri" --><!--# include virtual="/personal/chrome/top.html" --><!--# endif -->
   <header class="site-header">
     <nav class="site-nav">
       <a href="index.html">🏠 home</a>
@@ -50,14 +55,16 @@
           <option value="gtk2"<!--# if expr="$theme = gtk2" --> selected<!--# endif -->>GTK2</option>
           <option value="motif"<!--# if expr="$theme = motif" --> selected<!--# endif -->>Motif</option>
           <option value="skeuslop"<!--# if expr="$theme = skeuslop" --> selected<!--# endif -->>skeuslop</option>
+          <option value="ubuntu804"<!--# if expr="$theme = ubuntu804" --> selected<!--# endif -->>Ubuntu 8.04</option>
           <option value="plain"<!--# if expr="$theme = plain" --> selected<!--# endif -->>Plain</option>
         </select>
         <button type="submit">Apply</button>
       </form>
     </div>
   </header>
+<!--# if expr="$theme = ubuntu804" --><!--# include virtual="/personal/chrome/mid.html" --><!--# endif -->
 
-  <main>
+  <main id="content">
     <h1 class="slowqotd-title"><span>Quirky but compliant QOTDs; or, a <em>really slow</em> QOTD server</span><a href="https://www.pangram.com/history/c646313b-8370-4f0a-be6a-cc6391ba98e2?ucc=tp64Jv2K7C4"><img src="my%20shitty%20Pangram%20100%25%20Human%20badge.png" alt="Pangram 100% Human badge" width="88" height="31"></a></h1>
 
     <p>QOTD (<a href="https://datatracker.ietf.org/doc/html/rfc865">RFC 865</a>) is one of the early, trivially simple Internet protocols. Either on TCP or UDP, whenever it establishes a connection / receives a datagram, the server simply sends out a “short message” (and doesn’t do anything with the data the client sends).</p>
@@ -170,5 +177,6 @@ my satisfaction.[wait 1][type 0]
         <li><a href="https://archlinux.org"><img src="badges/Arch.png" alt="Arch Linux" width="88" height="31"></a></li>
     </ul>
   </footer>
+<!--# if expr="$theme = ubuntu804" --><!--# include virtual="/personal/chrome/bottom.html" --><!--# endif -->
 </body>
 </html>

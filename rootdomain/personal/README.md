@@ -38,15 +38,49 @@ their own styling and are not themed.
   etched separators, an XmOptionMenu switcher.
 - `themes/skeuslop.css` — Windows Vista / Aero (frosted-glass header, glossy
   buttons, blue Segoe UI headings).
+- `themes/ubuntu804.css` — an Ubuntu 8.04 "Hardy Heron" desktop running
+  Firefox 3, drawn around the page: GNOME panel with a live clock, metacity
+  window frame, a menu bar whose menus really open, location bar, status bar,
+  and the badge shelf on the exposed wallpaper. The only theme that is more
+  than a stylesheet — see **A theme that needs markup**, below.
 
 Each theme styles both `#theme-switcher select` and `#theme-switcher button`
 as a matching widget pair of its era. `plain.css` styles neither on purpose —
 it gets the browser's native controls, which is the whole idea.
 
+### A theme that needs markup
+
+`ubuntu804` draws a whole desktop around the page, and none of that markup is
+in the pages. It lives in three fragments under `chrome/`, which each themed
+page pulls in with SSI, guarded on the theme:
+
+    if $theme is ubuntu804 -> include chrome/top.html     (before <header>)
+                              include chrome/mid.html     (after  </header>)
+                              include chrome/bottom.html  (before </body>)
+
+Under the other four themes nginx expands those to nothing, so they cost 0
+bytes. The fragments are deliberately unbalanced HTML — `top` opens what
+`bottom` closes — and are served from an `internal` location, so fetching one
+directly gives a 404.
+
+Three of the pages' own elements are re-cast rather than restyled:
+`header.site-header` becomes the bookmarks toolbar, `main` becomes the
+document in the browser viewport, and `footer ul.badges` becomes the badge
+shelf on the wallpaper. That is why this theme needed almost no new markup —
+only `id="content"` on `<main>`, for the skip link.
+
+`ubuntu804theme.txt` in the repo root is the design document, and it lists the
+traps. Two are worth repeating here because they are silent: **nginx variables
+do not survive an SSI include** (they re-evaluate against the subrequest, so
+the page hands the title and path in with `set`), and **SSI does not
+understand HTML comment nesting**, so an SSI directive written inside a
+comment as documentation gets executed.
+
 ### Adding a theme
 
 1. Create `themes/<id>.css` (including switcher chrome, or it inherits
-   nothing and shows native controls).
+   nothing and shows native controls). A theme that needs markup of its own
+   adds fragments under `chrome/` and include lines on each page — see above.
 2. Add `<id>` to **both** maps at the top of
    `nginx/sites-available/dreamstation.systems`. Anything not in the maps is
    rejected and falls back to the default.

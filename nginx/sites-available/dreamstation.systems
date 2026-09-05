@@ -27,6 +27,7 @@ map $cookie_theme $theme_cookie {
     gtk2      gtk2;
     motif     motif;
     skeuslop  skeuslop;
+    ubuntu804 ubuntu804;
     plain     plain;
 }
 
@@ -37,6 +38,7 @@ map $arg_theme $theme {
     gtk2      gtk2;
     motif     motif;
     skeuslop  skeuslop;
+    ubuntu804 ubuntu804;
     plain     plain;
 }
 

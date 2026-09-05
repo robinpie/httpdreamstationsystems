@@ -1,0 +1,21 @@
+<!-- chrome/bottom.html — the ubuntu804 theme's desktop chrome, part 3 of 3.
+     Closes everything chrome/top.html and chrome/mid.html opened. See
+     chrome/top.html for the layout.
+
+     The page's <footer> has already gone past at this point. It is not closed
+     off or moved here: ubuntu804.css gives it position:fixed and drops it into
+     the exposed wallpaper strip along the bottom of the screen, which is where
+     the badge shelf belongs and which no include split could put it. .desktop
+     is short by exactly that strip's height to leave room for it. -->
+
+        </div><!-- /#page -->
+      </div><!-- /viewport -->
+
+      <div class="statusbar">
+        <span class="done">Done</span>
+        <span class="grip" aria-hidden="true"></span>
+      </div>
+
+    </div><!-- /client -->
+  </div><!-- /window -->
+</div><!-- /desktop -->
