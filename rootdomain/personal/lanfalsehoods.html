@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Falsehoods Programmers Believe About LANs</title>
+  <meta property="og:title" content="Falsehoods Programmers Believe About LANs">
+  <meta property="og:description" content="A list of things that are not reliably true about the local network.">
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://dreamstation.systems/personal/lanfalsehoods.html">
+  <meta property="og:site_name" content="robin’s page">
+  <link rel="stylesheet" href="base.css">
+  <link rel="stylesheet" href="themes/<!--# echo var="theme" -->.css">
+</head>
+<body>
+  <!-- The ubuntu804 theme wraps this page in a picture of an Ubuntu 8.04
+       desktop. The chrome is three fragments under chrome/, pulled in by
+       nginx; every other theme expands these to nothing. chrome/top.html
+       explains the split, and why the title and path are handed in by hand. -->
+<!--# if expr="$theme = ubuntu804" --><!--# set var="wtitle" value="Falsehoods Programmers Believe About LANs" --><!--# set var="path" value="$document_uri" --><!--# include virtual="/personal/chrome/top.html" --><!--# endif -->
+  <header class="site-header">
+    <nav class="site-nav">
+      <a href="index.html">🏠 home</a>
+      <a href="blog.html">📓 blog</a>
+      <a href="/professional">💼 my professional site</a>
+      <a href="https://grandexchange.dreamstation.systems">📈 OpenGET</a>
+
+    </nav>
+    <div id="theme-switcher" class="theme-switcher">
+      <!-- A GET form, so switching themes is a plain form submission to
+           ?theme=<id> and needs no JavaScript. nginx reads the parameter and
+           SSI stamps the choice back in below - see nginx/snippets/theme.conf. -->
+      <form method="get">
+        <select name="theme" aria-label="Theme">
+          <option value="gtk2"<!--# if expr="$theme = gtk2" --> selected<!--# endif -->>GTK2</option>
+          <option value="motif"<!--# if expr="$theme = motif" --> selected<!--# endif -->>Motif</option>
+          <option value="skeuslop"<!--# if expr="$theme = skeuslop" --> selected<!--# endif -->>skeuslop</option>
+          <option value="ubuntu804"<!--# if expr="$theme = ubuntu804" --> selected<!--# endif -->>Ubuntu 8.04</option>
+          <option value="plain"<!--# if expr="$theme = plain" --> selected<!--# endif -->>Plain</option>
+        </select>
+        <button type="submit">Apply</button>
+      </form>
+    </div>
+  </header>
+<!--# if expr="$theme = ubuntu804" --><!--# include virtual="/personal/chrome/mid.html" --><!--# endif -->
+
+  <main id="content">
+    <h1>Falsehoods Programmers Believe About LANs</h1>
+
+    <p><em>Each entry is phrased as the falsehood. Some of these may sometimes be true and sometimes be false.</em></p>
+
+    <h2>NAT</h2>
+    <ul>
+      <li>My LAN is behind a NAT.</li>
+      <li>I'm only behind one NAT.</li>
+      <li>My LAN isn't behind a NAT.</li>
+      <li>My IPv6 hosts aren't behind a NAT.</li>
+      <li>If I have a RFC 1918 address, I'm behind a NAT.</li>
+      <li>If I don't have a RFC 1918 address, I'm not behind a NAT.</li>
+      <li>NAT only translates addresses.</li>
+      <li>NAT only translates addresses and ports.</li>
+      <li>NAT changes nothing outside of the header.</li>
+      <li>NAT is only found on LANs.</li>
+    </ul>
+
+    <h2>Protocols</h2>
+    <ul>
+      <li>Only IPv4 is running on my LAN.</li>
+      <li>Only IP is running on my LAN.</li>
+      <li>Okay, only IP, IPX/SPX, Phase IV, AppleTalk, VINES, NetBEUI, or SNA are running on my LAN.</li>
+      <li>Seriously?</li>
+      <li>I can stop certain types of traffic from using my LAN.</li>
+      <li>I know what's running on my LAN.</li>
+    </ul>
+
+    <h2>MAC addresses</h2>
+    <ul>
+      <li>MAC addresses are globally unique. (They're <em>supposed</em> to be, but they aren't.)</li>
+      <li>MAC addresses are locally unique.</li>
+      <li>Different MACs are different devices.</li>
+      <li>Okay, different MACs are different network interfaces.</li>
+      <li>MAC addresses can't be changed.</li>
+      <li>MAC addresses can be changed.</li>
+      <li>MAC addresses are 48 bits.</li>
+      <li>The first three bytes are vendor-unique.</li>
+      <li>The first three bytes are vendor-unique if it's a MA-L block.</li>
+      <li>MAC addresses are unicast.</li>
+      <li>Only one host answers an ARP request for a given IP.</li>
+      <li>ARP entries are accurate.</li>
+    </ul>
+
+    <h2>Reachability and performance</h2>
+    <ul>
+      <li>The LAN is fast.</li>
+      <li>The LAN is faster than the Internet.</li>
+      <li>Two hosts on the same subnet can reach each other without leaving the LAN.</li>
+      <li>Same subnet means two hosts can talk.</li>
+      <li>Wi-Fi and Ethernet clients are equivalent peers on the LAN.</li>
+      <li>Wi-Fi and Ethernet clients aren't equivalent peers on the LAN.</li>
+      <li>Every device on my LAN has the same MTU.</li>
+      <li>Hostnames are locally unique.</li>
+      <li>mDNS works.</li>
+    </ul>
+
+    <h2>DHCP</h2>
+    <ul>
+      <li>There is a DHCP server.</li>
+      <li>There is one DHCP server.</li>
+      <li>My address won't change while I'm using it.</li>
+      <li>The DHCP server and the gateway are the same device.</li>
+      <li>DHCP will give me a gateway.</li>
+      <li>DHCP will give me a DNS server.</li>
+      <li>169.254.0.0/16 means DHCP failed.</li>
+    </ul>
+
+    <h2>IP addresses</h2>
+    <ul>
+      <li>Every host has one IP address.</li>
+      <li>My LAN uses RFC 1918 IP addresses.</li>
+      <li>My LAN uses private IP addresses.</li>
+      <li>My LAN uses IP addresses.</li>
+    </ul>
+  </main>
+  <footer>
+    <ul class="badges">
+        <li><a href="https://eightyeightthirty.one/"><img src="badges/88x31.png" alt="eightyeightthirty.one" width="88" height="31"></a></li>
+        <li><img src="badges/zero-javascript.png" alt="Proudly ZERO JavaScript!" width="88" height="31"></li>
+        <li><a href="https://debian.org/"><img src="badges/debian-powered.gif" alt="debian POWERED" width="88" height="31"></a></li>
+        <li><img src="badges/trans-flag.gif" alt="Transgender pride flag" width="88" height="31"></li>
+        <li><a href="https://nginx.org"><img src="badges/nginx.png" alt="nginx powered" width="88" height="31"></a></li>
+        <li><a href="https://xkcd.com"><img src="badges/xkcd.png" alt="xkcd" width="88" height="31"></a></li>
+        <li><a href="https://www.getmonero.org/"><img src="badges/monero.png" alt="I ❤️ MONERO" width="88" height="31"></a></li>
+        <li><a href="https://homestuck.com/"><img src="badges/mspaintadventures.png" alt="MS Paint Adventures" width="88" height="31"></a></li>
+        <li><a href="https://archlinux.org"><img src="badges/Arch.png" alt="Arch Linux" width="88" height="31"></a></li>
+        <li><a href="https://www.sbnation.com/a/17776-football"><img src="badges/17776.png" alt="17776" width="88" height="31"></a></li>
+    </ul>
+  </footer>
+<!--# if expr="$theme = ubuntu804" --><!--# include virtual="/personal/chrome/bottom.html" --><!--# endif -->
+</body>
+</html>
