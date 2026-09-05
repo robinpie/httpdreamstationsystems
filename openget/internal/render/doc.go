@@ -388,7 +388,7 @@ func RetroLinks(body, prefix, proto string) string {
 	if proto == "gemini" {
 		itemPath, searchPath = prefix+"/cgi-bin/ge/item/", prefix+"/cgi-bin/ge/search"
 	}
-	return strings.NewReplacer(
+	body = strings.NewReplacer(
 		prefix+"/flips/", prefix+"/",
 		prefix+"/item/", itemPath,
 		prefix+"/calc/", prefix+"/calc-",
@@ -397,6 +397,53 @@ func RetroLinks(body, prefix, proto string) string {
 		prefix+"/store-profit", prefix+"/alch",
 		prefix+"/search", searchPath,
 	).Replace(body)
+	if proto == "gemini" {
+		body = gemtextPageExt(body, prefix)
+	}
+	return body
+}
+
+// gemtextPageExt appends ".gmi" to the capsule's own page links.
+//
+// The generator writes each page as "<slug>.gmi" (writeGemini), but the view models link to extensionless web paths, and molly-brown does no extension guessing: it looks for the literal path and answers 51 when it is not there. The Gopher tree does not have this problem because its pages are directories with a gophermap inside, so "/ge/margin" is a real target there. Without this pass every internal link in the capsule 404s while the index itself loads fine, which is exactly how the breakage presents.
+//
+// Applied here rather than in withPrefix so it runs AFTER the replacements above: by this point /item/ and /search have already become cgi-bin paths, which must NOT gain an extension, and /calc/x has become the calc-x that is a real file.
+func gemtextPageExt(body, prefix string) string {
+	lines := strings.Split(body, "\n")
+	for i, ln := range lines {
+		rest, ok := strings.CutPrefix(ln, "=> ")
+		if !ok {
+			continue
+		}
+		target, label, hasLabel := strings.Cut(strings.TrimLeft(rest, " "), " ")
+
+		// Only this capsule's own pages. cgi-bin is dynamic and takes the rest of the path as PATH_INFO, and the tree root is served by its index.gmi.
+		if !strings.HasPrefix(target, prefix+"/") ||
+			strings.HasPrefix(target, prefix+"/cgi-bin/") ||
+			target == prefix+"/" {
+			continue
+		}
+
+		// Split the query and fragment off first: the extension belongs on the path, not after "?spell=low" or "#gold".
+		path, tail := target, ""
+		if j := strings.IndexAny(path, "?#"); j >= 0 {
+			path, tail = path[:j], path[j:]
+		}
+		// Anything that already names a file is left alone: chart links are
+		// "/ge/chart/4151.svg", and turning those into "4151.svg.gmi" would
+		// dress a non-gemtext resource up as a page.
+		if path == "" || strings.HasSuffix(path, "/") ||
+			strings.Contains(path[strings.LastIndexByte(path, '/')+1:], ".") {
+			continue
+		}
+
+		out := "=> " + path + ".gmi" + tail
+		if hasLabel {
+			out += " " + label
+		}
+		lines[i] = out
+	}
+	return strings.Join(lines, "\n")
 }
 
 // pad left- or right-aligns s to width w, counting runes rather than bytes so the em dash placeholder does not break column alignment in a terminal.
