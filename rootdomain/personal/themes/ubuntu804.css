@@ -760,18 +760,10 @@ footer .badges img {
 }
 footer .badges a { display: block; line-height: 0; }
 footer .badges a:focus { outline: 2px solid #fff; outline-offset: 1px; }
-/* Says which way the row goes, and why the window stops short. Generated
- * rather than marked up because the footer's contents belong to the page and
- * this note belongs to the theme. */
-footer .badges::after {
-  content: "the window is 48px short of the screen on purpose \2192";
-  flex: 0 0 auto;
-  color: #fff;
-  font: 400 11px/1.2 var(--chrome-stack);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, .85);
-  white-space: nowrap;
-  padding: 0 4px;
-}
+/* tmp-ubuntu804 ends this row with a line of white text explaining that the
+ * window stops short of the screen on purpose. Not carried over: there it was
+ * a note on a template being shown off, and here the desktop is just how the
+ * site looks. The strip reads as wallpaper without being told it is. */
 
 /* -------------------------------------------------------- skip link (a11y) */
 
@@ -821,7 +813,6 @@ footer .badges::after {
   main { margin: 1.25em 1em 0; }
   #page { font-size: 14px; }
   footer .badges { gap: 6px; padding: 0 6px; }
-  footer .badges::after { display: none; }
 }
 
 /* ------------------------------------------------------------------ print */
@@ -845,7 +836,6 @@ footer .badges::after {
   main :link, main :visited { color: #000; text-decoration: underline; }
   footer { position: static; height: auto; margin-top: 2em; }
   footer .badges { overflow: visible; flex-wrap: wrap; padding: 0; }
-  footer .badges::after { display: none; }
 }
 
 /* ------------------------------------------------------ reduced motion etc */

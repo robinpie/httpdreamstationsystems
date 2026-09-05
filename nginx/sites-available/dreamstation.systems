@@ -15,15 +15,15 @@
 # included from inside a server block is not that.
 #
 # Read as one chain: $theme is the query parameter if it names a real theme,
-# otherwise the cookie if that names a real theme, otherwise gtk2. Both maps
-# list the themes explicitly, so an unknown id from either source can never
-# reach the page — it lands on the default instead.
+# otherwise the cookie if that names a real theme, otherwise ubuntu804. Both
+# maps list the themes explicitly, so an unknown id from either source can
+# never reach the page — it lands on the default instead.
 #
 # TO ADD A THEME: drop themes/<id>.css, add <id> to BOTH maps, and add an
 # <option> to the switcher on each themed page. (Under theme.js this was two
 # steps; the map pair is the price of the page working without JavaScript.)
 map $cookie_theme $theme_cookie {
-    default   gtk2;
+    default   ubuntu804;
     gtk2      gtk2;
     motif     motif;
     skeuslop  skeuslop;
@@ -32,7 +32,8 @@ map $cookie_theme $theme_cookie {
 }
 
 # Note the default: an absent or unrecognised ?theme= falls through to
-# whatever the cookie map resolved to, rather than jumping straight to gtk2.
+# whatever the cookie map resolved to, rather than jumping straight to the
+# default theme.
 map $arg_theme $theme {
     default   $theme_cookie;
     gtk2      gtk2;

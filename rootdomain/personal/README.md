@@ -32,7 +32,7 @@ their own styling and are not themed.
 - `base.css` — always loaded. Only structural things that hold for *every*
   theme (e.g. where the switcher sits). No aesthetics.
 - `themes/plain.css` — deliberately (almost) empty: browser defaults.
-- `themes/gtk2.css` — makes the page look like a GTK2 app. **Default.**
+- `themes/gtk2.css` — makes the page look like a GTK2 app.
 - `themes/motif.css` — makes the page look like an OSF/Motif (Xm) X11 app:
   battleship-grey face, chunky 2px highlight/shadow bevels, square corners,
   etched separators, an XmOptionMenu switcher.
@@ -41,8 +41,8 @@ their own styling and are not themed.
 - `themes/ubuntu804.css` — an Ubuntu 8.04 "Hardy Heron" desktop running
   Firefox 3, drawn around the page: GNOME panel with a live clock, metacity
   window frame, a menu bar whose menus really open, location bar, status bar,
-  and the badge shelf on the exposed wallpaper. The only theme that is more
-  than a stylesheet — see **A theme that needs markup**, below.
+  and the badge shelf on the exposed wallpaper. **Default.** The only theme
+  that is more than a stylesheet — see **A theme that needs markup**, below.
 
 Each theme styles both `#theme-switcher select` and `#theme-switcher button`
 as a matching widget pair of its era. `plain.css` styles neither on purpose —

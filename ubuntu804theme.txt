@@ -1,11 +1,20 @@
 ubuntu804 — an Ubuntu 8.04 desktop as a /personal/ theme
 ========================================================
 
-The fifth theme in the /personal/ switcher. Picking it wraps the page in a
-picture of an Ubuntu 8.04 LTS "Hardy Heron" desktop running Firefox 3: GNOME
-panel with a live clock, metacity window frame, a menu bar whose seven menus
-really open, the navigation toolbar, the bookmarks toolbar, a status bar, and
-the exposed wallpaper strip along the bottom with the badge shelf on it.
+The fifth theme in the /personal/ switcher, and since shortly after it landed
+the DEFAULT one — so this is what /personal/ looks like to anyone arriving
+without a theme cookie. It wraps the page in a picture of an Ubuntu 8.04 LTS
+"Hardy Heron" desktop running Firefox 3: GNOME panel with a live clock,
+metacity window frame, a menu bar whose seven menus really open, the
+navigation toolbar, the bookmarks toolbar, a status bar, and the exposed
+wallpaper strip along the bottom with the badge shelf on it.
+
+Being the default is one line — `default` in the $theme_cookie map — but it
+does NOT move visitors who already have a cookie, and the cookie is re-sent on
+every request with a one-year life. See THINGS THAT WILL BITE in nginx.txt.
+Being the default also means this theme is now the first thing a stranger sees,
+so a mistake in the chrome is no longer confined to people who went looking
+for it.
 
 It is the same desktop as the standalone template under /tmp-ubuntu804/ — see
 ubuntu804/ubuntu804template.txt for that one — but reached a different way, and
@@ -179,17 +188,24 @@ If the menus change in one, change them in the other.
 
 CHANGING THE STRIP HEIGHT
 -------------------------
---strip-h in ubuntu804.css, and the sentence in the footer's ::after that says
-what it is. Two places, on purpose: the note is generated content, so it cannot
-read the custom property. /tmp-ubuntu804/ has the same number in site.conf and
-they do not have to agree — they are separate trees.
+--strip-h in ubuntu804.css, and nowhere else. /tmp-ubuntu804/ carries the same
+number in site.conf; the two do not have to agree, because they are separate
+trees.
+
+That tree ends its badge row with a line of white text saying the window is
+short of the screen on purpose. This theme deliberately does not: there the
+note explains a template being shown off, here the desktop is simply how the
+site looks, and a page does not need to narrate its own layout. Dropping it
+also took --strip-h down to a single source of truth, since the note was
+generated content and could not read the custom property.
 
 TESTING IT
 ----------
 There is no browser on the server, so this was verified structurally: every
 page parsed with html5lib to confirm the chrome nests as intended, every asset
 URL fetched for a 200, every theme fetched to confirm the fragments expand to
-nothing under the other four and that an unknown theme id falls back to gtk2.
+nothing under the other four and that an unknown theme id falls back to the
+default.
 The look itself has NOT been eyeballed on the server and cannot be. Do that on
 a workstation. ubuntu804/devserver.sh is the model for a loopback nginx that
 serves the repo without committing anything; the same trick works here by
