@@ -103,7 +103,7 @@ func (g *Generator) buildPages(ctx context.Context) ([]page, error) {
 
 	index := &render.Doc{
 		Title:    "OpenGET — OSRS Grand Exchange prices",
-		Subtitle: "Live margins, ROI and money-making calculators. Free, no accounts.",
+		Subtitle: "Live margins, ROI and money-making calculators.",
 	}
 	index.Add(render.Links{Title: "Flip finders", Items: []render.Link{
 		{Text: "Highest margins", Href: "/margin", Desc: "profit per item after tax"},
