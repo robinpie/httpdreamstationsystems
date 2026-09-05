@@ -399,8 +399,29 @@ func RetroLinks(body, prefix, proto string) string {
 	).Replace(body)
 	if proto == "gemini" {
 		body = gemtextPageExt(body, prefix)
+	} else {
+		body = gopherStripFragment(body, prefix)
 	}
 	return body
+}
+
+// gopherStripFragment drops "#section" from gopher selectors.
+//
+// A fragment is a client-side idea that Gopher has no notion of: gophernicus takes the whole selector literally and looks for a file called "indices#bars", so every index link 404'd. Gemini keeps its fragments, which is why this runs only on the other branch. Landing on the whole indices page is the honest degradation — every section is on it anyway.
+func gopherStripFragment(body, prefix string) string {
+	lines := strings.Split(body, "\n")
+	for i, ln := range lines {
+		// A menu line is "<type><display>\t<selector>\t<host>\t<port>"; anything else is not addressing a selector.
+		f := strings.Split(ln, "\t")
+		if len(f) < 2 || !strings.HasPrefix(f[1], prefix) {
+			continue
+		}
+		if j := strings.IndexByte(f[1], '#'); j >= 0 {
+			f[1] = f[1][:j]
+			lines[i] = strings.Join(f, "\t")
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 // gemtextPageExt appends ".gmi" to the capsule's own page links.

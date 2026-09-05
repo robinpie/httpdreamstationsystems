@@ -12,7 +12,10 @@
 
 package render
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // TestRetroLinksGeminiPageExt pins the capsule link shapes. Every one of these
 // 404'd against molly-brown before the .gmi pass existed, because the generator
@@ -50,5 +53,57 @@ func TestRetroLinksGopherNoExt(t *testing.T) {
 	want := "1Highest margins\t/ge/margin\tdreamstation.systems\t70"
 	if got := RetroLinks(in, "/ge", "gopher"); got != want {
 		t.Errorf("RetroLinks(gopher)\n got %q\nwant %q", got, want)
+	}
+}
+
+// TestRetroLinksGopherFragment pins the fragment strip. Gopher has no notion of
+// a fragment, so gophernicus looked for a file literally called "indices#bars".
+func TestRetroLinksGopherFragment(t *testing.T) {
+	in := "0Gold\t/ge/indices/gold\tdreamstation.systems\t70"
+	want := "0Gold\t/ge/indices\tdreamstation.systems\t70"
+	if got := RetroLinks(in, "/ge", "gopher"); got != want {
+		t.Errorf("RetroLinks(gopher)\n got %q\nwant %q", got, want)
+	}
+	// Gemini keeps them: the fragment is what makes the link land on the section.
+	gem := "=> /ge/indices/gold Gold index"
+	if got, want := RetroLinks(gem, "/ge", "gemini"), "=> /ge/indices.gmi#gold Gold index"; got != want {
+		t.Errorf("RetroLinks(gemini)\n got %q\nwant %q", got, want)
+	}
+}
+
+// TestGophermapRowTypes pins the item type of a linked table row. A '0' aimed at
+// one of our pages makes clients print a gophermap as raw tab-separated text.
+func TestGophermapRowTypes(t *testing.T) {
+	d := &Doc{Title: "Barrows repair"}
+	d.Add(Table{
+		Caption: "Methods",
+		Columns: []Column{{Title: "Method"}, {Title: "Profit"}},
+		Rows: [][]Cell{
+			{CL("Repair Ahrim's robetop", "/calc/barrows/repair-ahrim-body"), C("-91,029")},
+			{CL("Abyssal whip", "/item/4151"), C("3,393")},
+		},
+	})
+	out := RetroLinks(Gophermap(d, GopherOptions{Host: "h", Port: 70, Prefix: "/ge", Width: 70}), "/ge", "gopher")
+
+	var recipe, item string
+	for _, ln := range strings.Split(out, "\n") {
+		f := strings.Split(ln, "\t")
+		if len(f) < 2 {
+			continue
+		}
+		switch f[1] {
+		case "/ge/calc-barrows/repair-ahrim-body":
+			recipe = ln[:1]
+		case "/ge/cgi-bin/item?4151":
+			item = ln[:1]
+		}
+	}
+	// A recipe page is written as a directory holding a gophermap: a menu.
+	if recipe != "1" {
+		t.Errorf("recipe row type = %q, want \"1\" (menu); output:\n%s", recipe, out)
+	}
+	// Item lookup is a CGI script that really does return text.
+	if item != "0" {
+		t.Errorf("item row type = %q, want \"0\" (text); output:\n%s", item, out)
 	}
 }

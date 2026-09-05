@@ -170,6 +170,9 @@ func (g *Generator) buildPages(ctx context.Context) ([]page, error) {
 		pages = append(pages, page{"about", d})
 	}
 	// The money-maker families are small and change slowly, so they are cheap to precompute and are the most interesting thing to find on a capsule.
+	//
+	// The data timestamp is the same for every page in one run, so it is read once here rather than by each page builder.
+	updated, _ := g.db.LatestFetch(ctx)
 	if kinds, err := g.db.RecipeKinds(ctx); err == nil {
 		for kind := range kinds {
 			d, err := g.vb.CalcKind(ctx, kind)
@@ -177,6 +180,24 @@ func (g *Generator) buildPages(ctx context.Context) ([]page, error) {
 				continue
 			}
 			pages = append(pages, page{"calc-" + kind, d})
+
+			// And one page per recipe, because every row of the page just added links to its own breakdown. Roughly 150 pages, which is a different proposition from the 4,650 item pages above: they cost about 180ms in total and they are the whole point of the money-maker section. Without them the capsules carry 150 links that answer "not found".
+			//
+			// One price book for the whole family, not one per recipe: going through CalcRecipe would re-query the recipe, its prices and the freshness stamp for every one.
+			rs, err := g.db.Recipes(ctx, kind)
+			if err != nil {
+				continue
+			}
+			pb, err := g.db.PriceBookFor(ctx, store.RecipeItemIDs(rs))
+			if err != nil {
+				g.log.Warn("recipe pages skipped", "kind", kind, "err", err)
+				continue
+			}
+			for _, r := range rs {
+				rd := g.vb.CalcRecipeDoc(r, pb)
+				rd.Updated = updated
+				pages = append(pages, page{"calc-" + kind + "/" + r.ID, rd})
+			}
 		}
 	}
 	return pages, nil
@@ -237,6 +258,10 @@ func (g *Generator) writeGemini(dir string, pages []page) (int, error) {
 		name := filepath.Join(dir, "index.gmi")
 		if p.slug != "" {
 			name = filepath.Join(dir, p.slug+".gmi")
+			// Recipe slugs carry a directory component ("calc-herblore/herb-prayer"), and unlike the gopher writer this one is not creating a directory per page.
+			if err := os.MkdirAll(filepath.Dir(name), 0o755); err != nil {
+				return n, err
+			}
 		}
 		if err := writeFileAtomic(name, []byte(body)); err != nil {
 			return n, err

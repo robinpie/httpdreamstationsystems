@@ -182,6 +182,16 @@ func withPrefix(prefix, href string) string {
 	return prefix + href
 }
 
+// gopherRowType picks the item type for a link sitting in a table row.
+//
+// Type '0' promises a text file and type '1' a menu, and clients honour that promise: a '0' pointing at one of our pages makes a client render a gophermap as plain text, tabs and all. Item lookup and search are CGI scripts that really do return text; every other target in the tree is written as a directory holding a gophermap (see retro.writeGopher), so it is a menu.
+func gopherRowType(href string) byte {
+	if strings.HasPrefix(href, "/item/") || strings.HasPrefix(href, "/search") {
+		return '0'
+	}
+	return '1'
+}
+
 // isAbsoluteURL reports whether href already carries a scheme.
 //
 // Testing for "://" is not enough: mailto: and news: have no authority component, and mailto is exactly the case that prompted this.
@@ -300,10 +310,13 @@ func Gophermap(d *Doc, o GopherOptions) string {
 						}
 					}
 				}
-				if sel != "" {
-					link('0', l, withPrefix(o.Prefix, sel))
-				} else {
+				switch {
+				case sel == "":
 					info(l)
+				case isAbsoluteURL(sel):
+					link('h', l, "URL:"+sel)
+				default:
+					link(gopherRowType(sel), l, withPrefix(o.Prefix, sel))
 				}
 			}
 			info("")

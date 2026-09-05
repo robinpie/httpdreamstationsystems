@@ -214,7 +214,16 @@ func (b *Builder) CalcRecipe(ctx context.Context, id string) (*render.Doc, error
 	if err != nil {
 		return nil, err
 	}
-	res := calc.Evaluate(*r, pb)
+	d := b.CalcRecipeDoc(*r, pb)
+	b.addFreshness(ctx, d)
+	return d, nil
+}
+
+// CalcRecipeDoc renders one recipe against an already-loaded price book.
+//
+// Split out of CalcRecipe so a caller holding many recipes can fetch ONE price book for the lot. The retro generator writes all ~150 recipe pages on every regeneration; going through CalcRecipe there meant a recipe lookup, a price book query and a freshness query each, and took 47 seconds every five minutes on a box whose day job is answering NTP.
+func (b *Builder) CalcRecipeDoc(r calc.Recipe, pb *store.PriceBook) *render.Doc {
+	res := calc.Evaluate(r, pb)
 
 	d := &render.Doc{Title: r.Name, Subtitle: calc.KindTitle(r.Kind), Path: "/calc/" + r.Kind + "/" + r.ID}
 
@@ -297,8 +306,7 @@ func (b *Builder) CalcRecipe(ctx context.Context, id string) (*render.Doc, error
 		{Text: "All " + strings.ToLower(calc.KindTitle(r.Kind)) + " methods", Href: "/calc/" + r.Kind},
 		{Text: "All money makers", Href: "/calc"},
 	}})
-	b.addFreshness(ctx, d)
-	return d, nil
+	return d
 }
 
 func trimQty(q float64) string {
