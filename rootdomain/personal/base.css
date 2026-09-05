@@ -28,3 +28,21 @@ img {
   max-width: 100%;
   height: auto;
 }
+
+/* 88x31 button wall. Fixed-size badges, so opt out of the img rule above and
+   keep them at their native pixel dimensions rather than scaling. */
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.badges img {
+  display: block;
+  width: 88px;
+  height: 31px;
+  max-width: none;
+}
