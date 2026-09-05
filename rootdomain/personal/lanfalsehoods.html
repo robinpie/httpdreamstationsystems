@@ -11,6 +11,19 @@
   <meta property="og:site_name" content="robin’s page">
   <link rel="stylesheet" href="base.css">
   <link rel="stylesheet" href="themes/<!--# echo var="theme" -->.css">
+  <style>
+    .lanfalsehoods-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .lanfalsehoods-title a {
+      flex: none;
+      line-height: 0;
+    }
+  </style>
 </head>
 <body>
   <!-- The ubuntu804 theme wraps this page in a picture of an Ubuntu 8.04
@@ -45,7 +58,7 @@
 <!--# if expr="$theme = ubuntu804" --><!--# include virtual="/personal/chrome/mid.html" --><!--# endif -->
 
   <main id="content">
-    <h1>Falsehoods Programmers Believe About LANs</h1>
+    <h1 class="lanfalsehoods-title"><span>Falsehoods Programmers Believe About LANs</span><a href="https://www.pangram.com/history/0c725151-a26a-439e-becc-d404eb474662?ucc=tp64Jv2K7C4"><img src="my%20shitty%20Pangram%20100%25%20Human%20badge.png" alt="Pangram 100% Human badge" width="88" height="31"></a></h1>
 
     <p><em>Each entry is phrased as the falsehood. Some of these may sometimes be true and sometimes be false.</em></p>
 
