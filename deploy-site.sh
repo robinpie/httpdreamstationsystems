@@ -35,6 +35,7 @@ NGINX_SITES=(
 )
 NGINX_SNIPPETS=(
 	clacks.conf
+	feeds.conf
 	pgp-key.conf
 	status-cgi.conf
 	theme.conf

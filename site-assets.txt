@@ -17,6 +17,9 @@ BUILD SCRIPTS  (~/configNotes/http/assets-build/, in the repo but a SIBLING of
   make-og.sh          renders ogimage.png with ImageMagick + Pango
   make-favicon.py     renders favicon.ico AND apple-touch-icon.png from
                       favicon.svg's geometry — one run produces both
+  make-feed.py        renders personal/feed.xml (Atom) and personal/rss.xml
+                      from the post list in personal/blog.html — run by the
+                      pre-commit hook, not by hand; see feeds.txt
 
 FAVICON
   The mark is U+2042 ASTERISM, matching the separator already used in the nav

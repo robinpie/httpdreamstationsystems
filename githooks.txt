@@ -13,8 +13,18 @@ Installed hooks:
     post-checkout                          git-lfs
     post-commit -> ../../deploy-hook.sh    runs deploy-site.sh
     post-merge  -> ../../deploy-hook.sh    runs deploy-site.sh
-    pre-commit  -> ../../datestamp-hook.pl schema.org dateModified stamp
+    pre-commit  -> ../../pre-commit.sh     runs the pre-commit chain
     pre-push                               git-lfs
+
+pre-commit was a symlink straight to datestamp-hook.pl until there was a
+second step to run. git runs exactly ONE pre-commit hook, so it now points at
+pre-commit.sh, which calls each step in turn:
+
+    datestamp-hook.pl           schema.org dateModified stamp   (below)
+    assets-build/make-feed.py   Atom + RSS for the blog         (feeds.txt)
+
+Any step added there must re-stage what it rewrites, or the commit will not
+match what the hook computed.
 
 DO NOT set core.hooksPath. It replaces .git/hooks wholesale, which would
 silently disable the deploy hooks and both git-lfs hooks. Symlink instead.

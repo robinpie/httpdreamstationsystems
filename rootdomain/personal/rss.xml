@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>robin’s blog</title>
+    <link>https://dreamstation.systems/personal/blog.html</link>
+    <description>the least consistent blog on the W3</description>
+    <language>en</language>
+    <lastBuildDate>Sat, 05 Sep 2026 00:00:00 +0000</lastBuildDate>
+    <atom:link rel="self" type="application/rss+xml" href="https://dreamstation.systems/personal/rss.xml"/>
+    <item>
+      <title>Falsehoods Programmers Believe About LANs</title>
+      <link>https://dreamstation.systems/personal/lanfalsehoods.html</link>
+      <pubDate>Sat, 05 Sep 2026 00:00:00 +0000</pubDate>
+      <guid isPermaLink="true">https://dreamstation.systems/personal/lanfalsehoods.html</guid>
+      <description>A list of things that are not reliably true about the local network.</description>
+    </item>
+    <item>
+      <title>Internet centralization and the original sin of NAT</title>
+      <link>https://dreamstation.systems/personal/ntppost.html</link>
+      <pubDate>Sun, 30 Aug 2026 00:00:00 +0000</pubDate>
+      <guid isPermaLink="true">https://dreamstation.systems/personal/ntppost.html</guid>
+      <description>How NAT broke the concept of an internet connection</description>
+    </item>
+    <item>
+      <title>Porting Hypnospace Outlaw’s webpages to the real Web</title>
+      <link>https://dreamstation.systems/personal/hypnospace.html</link>
+      <pubDate>Sat, 29 Aug 2026 00:00:00 +0000</pubDate>
+      <guid isPermaLink="true">https://dreamstation.systems/personal/hypnospace.html</guid>
+      <description>Decompiling Hypnospace Outlaw and porting its webpages from the game’s .hsp format to the real Web.</description>
+    </item>
+    <item>
+      <title>Quirky but compliant QOTDs; or, a really slow QOTD server</title>
+      <link>https://dreamstation.systems/personal/slowqotd.html</link>
+      <pubDate>Mon, 22 Jun 2026 00:00:00 +0000</pubDate>
+      <guid isPermaLink="true">https://dreamstation.systems/personal/slowqotd.html</guid>
+      <description>How far you can push RFC 865 when the only lever you have left is the sending itself.</description>
+    </item>
+    <item>
+      <title>Playing with the language modeling abilities of gzip</title>
+      <link>https://dreamstation.systems/personal/gzipt.html</link>
+      <pubDate>Wed, 17 Jun 2026 00:00:00 +0000</pubDate>
+      <guid isPermaLink="true">https://dreamstation.systems/personal/gzipt.html</guid>
+      <description>Exploring whether gzip can generate text by treating compression as prediction.</description>
+    </item>
+  </channel>
+</rss>

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>robin’s blog</title>
+  <subtitle>the least consistent blog on the W3</subtitle>
+  <id>https://dreamstation.systems/personal/blog.html</id>
+  <updated>2026-09-05T00:00:00Z</updated>
+  <link rel="alternate" type="text/html" href="https://dreamstation.systems/personal/blog.html"/>
+  <link rel="self" type="application/atom+xml" href="https://dreamstation.systems/personal/feed.xml"/>
+  <author>
+    <name>robin</name>
+    <email>robin@dreamstation.systems</email>
+  </author>
+  <entry>
+    <title>Falsehoods Programmers Believe About LANs</title>
+    <id>https://dreamstation.systems/personal/lanfalsehoods.html</id>
+    <link rel="alternate" type="text/html" href="https://dreamstation.systems/personal/lanfalsehoods.html"/>
+    <published>2026-09-05T00:00:00Z</published>
+    <updated>2026-09-05T00:00:00Z</updated>
+    <summary type="text">A list of things that are not reliably true about the local network.</summary>
+  </entry>
+  <entry>
+    <title>Internet centralization and the original sin of NAT</title>
+    <id>https://dreamstation.systems/personal/ntppost.html</id>
+    <link rel="alternate" type="text/html" href="https://dreamstation.systems/personal/ntppost.html"/>
+    <published>2026-08-30T00:00:00Z</published>
+    <updated>2026-08-30T00:00:00Z</updated>
+    <summary type="text">How NAT broke the concept of an internet connection</summary>
+  </entry>
+  <entry>
+    <title>Porting Hypnospace Outlaw’s webpages to the real Web</title>
+    <id>https://dreamstation.systems/personal/hypnospace.html</id>
+    <link rel="alternate" type="text/html" href="https://dreamstation.systems/personal/hypnospace.html"/>
+    <published>2026-08-27T00:00:00Z</published>
+    <updated>2026-08-29T00:00:00Z</updated>
+    <summary type="text">Decompiling Hypnospace Outlaw and porting its webpages from the game’s .hsp format to the real Web.</summary>
+  </entry>
+  <entry>
+    <title>Quirky but compliant QOTDs; or, a really slow QOTD server</title>
+    <id>https://dreamstation.systems/personal/slowqotd.html</id>
+    <link rel="alternate" type="text/html" href="https://dreamstation.systems/personal/slowqotd.html"/>
+    <published>2026-06-22T00:00:00Z</published>
+    <updated>2026-06-22T00:00:00Z</updated>
+    <summary type="text">How far you can push RFC 865 when the only lever you have left is the sending itself.</summary>
+  </entry>
+  <entry>
+    <title>Playing with the language modeling abilities of gzip</title>
+    <id>https://dreamstation.systems/personal/gzipt.html</id>
+    <link rel="alternate" type="text/html" href="https://dreamstation.systems/personal/gzipt.html"/>
+    <published>2026-06-17T00:00:00Z</published>
+    <updated>2026-06-17T00:00:00Z</updated>
+    <summary type="text">Exploring whether gzip can generate text by treating compression as prediction.</summary>
+  </entry>
+</feed>
